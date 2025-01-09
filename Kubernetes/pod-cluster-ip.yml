@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: myfirstpodservice
+  labels:
+    podname: secondpodlb
+
+spec:
+  containers:
+    - name: firstcontainer
+      image: nginx
