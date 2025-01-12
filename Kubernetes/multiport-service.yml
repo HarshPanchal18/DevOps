@@ -1,0 +1,45 @@
+# Kubernetes Services
+# A Kubernetes service is a logical collection of pods in a Kubernetes cluster. We can define a K8s service as an abstract way to load balance across the pods and expose an application deployed on a set of Pods. Moreover, using the inbuilt service mechanism in Kubernetes eliminates the need for implementing a separate service discovery mechanism.
+
+# What are Kubernetes services?
+# A Kubernetes service can be used to easily expose an application deployed on a set of pods using a single endpoint. Service is both a REST object and an abstraction that defines:
+
+# A set of pods
+# A policy to access them
+# Pods in a Kubernetes deployment are regularly created and destroyed, causing their IP addresses to change constantly. It will create discoverability issues for the deployed, application making it difficult for the application frontend to identify which pods to connect.
+
+# This is where the strengths of Kubernetes services come into play: services keep track of the changes in IP addresses and DNS names of the pods and expose them to the end-user as a single IP or DNS.
+
+# Kubernetes services utilize selectors to target a set of pods:
+  # For native Kubernetes applications, the endpoint API will be updated whenever there are changes to the pods in the service.
+  # Non-native applications can use virtual-IP-based bridge or load balancer implementation methods offered by Kubernetes to direct traffic to the backend pods.
+
+# Attributes of a Kubernetes service
+
+# A service is assigned an IP address ("cluster IP"), which the service proxies use.
+# A service can map an incoming port to any target port. (By default, the targetPort is set to the same value of the port field, and it can be defined as a string.)
+# The port number assigned to each name can vary in each backend pod. (For example, you can change the port number that pods expose in the next version of your backend software without breaking clients.)
+# Services support TCP (default), UDP, and SCTP for protocols.
+# Services can be defined with or without a selector.
+# Services support a variety of port definitions
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: nginx-service
+
+spec:
+  selector:
+    app: webserver-multiport
+
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8089
+      targetPort: 80
+
+    - name: https
+      protocol: TCP
+      port: 8090
+      targetPort: 443
