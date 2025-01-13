@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: first-pod-to-inject
+
+spec:
+  containers:
+    - image: nginx
+      name: first-cont
+      env:
+        - name: db_user # variable from ConfigMap
+          valueFrom:
+            configMapKeyRef:
+              key: db_passwd
+              name: cm2
