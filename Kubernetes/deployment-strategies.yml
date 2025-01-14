@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: my-deployment
+
+spec:
+  replicas: 3
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+  selector:
+    matchLabels:
+      app: my-app
+
+  template:
+    metadata:
+      labels:
+        app: my-app
+
+    spec:
+      containers:
+        - name: my-container
+          image: nginx
+          ports:
+            - containerPort: 8080
+
+# Scenario 1: maxSurge: 1, maxUnavailable: 0 Desired replica count: 3
+# During the update, Kubernetes creates 1 additional pod at a time while keeping all existing pods running.
+# No pods are removed before the new pods become ready.
+
+# Scenario 2: maxSurge: 0, maxUnavailable: 1 Desired replica count: 3
+# During the update, no additional pods are created (maxSurge: 0), but one pod can be unavailable (maxUnavailable: 1).
+# Kubernetes terminates one pod at a time, ensuring that the desired replica count is maintained. So, at any given time, there will be 2 pods running and 1 pod unavailable.
+
+# Scenario 3: maxSurge: 25%, maxUnavailable: 25% Desired replica count: 4
+# During the update, Kubernetes can create up to 25% of the desired replica count as additional pods (maxSurge: 25%). In this case, it can create a maximum of 1 additional pod.
+# Similarly, up to 25% of the desired replica count can be unavailable (maxUnavailable: 25%). In this case, it can have a maximum of 1 pod unavailable at a time.
+
+# replicas 5 of version: A
+# maxSurge 2 - Additionally 2 pods will be created. After coming these pods in running state, the two older pods will be terminated.
+# maxUnavailable 1 - A single pod will be terminated and then recreated newly.
