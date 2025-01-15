@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: recreate1
+
+spec:
+
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: harsh
+
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+
+  template:
+    metadata:
+      name: my-app
+      labels:
+        app: harsh
+
+    spec:
+      containers:
+        - name: my-cont
+          image: coolgourav147/nginx-custom:v1
