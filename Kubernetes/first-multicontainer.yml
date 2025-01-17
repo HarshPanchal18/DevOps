@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: myfirstpod
+  labels:
+    env: prod
+
+spec:
+  containers:
+    - name: myfirstcontainer
+      image: nginx
+root@master:/home/harsh# cat firstmulticontainer.yaml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: myfirst-multi-pod
+  labels:
+    env: prod
+
+spec:
+  containers:
+    - name: myfirstcontainer
+      image: nginx
+        # args: ["sleep","12"]
+    - name: mysecondcontainer
+      image: redis
