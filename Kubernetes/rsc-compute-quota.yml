@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: RequestQuota
+
+metadata:
+  name: my-quota
+
+spec:
+  hard:
+    request.cpu: 0.5
+    request.memory: 500Mi
+    limit.cpu: 1
+    limit.memory: 1Gi
