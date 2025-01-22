@@ -1,16 +1,22 @@
-# ClusterIP can mean 2 things:
-  # a type of service that is only accessible within a Kubernetes cluster,
-  # the internal (virtual) IP of components within a Kubernetes cluster.
+# Init Containers
 
-# ClusterIP accesses the services through proxy. ClusterIP can access services only inside the cluster.
+# The init containers option is available in Kubernetes environments used to run additional containers at startup that help initialize an application. 
+# Once the init containers have completed their initialization tasks, they terminate but leave the application container(s) running. For the App Server Agent installation, init containers are used as a delivery mechanism to copy the agent files into the application container at deploy time.
 
-# ClusterIP is the default Kubernetes service. This service is created inside a cluster and can only be accessed by other pods in that cluster. So basically we use this type of service when we want to expose a service to other pods within the same cluster.
+# Overview on Kubernetes init containers
+# An init container is an additional container in a Pod that completes a task before the regular container is started
+# Init containers always run to completion.
+# Each init container must complete successfully before the next one starts.
+# The regular container will only be started once the init container has been started
+# An init container in a Pod must run and complete before any other application containers in the Pod started.
+# This is a great way to initialize a Kubernetes pod. You can pull any files, configurations, and so on with an init container.
+# Just as with any other application container, we can have more than one init container in a given Pod; but unlike an application container, each init container must run to completion before the next init container starts.
 
-# This service is accessed using the Kubernetes proxy.
-
-# Default Kubernetes service type is clusterIP, When you create a headless service by setting clusterIP None, no load-balancing is done and no cluster IP is allocated for this service. Only DNS is automatically configured. When you run a DNS query for headless service, you will get the list of the Pods IPs and usually, client DNS chooses the first DNS record.
-
-# clusterIP service creates a single cluster IP and distributes the traffic between pods.
+# Differences from regular containers Official Docs
+# Init containers support all the fields and features of app containers, including resource limits, volumes, and security settings.
+# However, the resource requests and limits for an init container are handled differently, as documented in Resources.
+# init containers do not support lifecycle, livenessProbe, readinessProbe, or startupProbe because they must run to completion before the Pod can be ready.
+# If you specify multiple init containers for a Pod, kubelet runs each init container sequentially. Each init container must succeed before the next can run. When all of the init containers have run to completion, kubelet initializes the application containers for the Pod and runs them as usual.
 
 apiVersion: v1
 kind: Pod
