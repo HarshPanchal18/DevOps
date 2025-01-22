@@ -1,0 +1,36 @@
+# ClusterIP can mean 2 things:
+  # a type of service that is only accessible within a Kubernetes cluster,
+  # the internal (virtual) IP of components within a Kubernetes cluster.
+
+# ClusterIP accesses the services through proxy. ClusterIP can access services only inside the cluster.
+
+# ClusterIP is the default Kubernetes service. This service is created inside a cluster and can only be accessed by other pods in that cluster. So basically we use this type of service when we want to expose a service to other pods within the same cluster.
+
+# This service is accessed using the Kubernetes proxy.
+
+# Default Kubernetes service type is clusterIP, When you create a headless service by setting clusterIP None, no load-balancing is done and no cluster IP is allocated for this service. Only DNS is automatically configured. When you run a DNS query for headless service, you will get the list of the Pods IPs and usually, client DNS chooses the first DNS record.
+
+# clusterIP service creates a single cluster IP and distributes the traffic between pods.
+
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: myfirstinitpod
+  labels:
+    label1: harsh
+    label2: harsh1
+    label3: harsh2
+
+spec:
+  initContainers:
+    - name: initcontainer
+      image: nginx
+      args: ["sleep", "20"]
+
+  containers:
+    - name: first-normal-container
+      image: nginx
+      env:
+        - name: Container-Name
+          value: NGINX
