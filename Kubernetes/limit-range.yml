@@ -1,0 +1,21 @@
+# A LimitRange is a policy to constrain resource allocations (to Pods or Containers) in a namespace.
+apiVersion: v1
+kind: LimitRange
+
+metadata:
+  name: test-limit
+  namespace: namespace1
+
+spec:
+  limits:
+    - default:
+        cpu: 200m
+        memory: 500m
+
+      defaultRequest:
+        cpu: 100m
+        memory: 250m
+
+      type: Container # Apply limits only to the containers
+
+# after setting the limit range, we dont need to specify limit in the pod defination files
