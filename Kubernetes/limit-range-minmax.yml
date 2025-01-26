@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: LimitRange
+
+metadata:
+  name: test-limit
+  namespace: namespace1
+
+spec:
+  limits:
+    - default:
+        cpu: 200Mi
+        memory: 500Mi
+
+      defaultRequest:
+        cpu: 100Mi
+        memory: 250Mi
+
+      min:
+        cpu: 80Mi
+        memory: 250Mi
+
+      max:
+        cpu: 700Mi
+        memory: 700Mi
+
+      type: Container
