@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: requestPod
+
+spec:
+  containers:
+    - image: nginx
+      name: firstcont
+
+      resources:
+        cpu: 0.5
+        memory: 250Mi
+
+      limits:
+        cpu: 1
+        memory: 500Mi
+
+# If you do not specify the request then your limit will become your request and pod or any resource will be created,
+# whereas if you did not specify limit then resource will nit be created and it will throw an error
