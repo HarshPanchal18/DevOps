@@ -1,23 +1,22 @@
 # Git brnaching
 
-![GitTree](git-tree.png)
+## Steps to create a branching repository
 
-## Steps
+![git-flows](git-flow.png)
 
 ```bash
 git branch feature
+git checkout feature
+git commit
+git commit
+git checkout master
+git commit
 git branch release
-git checkout feature
-git commit
 git checkout release
 git commit
-git checkout main
-git commit
-git checkout release
-git checkout feature
-git commit
-git checkout release
 git merge feature
-git checkout main
+git checkout master
+git commit
+git commit
 git merge release
 ```
