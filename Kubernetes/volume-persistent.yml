@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume # decouple the storage provisioning from the consumption and give storage as a service.
+
+metadata:
+  name: pv-example
+
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce # only be used by one node at a time.
+  hostPath:
+    path: /data
+    type: DirectoryOrCreate
