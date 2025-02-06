@@ -1,0 +1,16 @@
+---
+- name: Application installation
+  hosts: localhost # Hosts defined in ansible inventory
+  become: true # Run with sudo privileges
+
+  tasks:
+  - name: Installing nginx
+    apt:
+      name: nginx # Package name
+      state: present # Ensure nginx is installed
+
+  - name: Starting the service
+    service: # Manage the service
+      name: nginx
+      state: started
+      enabled: true # Enable nginx on the device boot
