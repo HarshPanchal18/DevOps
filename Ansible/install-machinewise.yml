@@ -1,0 +1,19 @@
+---
+- name: Install nginx on Debian and Fedora systems
+  hosts: all # Apply to all the hosts of inventory
+  become: true # Run all tasks as root
+
+  vars:
+    nginx_pkg_name: "{{ 'nginx' if ansible_os_family == 'Debian' else 'nginx' }}"
+
+  tasks: # Tasks to be executed
+    - name: Install nginx
+      ansible.builtin.package: # Generic OS pkg manager
+        name: "{{ nginx_pkg_name }}"
+        state: present # [present - intall, absent - remove, latest - install latest version]
+
+    - name: Start and enable nginx
+      ansible.builtin.service: # Manage services - https://docs.ansible.com/ansible/latest/collections/ansible/builtin/service_module.html#ansible-collections-ansible-builtin-service-module
+        name: nginx
+        state: started # [reloaded, restarted, started, stopped]
+        enabled: true
