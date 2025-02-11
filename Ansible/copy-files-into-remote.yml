@@ -7,3 +7,14 @@
       copy:
         src: /root/myfile.txt
         dest: /tmp/
+
+        # ownership
+        owner: root
+        group: root
+
+        # permissions
+        # mode: 0777
+        # mode: ugo=rw
+
+        # Backing up before writing new file.
+        backup: true
