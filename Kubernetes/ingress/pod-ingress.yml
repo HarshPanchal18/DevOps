@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bacon
+  labels:
+    app: bacon
+spec:
+  containers:
+    - name: bacon
+      image: coolgourav147/nginx-custom
+      ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: eggs
+  labels:
+    app: eggs
+spec:
+  containers:
+    - name: eggs
+      image: nginx
+      ports:
+        - containerPort: 8080
+
+# Check the status of the pods of ingress
+# kubectl get ing
+
+# Get IP addresses of the services
+# kubectl describe ing breakfast-all
+
+# Edit /etc/hosts file to add the following entries:
+# <GENERATED_IP1> bacon.breakfast.com
+# <GENERATED_IP2> eggs.breakfast.com
