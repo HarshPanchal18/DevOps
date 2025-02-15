@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-bacon
+spec:
+  selector:
+    app: bacon
+  ports:
+    - port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-eggs
+spec:
+  selector:
+    app: eggs
+  ports:
+    - port: 8080
