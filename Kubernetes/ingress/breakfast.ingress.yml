@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: breakfast-all
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bacon.breakfast.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: svc-bacon
+                port:
+                  number: 8080
+    - host: eggs.breakfast.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: svc-eggs
+                port:
+                  number: 8080
+    - host: breakfast.com
+      http:
+        paths:
+          - path: /bacon
+            pathType: Prefix
+            backend:
+              service:
+                name: svc-bacon
+                port:
+                  number: 8080
+          - path: /eggs
+            pathType: Prefix
+            backend:
+              service:
+                name: svc-eggs
+                port:
+                  number: 8080
