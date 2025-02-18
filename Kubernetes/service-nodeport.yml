@@ -16,7 +16,7 @@ spec:
   type: NodePort
   ports:
     - name: http
-      port: 80
-      targetPort: 80
-      nodePort: 30036
+      port: 80 # Port number exposed internally in cluster
+      targetPort: 80 # The port that the container is listening on
+      nodePort: 30036 # Access this service via this port number
       protocol: TCP
