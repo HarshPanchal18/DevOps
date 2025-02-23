@@ -4,5 +4,11 @@ services:
     ports:
       - "8000:5000" # Binds the container port and host port to the specified port (8000)
 
+    develop:
+      watch: # Watches the current directory for changes
+        - action: sync
+          path: .
+          target: /code
+
   redis:
-    image: "redis:alpine"
+    image: "redis:alpine" # Use the Redis image from Docker Hub
