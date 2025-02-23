@@ -1,0 +1,8 @@
+services:
+  web:
+    build: . # Use an image that's built from the Dockerfile in the current directory
+    ports:
+      - "8000:5000" # Binds the container port and host port to the specified port (8000)
+
+  redis:
+    image: "redis:alpine"
