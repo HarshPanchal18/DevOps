@@ -1,3 +1,8 @@
+---
+
+include:
+  - infra.yml
+
 services:
   web:
     build: . # Use an image that's built from the Dockerfile in the current directory
@@ -9,6 +14,3 @@ services:
         - action: sync
           path: .
           target: /code
-
-  redis:
-    image: "redis:alpine" # Use the Redis image from Docker Hub
