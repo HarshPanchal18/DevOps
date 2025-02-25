@@ -13,3 +13,9 @@
       weekday: "*"
       job: "/tmp/script.sh >> /tmp/test.log"
       user: harsh # User who will run the cronjob.
+
+  - name: Remove a cronjob
+    cron: # Remove the cronjob.
+      name: "Run a script"
+      state: absent
+      user: harsh # User who will run the cronjob.
