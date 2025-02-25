@@ -1,0 +1,15 @@
+---
+- name: Cronjob setup
+  hosts: all
+
+  tasks:
+  - name: Add a cronjob
+    cron: # On 06:30 PM, 10th day of every month, run the script.
+      name: "Run a script"
+      minute: 30
+      hour: 18
+      day: 10
+      month: "*"
+      weekday: "*"
+      job: "/tmp/script.sh >> /tmp/test.log"
+      user: harsh # User who will run the cronjob.
