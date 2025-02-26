@@ -13,6 +13,7 @@
       weekday: "*"
       job: "/tmp/script.sh >> /tmp/test.log"
       user: harsh # User who will run the cronjob.
+      disabled: yes # Disable the cronjob. Defaults to false/no.
 
   - name: Remove a cronjob
     cron: # Remove the cronjob.
