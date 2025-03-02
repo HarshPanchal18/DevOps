@@ -1,0 +1,17 @@
+---
+- name: Firewall changes
+  hosts: all
+  become: true # Run task as privileged(root) and sudo, Apply this playbook with `--ask-become-pass` option to prompt the user for the root password.
+
+  tasks:
+  - name: Enable firewall service
+    firewalld:
+      service: nginx # Service name
+      port: 80 # Port number
+      state: enabled # [or disabled]
+      permanent: yes
+
+  - name: Reload firewall service
+    service:
+      name: firewall
+      state: reloaded
