@@ -10,7 +10,9 @@
       port: 80 # Port number
       state: enabled # [or disabled]
       permanent: yes
+    notify: Reload firewall service # Notify the handler to reload the firewall service
 
+  handlers: # Handlers are used to trigger actions when changes are made to the tasks. Otherwise they are not executed.
   - name: Reload firewall service
     service:
       name: firewall

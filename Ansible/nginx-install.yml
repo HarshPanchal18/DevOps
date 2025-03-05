@@ -2,11 +2,13 @@
 - name: Application installation
   hosts: localhost # Hosts defined in ansible inventory
   become: true # Run with sudo privileges
+  vars:
+    - app: nginx # Application name
 
   tasks:
   - name: Installing nginx
     apt:
-      name: nginx # Package name
+      name: "{{ app }}" # Package name
       state: present # Ensure nginx is installed
     tags: install-nginx # A tag for installing nginx,
     # For running a task with a specific tag: ansible-playbook nginx-install.yml -t install-nginx
@@ -14,7 +16,7 @@
 
   - name: Starting the service
     service: # Manage the service
-      name: nginx
+      name: "{{ app }}" # Service name
       state: started
       enabled: true # Enable nginx on the device boot
     tags: start-nginx # A tag for starting the service, ansible-playbook nginx-install.yml --list-tags, to show all tags
