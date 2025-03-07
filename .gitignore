@@ -1,3 +1,5 @@
 .obsidian
 /harbor/templates
 /harbor/LICENSE
+*.env*
+/infoscreen-main
