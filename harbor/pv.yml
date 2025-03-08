@@ -30,7 +30,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - harsh
+                - master
 
 ---
 apiVersion: v1
@@ -71,7 +71,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - harsh
+                - master
 
 ---
 apiVersion: v1
@@ -112,7 +112,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - harsh
+                - master
 
 ---
 apiVersion: v1
@@ -153,7 +153,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - harsh
+                - master
 
 ---
 apiVersion: v1
@@ -194,7 +194,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - harsh
+                - master
 
 ---
 apiVersion: v1
