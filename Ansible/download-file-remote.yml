@@ -1,0 +1,14 @@
+---
+  - name: Download a file
+    hosts: all
+
+    tasks:
+    - name: Download file
+      get_url:
+        url: https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_120x44dp.png
+        dest: /tmp/googlelogo.png
+        owner: harsh # User who will own the file
+        group: harsh
+        mode: 0644 # File permission
+        force: yes # force download even if file exists
+        validate_certs: no # validate SSL certificate
