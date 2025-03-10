@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: spinnaker-pod
+
+  name: pod-infra-halyard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spinnaker-pod
+
+  template:
+    metadata:
+      labels:
+        app: spinnaker-pod
+
+    spec:
+      containers:
+        - image: "us-docker.pkg.dev/spinnaker-community/docker/halyard:stable"
+          imagePullPolicy: IfNotPresent
+          name: spinnaker-pod
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /home/spinnaker/.hal
+              name: hal-vol
+            - mountPath: /home/spinnaker/.kube
+              name: kube-vol
+      initContainers:
+        - command:
+            - sh
+            - "-c"
+            - >-
+              mkdir -p /home/spinnaker/.hal && chown -R 1000:1000
+              /home/spinnaker/.hal
+          image: busybox
+          imagePullPolicy: Always
+          name: update-permission-crt
+          volumeMounts:
+            - mountPath: /opt/spin
+              name: blank-vol
+            - mountPath: /home/spinnaker/.hal
+              name: hal-vol
+      volumes:
+        - hostPath:
+            path: /var/data/spinnaker/
+            type: ""
+          name: hal-vol
+
+        - emptyDir: {}
+          name: blank-vol
+
+        - hostPath:
+            path: /root/.kube/
+            type: ""
+          name: kube-vol
+
