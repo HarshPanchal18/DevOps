@@ -30,13 +30,15 @@ spec:
               name: hal-vol
             - mountPath: /home/spinnaker/.kube
               name: kube-vol
+            - mountPath: /var/gcp/
+              name: pub-sub-vol
       initContainers:
         - command:
             - sh
             - "-c"
             - >-
               mkdir -p /home/spinnaker/.hal && chown -R 1000:1000
-              /home/spinnaker/.hal
+              /home/spinnaker/.hal && mkdir -p /var/gcp
           image: busybox
           imagePullPolicy: Always
           name: update-permission-crt
@@ -45,6 +47,8 @@ spec:
               name: blank-vol
             - mountPath: /home/spinnaker/.hal
               name: hal-vol
+            - mountPath: /var/gcp/
+              name: pub-sub-vol
       volumes:
         - hostPath:
             path: /var/data/spinnaker/
@@ -59,3 +63,6 @@ spec:
             type: ""
           name: kube-vol
 
+        - name: pub-sub-vol
+          secret:
+            secretName: pub-sub-key
