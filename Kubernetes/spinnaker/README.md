@@ -90,3 +90,9 @@ hal deploy apply
 ```
 
 - Access dashboard on `http://<host-ip>:30000`.
+
+- To clear out `spinnaker` deployment:
+
+```bash
+hal deploy clean
+```

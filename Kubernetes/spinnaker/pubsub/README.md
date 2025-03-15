@@ -9,20 +9,20 @@
 
 * Create PubSub topic and subscription:
 
-```terminal
+```bash
 gcloud pubsub topic create topic-spin
 gcloud pubsub subscription create spin-sub topic-spin
 ```
 
 * Create and configure service account
 
-```terminal
+```bash
 gcloud iam service-accounts create spinnaker-sa --display-name "Spinnaker PubSub"
 ```
 
 * Assign subscriber role.
 
-```terminal
+```bash
 gcloud projects add-iam-policy-binding PROJECT-ID \
     --member serviceAccount:spinnaker-sa@PROJECT-ID.iam.gserviceaccount.com \
     --role roles/pubsub.subscriber
@@ -30,7 +30,7 @@ gcloud projects add-iam-policy-binding PROJECT-ID \
 
 * Generate a json key for the service account and keep it.
 
-```terminal
+```bash
 gcloud iam service-accounts create spinnaker-key.json \
     --iam-account spinnaker-sa@PROJECT-ID.iam.gserviceaccount.com
 ```
@@ -136,7 +136,7 @@ hal deploy apply
 kubectl get pods -n spinnaker
 ```
 
-* Send message through GCP terminal.
+* Send message through GCP bash.
 
 ```bash
 gcloud pubsub topics publish TOPIC-NAME --message '{"name":"harsh"}'
@@ -172,3 +172,7 @@ kubectl logs -f deployment/spinnaker-gate -n spinnaker
   * The correct topic and subscription are being used.
   * The service account has proper permissions.
   * The Halyard configuration is correct.
+
+### A file for troubleshooting
+
+`/var/data/spinnaker/config`
