@@ -3,3 +3,4 @@
 /harbor/LICENSE
 *.env*
 /infoscreen-main
+*.json
