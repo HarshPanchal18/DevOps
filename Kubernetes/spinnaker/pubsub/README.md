@@ -10,8 +10,8 @@
 * Create PubSub topic and subscription:
 
 ```bash
-gcloud pubsub topic create topic-spin
-gcloud pubsub subscription create spin-sub topic-spin
+gcloud pubsub topics create topic-spin
+gcloud pubsub subscriptions create spin-sub --topic topic-spin
 ```
 
 * Create and configure service account
@@ -23,17 +23,16 @@ gcloud iam service-accounts create spinnaker-sa --display-name "Spinnaker PubSub
 * Assign subscriber role.
 
 ```bash
-gcloud projects add-iam-policy-binding PROJECT-ID \
-    --member serviceAccount:spinnaker-sa@PROJECT-ID.iam.gserviceaccount.com \
+gcloud projects add-iam-policy-binding CURRENT-PROJECT-ID \
+    --member serviceAccount:spinnaker-sa@CURRENT-PROJECT-ID.iam.gserviceaccount.com \
     --role roles/pubsub.subscriber
 ```
 
 * Generate a json key for the service account and keep it.
 
-```bash
-gcloud iam service-accounts create spinnaker-key.json \
-    --iam-account spinnaker-sa@PROJECT-ID.iam.gserviceaccount.com
-```
+  1. Pick above created Service Accounts from IAM & Admin
+  2. From Key tab, Click on Add Key.
+  3. Create a new key of `json` type.
 
 * Create Kubernetes secret key from spinnaker-key.json file.
 
@@ -120,7 +119,7 @@ hal config pubsub google enable
 hal config pubsub google subscription add my-topic \
     --subscription-name my-sub \
     --json-path /var/gcp/pubsub-key.json \
-    --project <PROJECT-ID> \
+    --project <CURRENT-PROJECT-ID> \
     --message-format CUSTOM
 ```
 
