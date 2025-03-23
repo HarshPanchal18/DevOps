@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  namespace: cicd
+spec:
+  replicas: 100
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+        - image: hashicorp/http-echo
+          name: myapp-container
+          args:
+            - "-text='<h1>Chutiyaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</h1>'"
+            - "-listen=:8080"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  namespace: cicd
+spec:
+  ports:
+    - nodePort: 31004
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: myapp
+  type: NodePort
