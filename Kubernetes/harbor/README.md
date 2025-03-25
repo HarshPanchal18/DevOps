@@ -320,7 +320,9 @@ kubectl get pods -n harbor
 kubectl get svc -n harbor
 ```
 
-* To allow internet connectivity inside `-n harbor redis` pod,
+* Access dashboard via `host-ip:30002` cause `externalURL` is for internal communications.
+
+* To remove Kubernetes completely.
 
 ```bash
 kubeadm reset -f
@@ -329,4 +331,22 @@ rm -rf /etc/cni/net.d
 rm -rf /var/lib/cni/
 rm -rf /var/lib/kubelet/*
 rm -rf /etc/kubernetes/
+```
+
+## Pushing image on harbor
+
+* Create a new project on Harbor.
+
+* Get an image.
+
+* Tag it with `externalURL:port/project-name/imageName[:version]`.
+
+```bash
+docker tag nginx harbor.harsh.com:30002/inventyv/nginx-latest[:version]
+```
+
+* Push image to Harbor.
+
+```bash
+docker push harbor.harsh.com:30002/inventyv/nginx-latest[:version]
 ```
