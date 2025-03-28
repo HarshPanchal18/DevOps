@@ -24,7 +24,7 @@
 
 * `[ Kubernetes Controller Manager ]` Manages controllers to regulate the state of the system.
 
-* `[ Kube Proxy ]` - Maintains network rules to allow communication between pods and external traffic.
+* `[ Kube Proxy ]` - Maintains network rules to allow communication between pods and external traffic. (kind of Midiater firewall)
 
 * `[ etcd ]` - Consistent and highly-available key-value store used for all cluster data.
 
@@ -163,3 +163,185 @@ spec:
           hostPath:
             path: /var/log
 ```
+
+## Keys and certificates
+
+* Keys and certificates are used in Kubernetes (and other systems) for **authentication**, **encryption**, and **authorization**.
+
+### **Keys**
+
+* **Private Key (`harsh.key`)**:
+
+  * A private key is a secret key used to prove the identity of a user or system.
+  * It is used to sign data (e.g., certificate signing requests) and establish secure communication.
+  * It must be kept confidential and never shared.
+
+### **Certificates**
+
+* **Certificate (`harsh.crt`)**:
+  * A certificate is a public document that binds a public key to an identity (e.g., a user or system).
+  * It is issued by a trusted Certificate Authority (CA) and is used to verify the identity of the key owner.
+  * In Kubernetes, certificates are used to authenticate users, nodes, or components.
+
+### **Purpose in Kubernetes**
+
+1. **Authentication**:
+   * Certificates are used to authenticate users or components (e.g., kubelets, API servers) in the cluster.
+   * The `CN` (Common Name) in the certificate identifies the user, and the `O` (Organization) specifies the group.
+
+2. **Encryption**:
+   * Certificates enable secure communication between Kubernetes components (e.g., kube-apiserver and kubelet) using TLS (Transport Layer Security).
+
+3. **Authorization**:
+   * Certificates can be tied to RBAC (Role-Based Access Control) policies to define what actions a user or component is allowed to perform in the cluster.
+
+## RBAC Authorization
+
+* `Role-based access control (RBAC)` is a method of regulating access to computer or network resources based on the roles of individual users within your organization.
+
+* RBAC authorization uses the `rbac.authorization.k8s.io` API group to drive authorization decisions, allowing you to dynamically configure policies through the Kubernetes API.
+
+* The RBAC API declares four kinds of Kubernetes object: `Role`, `ClusterRole`, `RoleBinding` and `ClusterRoleBinding`.
+
+> An `RBAC Role` or `ClusterRole` contains rules that represent a set of permissions. Permissions are purely additive (there are no "deny" rules).
+
+> A Role always sets permissions within a particular namespace; *when you create a Role, you have to specify the namespace it belongs in.*
+
+> ClusterRole, by contrast, is `a non-namespaced resource`. The resources have different names (Role and ClusterRole) because a Kubernetes object always has to be either namespaced or not namespaced; it can't be both.
+
+* ClusterRoles have several uses. You can use a ClusterRole to:
+
+  1. define permissions on namespaced resources and be granted access within individual namespace(s)
+  2. define permissions on namespaced resources and be granted access across all namespaces
+  3. define permissions on cluster-scoped resources
+
+If you want to define a role within a namespace, use a Role; if you want to define a role cluster-wide, use a ClusterRole.
+
+* ClusterRole - A ClusterRole can be used to grant the same permissions as a Role. Because ClusterRoles are `cluster-scoped`, you can also use them to grant access to:
+
+  * cluster-scoped resources (like nodes)
+
+  * non-resource endpoints (like /healthz)
+
+  * namespaced resources (like Pods), across all namespaces
+
+* For example: you can use a ClusterRole to allow a particular user to run `kubectl get pods --all-namespaces`
+
+* To grant read access to secrets in any particular namespace, or across all namespaces (depending on how it is bound):
+
+```yaml
+# access/simple-clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: secret-reader
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "watch", "list"]
+```
+
+### Steps to implement RBAC
+
+1. Generate SSL certificate and private key (2048 bit long).
+
+```bash
+openssl genrsa -out harsh.key 2048
+```
+
+2. Create certificate signing request for the user with above key.
+
+* The private key (`harsh.key`) and certificate signing request (`harsh.csr`) are generated for the user `harsh`.
+
+```bash
+openssl req -new \
+        -key harsh.key \
+        -out harsh.csr \
+        -subj "/CN=harsh/O=dev/O=example.org"
+```
+
+* The `CN=harsh` specifies the username, and `O=dev` and `O=example.org` specify the groups, which can be used for RBAC rules.
+
+3. Authorize the certificate signing request - CSR with minikube.
+
+```bash
+sudo openssl x509 -req \
+            -CA /etc/kubernetes/pki/ca.crt \
+            -CAkey  /etc/kubernetes/pki/ca.key \
+            -CAcreateserial \
+            -days 730 \
+            -in harsh.csr \
+            -out harsh.crt
+```
+
+* **Command breakdown**
+
+* The certificate (`harsh.crt`) is signed by `Minikube's CA`, allowing `harsh` to authenticate with the Kubernetes cluster.
+
+> `x509` is a standard format for public key certificates.
+> `-req` indicates that the input is a `CSR - Certificate Signing Request`.
+> `-CA /etc/kubernetes/pki/ca.crt` specifies the CA certificate (ca.crt) to use for signing the certificate. Same for a Certificate key.
+> `CAcreateserial` - Automatically generates a serial number file (ca.srl) for the certificate if it doesn't already exist. This ensures that each certificate signed by the CA has a unique serial number.
+> `-days 730` specifies the validity period of the certificate in days (730 days = 2 years).
+> `-in harsh.csr` specifies the input CSR file (harsh.csr) that contains the public key and identity information for the certificate.
+> `-out harsh.crt` specifies the output file (harsh.crt) where the signed certificate will be saved.
+
+This command is typically used to create a user or component certificate for Kubernetes authentication. The signed certificate `(harsh.crt)` can then be used with the corresponding private key `(harsh.key)` to securely interact with the Kubernetes API.
+
+4. Add user to the kubernetes cluster.
+
+```bash
+kubectl config set-credentials harsh --client-certificate=harsh.crt --client-key=harsh.key
+```
+
+5. Create a context.
+
+```bash
+kubectl config set-context harsh-k8s --cluster=kubernetes --user=harsh --namespace=default
+```
+
+6. Verify context.
+
+```bash
+kubectl config get-contexts
+```
+
+* To switch the context.
+
+```bash
+kubectl config use-context harsh-k8s
+```
+
+7. Apply the following .yaml to create a new role.
+
+* An example Role in the "default" namespace that can be used to grant read access to pods:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: pod-reader
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+```
+
+* Verify the created role.
+
+```bash
+kubectl get roles
+```
+
+8. Now we should connect these both so the user can have these permissions (RoleBinding).
+
+> Role[What Can|Cannot access] + Subject [User|Group|ServiceAccount] = RoleBinding
+
+* Apply the `role.yml` and `role-binding.yml` files from `rbac` directory.
+
+9. Verify the changes via changing contexts alternatively.
+
+### ClusterRole and ClusterRoleBinding
+
+1. Apply the `cluster-role.yml` and `cluster-role-binding.yml` files from `rbac` directory.
