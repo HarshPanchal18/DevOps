@@ -345,3 +345,22 @@ kubectl get roles
 ### ClusterRole and ClusterRoleBinding
 
 1. Apply the `cluster-role.yml` and `cluster-role-binding.yml` files from `rbac` directory.
+
+### Service Account
+
+* To create new service account,
+
+```bash
+kubectl create sa test-sa
+```
+
+* To verify that you have an access of a resource:
+
+```bash
+kubectl auth can-i create pods # If current context can create pods.
+```
+
+```bash
+kubectl auth can-i create pods --as="system:serviceaccount:default:test-sa" # If test-sa service account can create pods inside "default" namespace.
+kubectl auth can-i get pods --as="system:serviceaccount:default:test-sa" # If test-sa service account can get pods inside "default" namespace.
+```
