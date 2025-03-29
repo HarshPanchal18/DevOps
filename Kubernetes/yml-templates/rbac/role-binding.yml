@@ -8,6 +8,9 @@ subjects:
   name: harsh
   apiGroup: rbac.authorization.k8s.io
 
+- kind: ServiceAccount
+  name: test-sa # Attaching the role to service account.
+
 roleRef:
   kind: Role
   name: pods-reader
