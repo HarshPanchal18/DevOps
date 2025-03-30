@@ -70,11 +70,16 @@ disable_swaps
 echo "Enabling kernel modules..."
 enable_kernel_module
 
-echo "Setting up Kubernetes..."
-setup_k8s
+if [[ $1 == "master" ]]; then
+    echo "Setting up Kubernetes master node..."
+    setup_k8s
 
-echo "Installing Calico..."
-install_calico
+    echo "Installing Calico..."
+    install_calico
+else
+    echo "Setting up Kubernetes worker node..."
+    echo "Please use the kubeadm join command provided by the master node to join the cluster."
+fi
 
 echo "Kubernetes cluster setup completed successfully!"
 sudo kubectl get nodes
