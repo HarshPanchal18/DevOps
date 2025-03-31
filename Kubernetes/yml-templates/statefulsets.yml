@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+
+spec:
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: web
+
+  serviceName: web
+
+  template:
+    metadata:
+      labels:
+        app: web
+
+    spec:
+      containers:
+        - image: nginx:latest
+          name: web
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html
+              name: www
+
+  volumeClaimTemplates:
+    - metadata:
+        name: www
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
