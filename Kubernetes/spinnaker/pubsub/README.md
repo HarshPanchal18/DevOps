@@ -34,7 +34,7 @@ gcloud projects add-iam-policy-binding CURRENT-PROJECT-ID \
   2. From Key tab, Click on Add Key.
   3. Create a new key of `json` type.
 
-* Create Kubernetes secret key from spinnaker-key.json file.
+* Create Kubernetes secret key from spinnaker-key.json file. Skip if already created.
 
 ```bash
 kubectl create secret generic pub-sub-key --from-file=spinnaker-key.json

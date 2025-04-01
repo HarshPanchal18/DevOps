@@ -9,6 +9,18 @@ mkdir -p /var/data/spinnaker/
 chmod 777 /var/data/spinnaker/
 ```
 
+- Create Kubernetes secret key from `spinnaker-key.json` file. Skip if already created.
+
+```bash
+kubectl create secret generic pub-sub-key --from-file=spinnaker-key.json
+```
+
+- Verify the secret key
+
+```bash
+kubectl get secrets
+```
+
 - Apply the configuration file `minio/halyard.yml`.
 
 - Get into halyard pod.
