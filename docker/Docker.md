@@ -8,19 +8,30 @@ So, any file change inside the container creates a working copy in the read-writ
 ![[DockerFSImage.png]]
 
 We can verify this by running a command that writes and then reads a file:
+
 ```bash
-$ docker run bash:latest \ 
+$ docker run bash:latest \
   bash -c "echo hello > file.txt && cat file.txt"
 ```
 
 The result is:
-```plaintext
+
+```text
 hello
 ```
 
 However, if we run the same image with just the command to output the contents of the same file, we get an error:
+
 ```bash
-$ docker run bash:latest bash -c "cat file.txt" 
+$ docker run bash:latest bash -c "cat file.txt"
 cat: can't open 'file.txt': No such file or directory
 ```
 
+## Troubleshooting
+
+* Permission denied while trying to connect to the docker daemon socket at unix://var/run/docker.sock
+* Allow current user via appending into docker group.
+
+```bash
+sudo usermod -aG docker $USER && newgrp docker
+```
