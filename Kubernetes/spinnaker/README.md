@@ -91,8 +91,8 @@ kubectl get svc -n spinnaker
 - Set UI and API Ports
 
 ```bash
-hal config security ui edit --override-base-url "http://$(ifconfig ens33 | sed -En -e 's/.*inet ([0-9.]+).*/\1/p'):30000" # Host IP address
-hal config security api edit --override-base-url "http://$(ifconfig ens33 | sed -En -e 's/.*inet ([0-9.]+).*/\1/p'):30001" # Host IP address
+hal config security ui edit --override-base-url "HOST-IP:30000"
+hal config security api edit --override-base-url "HOST-IP:30001"
 ```
 
 - Apply changes to Halyard.
