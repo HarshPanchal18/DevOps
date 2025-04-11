@@ -2,7 +2,6 @@
 /harbor/templates
 /harbor/LICENSE
 *.env*
-/infoscreen-main
 *.json
-*keys.properties*
-*.png*
+*.properties*
+*application-management*
