@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-secrets-global
+
+subjects:
+- kind: User
+  name: harsh
+  apiGroup: rbac.authorization.k8s.io
+- kind: Group
+  name: dev # Refer the group name from the step:2 (Creating CSR with key) in README.
+  apiGroup: rbac.authorization.k8s.io
+
+roleRef:
+  kind: ClusterRole
+  name: pods-reader
+  apiGroup: rbac.authorization.k8s.io
