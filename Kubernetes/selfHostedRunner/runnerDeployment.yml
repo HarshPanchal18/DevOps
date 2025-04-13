@@ -1,11 +1,12 @@
-# runnerdeployment.yaml
 apiVersion: actions.summerwind.dev/v1alpha1
 kind: RunnerDeployment
+
 metadata:
   name: example-runnerdeploy
+  namespace: github-runner
+
 spec:
-  # This will deploy 2 runners now
-  replicas: 2
+  replicas: 1
   template:
     spec:
       repository: HarshPanchal18/HarshPanchal18

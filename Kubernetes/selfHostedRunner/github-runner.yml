@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: github-runner
+  labels:
+    app: github-runner
+  namespace: github-runner
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: github-runner
+
+  template:
+    metadata:
+      labels:
+        app: github-runner
+
+    spec:
+      hostname: harsh-runner
+      hostAliases:
+      - ip: "127.0.0.1"
+        hostnames:
+          - "harbor.harsh.com"
+
+      containers:
+      - name: github-runner
+        image: yagneshjariwala/github-runner
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            sudo chmod 777 /var/run/docker.sock;
+            ./entrypoint.sh
+        env:
+          - name: GITHUB_OWNER
+            value: yagnesh0312
+          - name: GITHUB_REPOSITORY
+            value: cicd-deployment
+          - name: GITHUB_PAT # stored separately in a Kubernetes secret
+            valueFrom:
+              secretKeyRef:
+                name: github-pat
+                key: github_token
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2"
+
+        volumeMounts:
+          - name: docker-socket
+            mountPath: /var/run/docker.sock
+          - name: docker-config
+            mountPath: /etc/docker/daemon.json
+          - name: docker
+            mountPath: /usr/bin/docker
+
+      volumes:
+        - name: docker-config
+          hostPath:
+            path: /etc/docker/daemon.json
+            type: File
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: docker
+          hostPath:
+            path: /usr/bin/docker  # Change this path if needed
+            type: File

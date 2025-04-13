@@ -19,9 +19,9 @@ kubectl apply -f https://github.com/actions/actions-runner-controller/releases/d
 ## Create Kubectl secret for PAT
 
 ```bash
-kubectl create secret generic controller-manager \
-    -n actions-runner-system \
-    --from-literal=github_token=${PAT-TOKEN}
+kubectl create secret generic github-pat \
+    -n github-runner \
+    --from-literal=github_token=PAT
 ```
 
 ## Verify that pods are running
