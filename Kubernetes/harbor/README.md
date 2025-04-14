@@ -313,6 +313,21 @@ HOST-IP URL-W/O-PORT
 systemctl restart docker
 ```
 
+* For ContainerD, edit `/etc/containerd/config.toml` and apply the following changes.
+
+```toml
+[plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."harbor.harsh.com:30002"]
+        endpoint = ["http://harbor.harsh.com:30002"]
+```
+
+* Restart `ContainerD` service and Reload Daemon.
+
+```bash
+service containerd restart
+systemctl daemon-reload
+```
+
 * Verify installation
 
 ```bash
@@ -322,7 +337,7 @@ kubectl get svc -n harbor
 
 * Access dashboard via `host-ip:30002` cause `externalURL` is for internal communications.
 
-* To remove Kubernetes completely.
+## To remove Kubernetes completely
 
 ```bash
 kubeadm reset -f
@@ -337,6 +352,8 @@ rm -rf /etc/kubernetes/
 
 * Create a new project on Harbor.
 
+* Create a new `robot account` for login inside runner.
+
 * Get an image.
 
 * Tag it with `externalURL:port/project-name/imageName[:version]`.
@@ -350,3 +367,13 @@ docker tag nginx harbor.harsh.com:30002/inventyv/nginx-latest[:version]
 ```bash
 docker push harbor.harsh.com:30002/inventyv/nginx-latest[:version]
 ```
+
+## Troubleshooting
+
+* Try appending following lines inside `/etc/hosts`.
+
+```text
+HOST-IP EXTERNAL-URL
+```
+
+* **E.x.** `34.68.30.199 harbor.harsh.com`

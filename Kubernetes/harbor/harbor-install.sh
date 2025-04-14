@@ -2,7 +2,7 @@
 
 function check_helm_installed() {
     if command -v helm &> /dev/null; then
-        echo "Helm is already installed of version: $(helm --version)"
+        echo "Helm is already installed of version: $(helm version)"
         exit 0
     else
         echo "Helm is not installed. Proceeding with installation..."
