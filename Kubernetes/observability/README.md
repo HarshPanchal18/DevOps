@@ -46,6 +46,77 @@ helm get notes my-grafana -n monitoring
 
 * Dashboard Templates for monitoring. [Link](https://grafana.com/grafana/dashboards/)
 
+## Setting up for project
+
+* Add Prometheus-community repo.
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+```
+
+* Create namespace `monitoring`.
+
+* Apply `storage-class.yml`, `pv-prom.yml`, and `pv-graf.yml` files.
+
+* Create directories with permissions for volumes.
+
+```bash
+mkdir -p /home/harsh/volumes/prometheus
+mkdir -p /home/harsh/volumes/grafana
+
+chmod -R 777 /home/harsh/volumes/prometheus
+chmod -R 777 /home/harsh/volumes/grafana
+```
+
+* Fetch `prometheus-stack` and untar it.
+
+```bash
+helm fetch prometheus-community/kube-prometheus-stack --untar
+cd kube-prometheus-stack
+```
+
+* Update `values.yaml`
+
+```yaml
+prometheus: # Line 3316
+  prometheusSpec: # Line 3831
+    scrapeInterval: "5s" # Line 3872
+    evaluationInterval: "5s" # Line 3890
+    additionalScrapeConfigs: # Line 4286
+      - job_name: flask-app # Append this elements
+        static_configs:
+          - targets:
+              - <Your-Project-IP>:31111
+    storageSpec: # Line 4251
+      volumeClaimTemplate: # Append this values
+        spec:
+          storageClassName: prometheus
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+grafana: # Line 1214
+  persistence: # Line 1291, append
+    enabled: true
+    storageClassName: "prometheus"
+    accessModes:
+      - ReadWriteOnce
+    size: 20Gi
+```
+
+* Install Helm chart of Prometheus stack through untar-ed directory.
+
+```bash
+helm install my-prom . -f values.yaml -n monitoring \
+    --set prometheus.service.nodePort=30004 --set prometheus.service.type=NodePort \
+    --set grafana.service.nodePort=30006 --set grafana.service.type=NodePort \
+    --set alertmanager.service.nodePort=30008 --set alertmanager.service.type=NodePort \
+    --set kube-state-metrics.service.nodePort=30010 --set kube-state-metrics.service.type=NodePort \
+    --set prometheus-node-exporter.service.nodePort=30012 --set prometheus-node-exporter.service.type=NodePort
+```
+
 <!-- * To add the Grafana repository, [Link](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/)
 
 ```bash
