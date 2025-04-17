@@ -364,3 +364,73 @@ kubectl auth can-i create pods # If current context can create pods.
 kubectl auth can-i create pods --as="system:serviceaccount:default:test-sa" # If test-sa service account can create pods inside "default" namespace.
 kubectl auth can-i get pods --as="system:serviceaccount:default:test-sa" # If test-sa service account can get pods inside "default" namespace.
 ```
+
+## Autoscaling in Kubernetes
+
+Autoscaling in Kubernetes is a powerful feature that allows applications to dynamically adjust their resource usage based on demand.
+
+It ensures that workloads can scale up during periods of high traffic and scale down during low usage, optimizing resource utilization and reducing costs.
+
+* Kubernetes provides multiple types of autoscaling mechanisms:
+
+### 1. **Horizontal Pod Autoscaler (HPA)**: Automatically adjusts the number of pod replicas in a deployment or replica set based on CPU, memory, or custom metrics
+
+![Horizontal Pod Scaling](yml-templates/auto-scaling/hz-pod-scaling.png)
+
+* A formula to calculate the number of pods: `d = ceil [ a * ( c / t )]`
+
+> where,
+
+* `d` = desired number of replicas
+
+* `a` = actual number of replicas
+
+* `c` = current value of the matric
+
+* `t` = target value
+
+#### An Example of CPU usage
+
+```math
+d = ceil[2 * (90 / 70)] = ceil[2 * 1.28] = ceil[2.57] = 3 replicas
+```
+
+where,
+
+* 90 is current value of the cpu.
+* 70 is a target value(max. limit).
+* 2 is an actual number of replicas right now.
+
+#### An Example of Memory usage
+
+```math
+d = ceil[2 * (1000 / 500)] = ceil[2 * 2] = 4 replicas
+```
+
+where,
+
+* 1000 is current value of the memory.
+* 500 is a target value(max. limit).
+* 2 is an actual number of replicas right now.
+
+* Get the metrics for the replicas via
+
+```bash
+kubectl top pods
+```
+
+* Get autoscaling metrics
+
+```bash
+kubectl get hpa
+```
+
+* [WRK](https://github.com/wg/wrk) - A HTTP benchmarking tool
+
+### 2. **Vertical Pod Autoscaler (VPA)**: Dynamically adjusts the resource requests and limits (CPU and memory) of individual pods to match their actual usage
+
+### 3. **Cluster Autoscaler**: Scales the number of nodes in a cluster up or down based on pending pods and resource requirements
+
+* By utilizing autoscaling, Kubernetes ensures that applications remain highly available, responsive, and cost-efficient, even in fluctuating workloads.
+
+[Reference](https://www.youtube.com/watch?v=jyBDbm1FHiM)
