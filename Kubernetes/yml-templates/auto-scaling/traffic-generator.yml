@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: traffic-generator
+
+spec:
+  containers:
+    - name: traffic
+      image: nginx:1.18.0-alpine
+      args:
+      - sleep
+      - "1000000"
+      # command: ["sh", "-c", "while true; do curl -s http://web-server:8080/healthcheck; sleep 1; done"]

@@ -1,0 +1,23 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: HorizontalPodAutoscaler
+
+metadata:
+  name: utility-api
+  namespace: default
+
+spec:
+  minReplicas: 1
+  maxReplicas: 10
+
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 70
+          type: Utilization
+      type: Resource
+
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: utility-api

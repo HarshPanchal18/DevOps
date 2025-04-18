@@ -1,0 +1,15 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler # Does not come prebuilt. Refer to github@kubernetes/autoscaler
+
+metadata:
+  name: utility-api
+
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: utility-api
+
+  updatePolicy:
+    updateMode: "Off" # [Auto|Off|Initial]
+                      # [Apply the recommendations | Get the recommendations only, don't apply | Apply the recommendations to only newly created pods]
