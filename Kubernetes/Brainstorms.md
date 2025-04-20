@@ -120,3 +120,112 @@ To investigate a 60% increase in the AWS bill with minimal change in app usage, 
 By investigating these potential causes, I can identify the root cause of the increased AWS bill and take corrective action to optimize costs and reduce expenses.
 
 ---
+
+## Production server went down, no alerts received. How will you build a proactive monitoring system?
+
+To build a proactive monitoring system, I would follow these steps:
+
+1. **Define Monitoring Objectives**: Identify the `key performance indicators (KPIs)` and `critical services` that require monitoring. Determine the `desired monitoring frequency, response times, and alert thresholds`.
+
+2. **Choose Monitoring Tools**: Select a combination of monitoring tools that can provide visibility into the production environment, such as:
+    * **Infrastructure monitoring**: `Nagios, Prometheus, or Datadog` to monitor server performance, CPU, memory, disk usage, and network traffic.
+    * **Application monitoring**: `New Relic, AppDynamics, or Dynatrace` to monitor application performance, latency, and errors.
+    * **Log analysis**: `ELK Stack (Elasticsearch, Logstash, Kibana)` or Splunk to analyze log data and detect anomalies.
+
+3. **Set Up Monitoring Agents**: Install `monitoring agents` on production servers to collect data on CPU, memory, disk usage, and network traffic. Configure the agents to send data to the monitoring tools.
+
+4. **Configure Alerting**: Set up alerting mechanisms to notify the operations team of potential issues. Configure alerts based on KPIs, such as:
+    * **Threshold-based alerts**: Trigger alerts when CPU usage exceeds 80% or memory usage exceeds 90%.
+    * **Anomaly-based alerts**: Detect unusual patterns in log data or network traffic.
+    * **Service-based alerts**: Trigger alerts when a critical service becomes unavailable.
+
+5. **Implement On-Call Rotations**: Establish an on-call rotation to ensure that someone is available to respond to alerts 24/7.
+
+6. **Conduct Regular Maintenance**: Schedule regular maintenance tasks, such as:
+    * **Agent updates**: Update monitoring agents to ensure they are running with the latest version.
+    * **Tool updates**: Update monitoring tools to ensure they are running with the latest version.
+    * **Performance testing**: Perform regular performance testing to ensure the monitoring system is not impacting production performance.
+
+7. **Continuously Improve**: Regularly review the monitoring system to identify areas for improvement. Gather feedback from the operations team and make adjustments as needed.
+
+**Proactive Monitoring Strategies**:
+
+* **Real-time monitoring**: Monitor production systems in real-time to detect potential issues before they impact users.
+* **Predictive analytics**: Use machine learning algorithms to predict potential issues based on historical data and system trends.
+* **Automated remediation**: Automate remediation tasks, such as restarting services or deploying patches, to minimize downtime.
+
+By following these steps and implementing proactive monitoring strategies, you can build a robust monitoring system that detects potential issues before they impact users.
+
+---
+
+## In your docker compose setup, two services can't connect. How do you debug and fix the networking issue?
+
+To debug and fix the networking issue between two services in a Docker Compose setup, follow these steps:
+
+1. **Verify Service Names**: Ensure that the service names in the `docker-compose.yml` file are correct and match the names used in the Docker containers.
+
+2. **Check Network Mode**: Verify that both services are using the same network mode, such as `bridge`, `host`, or `none`. You can check the network mode in the `docker-compose.yml` file or by running `docker inspect` on the containers.
+
+3. **Inspect Network Configuration**: Run `docker network inspect` on the network used by both services to inspect their network configuration. This will show you the IP addresses, ports, and other network settings for each service.
+
+4. **Verify Port Bindings**: Ensure that both services are binding to the correct ports and that the ports are not conflicting. You can check the port bindings in the `docker-compose.yml` file or by running `docker inspect` on the containers.
+
+5. **Check Firewall Rules**: Verify that there are no firewall rules blocking the communication between the two services.
+
+6. **Test Network Connectivity**: Use tools like `telnet` or `nc` to test the network connectivity between the two services. For example, you can run `telnet <service1_ip>:<port>` to test connectivity from service1 to service2.
+
+7. **Check Docker Logs**: Check the Docker logs for both services to see if there are any errors or warnings related to network connectivity.
+
+8. **Try a Different Network Mode**: Try changing the network mode for one of the services to `host` or `none` to see if it resolves the issue.
+
+**Common Networking Issues**:
+
+* **Port conflicts**: Ports used by one service are already in use by another service.
+* **IP address conflicts**: IP addresses assigned to services are conflicting with each other.
+* **Firewall rules**: Firewall rules are blocking communication between services.
+* **Network mode issues**: Services are not using the same network mode or are experiencing issues with the network mode.
+
+**Debugging Tips**:
+
+* **Use `docker-compose up -d` to run services in detached mode**: This allows you to inspect the containers and network configuration without interrupting the services.
+* **Use `docker network inspect` to inspect network configuration**: This provides detailed information about the network settings for each service.
+* **Use `docker logs` to check service logs**: This helps identify any errors or warnings related to network connectivity.
+
+By following these steps and debugging tips, you can identify and fix the networking issue between two services in your Docker Compose setup.
+
+---
+
+## User report errors mid-rollout. How would you rollback and ensure smooth updates?
+
+To rollback and ensure smooth updates during a deployment, follow these steps:
+
+1. **Identify the issue**: Determine the root cause of the errors and identify the specific deployment that triggered the issue.
+
+2. **Rollback to the previous version**: Rollback to the previous version of the application or service that was working correctly.
+
+3. **Freeze the rollout**: Freeze the rollout process to prevent further deployments until the issue is resolved.
+
+4. **Investigate the issue**: Investigate the issue to determine the cause and identify any potential fixes.
+
+5. **Implement a fix**: Implement a fix or patch to resolve the issue and prevent similar problems in the future.
+
+6. **Test the fix**: Thoroughly test the fix to ensure it resolves the issue and does not introduce new problems.
+
+7. **Resume the rollout**: Once the fix is confirmed, resume the rollout process to deploy the updated version of the application or service.
+
+**Best Practices for Rollbacks**:
+
+* **Use a rolling update strategy**: Use a rolling update strategy to deploy updates to a subset of servers or services, allowing for a smooth transition to the new version.
+* **Implement canary releases**: Implement canary releases to deploy a small subset of users to the new version, allowing for testing and validation before rolling out to the entire user base.
+* **Use automated rollback**: Use automated rollback mechanisms to quickly revert to a previous version of the application or service in case of an issue.
+* **Monitor and log**: Monitor and log all deployments, rollbacks, and updates to ensure that any issues can be quickly identified and resolved.
+
+**Communication**:
+
+* **Notify stakeholders**: Notify stakeholders, including developers, testers, and users, about the issue and the rollback process.
+* **Provide updates**: Provide regular updates on the status of the rollback and any subsequent deployments.
+* **Communicate changes**: Communicate any changes made to the application or service as a result of the rollback.
+
+By following these steps and best practices, you can ensure a smooth rollback and update process, minimizing downtime and ensuring the reliability of your application or service.
+
+---
