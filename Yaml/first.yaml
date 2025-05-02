@@ -1,0 +1,50 @@
+# This is comment  written in yaml
+# Yaml is like one type of key value  structure 
+
+courses:
+  course_nam: "Node Backend Dev"
+  version : 1.5
+  price : &cprice 5099
+  is_public : true
+  release_date : 2025-05-02:10:38:37
+  pre_enroll: null
+  tags: 
+    -Node
+    -javascript
+    -pern
+    -web Dev
+  course_ta: ["Kp","Yp","Vv","Dk","Ap","Ds"]
+  ta_details : 
+    - name : "kashyap"
+      email : "kashyap14@gmail.com"
+      role : Backend
+    - name : "Yug"
+      email : "yug306@gmail.com"
+      role : ui/ux designer
+    - name : "Vraj Vyas"
+      email : "vraj11@gmail.com"
+      role : Frontend 
+    - name : "Dk"
+      email : "dk23@gmail.com"
+      role : App Dev-ReactNative
+    - name : "Ayush"
+      email : "ayush1@gmail.com"
+      role : App Dev-Android
+    - {name:"Dhruv",email:"Dhruv1@gmail.com",role:QA}
+  short_desc: >
+    Some description about course
+    on mern/pern 
+  process_payment: *cprice
+
+  adv: &adv
+   mykey: myval
+
+  another_adv : 
+    one: one1
+    two: two2
+    << : *adv
+
+
+  
+
+
