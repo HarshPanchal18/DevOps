@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: example-job
+
+spec:
+  backOffLimit: 2 # The number of retries a job will attempt before considering it failed. K8s will create new pods for each retry. Default is 6.
+  activeDeadlineSeconds: 50 # The maximum time in seconds a job can run before it is terminated. Otherwise DeadlineExceeded will be returned.
+  completions: 3 # The number of successful completions required for the job to be considered complete. Default is 1. (Similar to replicas in deployments)
+  parallelism: 2 # The number of pods to run in parallel.
+
+  template:
+    spec:
+      containers:
+      - name: example-container
+        image: alpine
+        command: ["sh", "-c", "echo Hello, Kubernetes! && sleep 30"]
+      restartPolicy: Never # The pods won't be restarted if they fail.
