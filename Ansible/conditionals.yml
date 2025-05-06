@@ -1,0 +1,16 @@
+---
+- name: Installing httpd
+  hosts: all
+
+  tasks:
+  - name: Install httpd
+    yum:
+      name: httpd
+      state: present
+    when: ansible_os_family == "RedHat"
+
+  - name: Install apache2
+    apt:
+      name: apache2
+      state: present
+    when: ansible_os_family == "Debian" # ansible localhost -m setup | grep ansible_os_family
