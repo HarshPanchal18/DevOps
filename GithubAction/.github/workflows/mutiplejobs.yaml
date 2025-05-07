@@ -1,0 +1,52 @@
+name: Multiple Jobs 🚦
+
+on: 
+   push
+
+jobs:
+  build_job:   # <-- Job one 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Cowsay Program
+        run: sudo apt-get install cowsay -y
+
+      - name: Execute Cowsay CMD
+        run: cowsay -f dragon "Run for cover, I am a DRAGON ....RAWR 🔥" >> dragon.txt
+    
+      - name: Upload dragon file           # <--  At this stage,uplod the txt file for below jobs 
+        uses: actions/upload-artifact@v4
+        with:
+          name: dragon-text-file
+          path: dragon.txt
+
+
+  test_job:   # <-- Job Two
+    needs: build_job    
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download dragon file           # <--  At this stage, downloading the file uploded by upload artificate action job1 
+        uses: actions/download-artifact@v4
+        with:
+          name: dragon-text-file
+         
+
+      - name: Test file Exists
+        run: grep -i "dragon" dragon.txt
+
+
+
+  deploy_job:
+    needs : [build_job,test_job]   # <-- this way you can  use multiple job for one jobs
+    runs-on: ubuntu-latest
+    steps:
+        - name: Download dragon file           # <--  At this stage, downloading the file uploded by upload artificate action  job1
+          uses: actions/download-artifact@v4
+          with:
+             name: dragon-text-file
+
+        - name: Read File
+          run : cat dragon.txt
+        
+        - name: Deploy
+          run : echo Deploying sucessfulyy...✅
+

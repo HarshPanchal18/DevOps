@@ -1,0 +1,37 @@
+name: Matrix Configuration
+
+on:
+  push:
+  workflow_dispatch:   # <-- Allows manual execution of the workflow
+
+jobs:
+  deploy:
+    strategy:
+      fail-fast: false
+      max-parallel: 3       # <-- using this we tell the numberof jobs running int he parrallel
+      matrix:
+        os: [ubuntu-latest, Ubuntu 24.04, windows-latest]   # Multiple OS versions
+        image: [hello-world, alpine]   # Docker images
+        exclude:                       # using this it will not run the alpine image inthe windows
+          - image : alpine
+            os : windows-latest  
+        include:
+          - image : amd64/alpine
+            os : ubuntu-20.04   
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Echo Docker Details
+        run: docker info
+
+      - name: Run Docker image on ${{ matrix.os }}
+        run: docker run ${{ matrix.image }}
+
+    # deploy-on-windows:
+    #     runs-on: windows-latest
+    #     steps:
+    #         - name: Echo Docker Details
+    #           run : docker info
+            
+    #         - name : Run Images
+    #           run : docker run hello-world
+

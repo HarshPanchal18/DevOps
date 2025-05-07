@@ -1,0 +1,74 @@
+# ============================================================================================================ # 
+#
+#        In Github action Environemt variabels are stored at three different lavel
+#
+#     1. Step Level
+#     2. Job-Level
+#     3. Workflow-Level
+#
+#
+# ============================================================================================================ # 
+
+#Example 1: Step-Level Environment Variable
+
+# name: Step Level Env Demo
+
+# on:
+#   push:
+
+# jobs:
+#   show-step-env:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Step with local env variable
+#         env:
+#           AUTHOR: Kashyap Prajapati
+          
+#         run: |
+#           echo "Step Level: $AUTHOR"
+
+
+# ===============================================================================================#
+
+
+#Example 2: Job-Level Environment Variable
+# name: Job Level Env Demo
+
+# on:
+#   push:
+
+# jobs:
+#   show-job-env:
+#     runs-on: ubuntu-latest
+
+#     # 📦 Job-level environment variable
+#     env:
+#       API_KEY: "Kp#14-job-level-secret-key"
+
+#     steps:
+#       - name: Show API_KEY from job level
+
+#         run: |
+#          echo "Job Level: $API_KEY"
+
+
+# ===============================================================================================#
+
+#Example 3: Workflow-Level Environment Variable
+name: Workflow Level Env Demo
+
+# 🌍 Workflow-level environment variable
+# env:
+#   SITE_NAME: "Workflow World"
+
+on:
+  push:
+
+jobs:
+  show-workflow-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show SITE_NAME from workflow
+        run: |
+         echo "Workflow Level: ${{ secrets.SITE_NAME }}"

@@ -1,0 +1,25 @@
+name : My First Wrokflow
+
+on : push
+
+jobs :
+    first_job:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout steps
+              uses: actions/checkout@v4
+
+            - name: Three steps into one 
+              run : |
+                echo "First Github Action Job"
+                ls -ltr
+                cat README.md
+            
+            - name: Generate ASCII Content
+              run : cowsay -f dragon "Run for cover, I am a DRAGON ....RAWR 🔥" >> dragon.txt
+
+            # - name : List files
+            #   run : ls 
+
+            # - name : Read File
+            #   run : cat README.md
