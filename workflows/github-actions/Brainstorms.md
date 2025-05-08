@@ -87,14 +87,14 @@ These actions are typically triggered on `pull_request` events and can be tailor
 
 - Citations:
 
-  - 1. https://graphite.dev/guides/how-to-write-custom-github-actions-for-code-reviews
-  - 2. https://docs.github.com/en/actions/sharing-automations/creating-actions/about-custom-actions
-  - 3. https://www.software.com/src/github-actions-for-faster-code-reviews
-  - 4. https://resources.github.com/learn/pathways/automation/advanced/building-your-first-custom-github-action/
-  - 5. https://docs.aws.amazon.com/codeguru/latest/reviewer-ug/working-with-cicd.html
-  - 6. https://victoronsoftware.com/posts/typescript-github-action/
-  - 7. https://blog.pixelfreestudio.com/how-to-use-github-for-code-reviews-and-collaboration/
-  - 8. https://codefresh.io/learn/github-actions/github-actions-tutorial-and-examples/
+  1. https://graphite.dev/guides/how-to-write-custom-github-actions-for-code-reviews
+  2. https://docs.github.com/en/actions/sharing-automations/creating-actions/about-custom-actions
+  3. https://www.software.com/src/github-actions-for-faster-code-reviews
+  4. https://resources.github.com/learn/pathways/automation/advanced/building-your-first-custom-github-action/
+  5. https://docs.aws.amazon.com/codeguru/latest/reviewer-ug/working-with-cicd.html
+  6. https://victoronsoftware.com/posts/typescript-github-action/
+  7. https://blog.pixelfreestudio.com/how-to-use-github-for-code-reviews-and-collaboration/
+  8. https://codefresh.io/learn/github-actions/github-actions-tutorial-and-examples/
 
 ---
 
@@ -118,14 +118,14 @@ These methods let you build PRs on demand without waiting for automatic triggers
 
 - Citations:
 
-  - 1 https://stackoverflow.com/questions/61350543/how-do-i-trigger-build-and-test-on-a-pull-request-in-azure-devops
-  - 2 https://confluence.atlassian.com/bbkb/how-do-i-manually-trigger-a-pull-requests-pipeline-on-a-pr-1387601529.html
-  - 3 https://docs.github.com/actions/learn-github-actions/events-that-trigger-workflows
-  - 4 https://devcenter.bitrise.io/en/builds/starting-builds/triggering-builds-automatically.html
-  - 5 https://cloud.google.com/build/docs/triggers
-  - 6 https://learn.microsoft.com/en-us/azure/devops/pipelines/release/deploy-pull-request-builds?view=azure-devops
-  - 7 https://geoweb.princeton.edu/research/jenkins-doc/tutorial_project.html
-  - 8 https://community.jenkins.io/t/how-to-trigger-build-in-each-change-for-specific-branches-only/3256
+  1. https://stackoverflow.com/questions/61350543/how-do-i-trigger-build-and-test-on-a-pull-request-in-azure-devops
+  2. https://confluence.atlassian.com/bbkb/how-do-i-manually-trigger-a-pull-requests-pipeline-on-a-pr-1387601529.html
+  3. https://docs.github.com/actions/learn-github-actions/events-that-trigger-workflows
+  4. https://devcenter.bitrise.io/en/builds/starting-builds/triggering-builds-automatically.html
+  5. https://cloud.google.com/build/docs/triggers
+  6. https://learn.microsoft.com/en-us/azure/devops/pipelines/release/deploy-pull-request-builds?view=azure-devops
+  7. https://geoweb.princeton.edu/research/jenkins-doc/tutorial_project.html
+  8. https://community.jenkins.io/t/how-to-trigger-build-in-each-change-for-specific-branches-only/3256
 
 ---
 
@@ -160,13 +160,77 @@ These advanced setups help automate and strictly enforce coding standards, impro
 
 - Citations:
 
-  - 1. https://docs.github.com/en/enterprise-cloud@latest/admin/enforcing-policies/enforcing-policies-for-your-enterprise/enforcing-policies-for-github-actions-in-your-enterprise
-  - 2. https://github.com/sdras/awesome-actions
-  - 3. https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
-  - 4. https://graphite.dev/guides/enhancing-code-quality-github
-  - 5. https://systemshogun.com/p/enforce-coding-standards-with-github
-  - 6. https://dev.to/alexmercedcoder/a-deep-dive-into-github-actions-from-software-development-to-data-engineering-bki
-  - 7. https://github.blog/developer-skills/github/7-advanced-workflow-automation-features-with-github-actions/
-  - 8. https://docs.github.com/github-ae@latest/admin/policies/enforcing-policies-for-your-enterprise/enforcing-policies-for-code-security-and-analysis-for-your-enterprise
+  1. https://docs.github.com/en/enterprise-cloud@latest/admin/enforcing-policies/enforcing-policies-for-your-enterprise/forcing-policies-for-github-actions-in-your-enterprise
+  2. https://github.com/sdras/awesome-actions
+  3. https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
+  4. https://graphite.dev/guides/enhancing-code-quality-github
+  5. https://systemshogun.com/p/enforce-coding-standards-with-github
+  6. https://dev.to/alexmercedcoder/a-deep-dive-into-github-actions-from-software-development-to-data-engineering-bki
+  7. https://github.blog/developer-skills/github/7-advanced-workflow-automation-features-with-github-actions/
+  8. https://docs.github.com/github-ae@latest/admin/policies/enforcing-policies-for-your-enterprise/enforcing-policies-for-code-security-and-analysis-for-your-enterprise
+
+---
+
+## What are some advanced GitHub Actions features for automating security checks?
+
+### Advanced GitHub Actions Features for Automating Security Checks
+
+- **Code Scanning with CodeQL**
+  Automate static analysis using CodeQL to detect security vulnerabilities in code on every push or pull request. Code scanning can be configured to run on specific branches or events, providing early detection and actionable alerts[5][6].
+
+- **Secret Scanning and Push Protection**
+  Enable secret scanning to automatically detect credentials, API keys, and other sensitive information in your codebase. Push protection can block the commit if a secret is detected, preventing leaks before code is merged[1][5].
+
+- **Dependency Review and Dependabot**
+  Use dependency review actions to automatically check for known vulnerabilities in third-party libraries and dependencies. Dependabot can be integrated to alert and automatically open pull requests for vulnerable dependency updates[5][8].
+
+- **Security Hardening for Workflows**
+  Store sensitive data as encrypted secrets, use CODEOWNERS to monitor workflow changes, and restrict which actions can be used in your workflows. These practices help prevent misuse and reduce the risk of supply chain attacks[3][4].
+
+- **Workflow Visualization and Job Dependencies**
+  Use workflow visualization tools and the `needs` keyword to create dependencies between jobs, ensuring that security checks must pass before other jobs (like deployment) run[2].
+
+- **Integration with DAST and Third-Party Tools**
+  Integrate Dynamic Application Security Testing (DAST) tools and other third-party security scanners directly into your workflows for comprehensive coverage of both static and dynamic vulnerabilities[5].
+
+These features enable you to automate security checks, enforce best practices, and respond quickly to vulnerabilities directly within your CI/CD pipeline.
+
+- Citations:
+
+  1. https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security
+  2. https://github.blog/developer-skills/github/7-advanced-workflow-automation-features-with-github-actions/
+  3. https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions
+  4. https://blog.gitguardian.com/github-actions-security-cheat-sheet/
+  5. https://www.stackhawk.com/blog/maximize-security-with-github-advanced-security-and-dast/
+  6. https://ambuzrnjn33.hashnode.dev/mastering-github-actions-the-ultimate-guide-to-automating-your-development-workflow
+  7. https://docs.github.com/articles/getting-started-with-github-actions
+  8. https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-githubs-security-features-to-secure-your-use-of-github-actions
+
+---
+
+## How can I use secret scanning to detect and alert on sensitive data in my repository?
+
+You can use GitHub’s secret scanning to automatically detect and alert on sensitive data-such as API keys, passwords, and tokens-in your repository. Once enabled, secret scanning analyzes your entire repository (including commit history, pull requests, issues, and wikis) for known secret patterns and generates real-time alerts when a secret is found[1][5].
+
+**How to enable and use secret scanning:**
+
+- Go to your repository’s **Settings** > **Code Security and analysis**.
+- Enable **GitHub Advanced Security** and then enable **Secret Scanning** for your repository[5].
+- Optionally, enable **Push Protection** to block commits containing secrets before they’re pushed[2][5].
+- When a secret is detected, GitHub creates an alert in the **Security** tab, notifying repository administrators and contributors with details about the secret’s location and remediation steps[1][4].
+- You can review and resolve alerts directly from the Security tab, and use the REST API to monitor alerts across repositories[1].
+
+Secret scanning can also be customized with custom patterns and validity checks, and it integrates with service providers to help revoke exposed credentials automatically[1].
+
+- Citations:
+
+  1. https://docs.github.com/code-security/secret-scanning/about-secret-scanning
+  2. https://docs.github.com/en/code-security/secret-scanning/enabling-secret-scanning-features
+  3. https://www.akeyless.io/blog/what-is-secrets-scanning/
+  4. https://learn.microsoft.com/en-us/azure/devops/repos/security/github-advanced-security-secret-scanning?view=azure-devops
+  5. https://www.sentinelone.com/cybersecurity-101/cloud-security/github-secret-scanning/
+  6. https://www.jit.io/resources/appsec-tools/git-secrets-scanners-key-features-and-top-tools-
+  7. https://www.wiz.io/academy/secret-scanning
+  8. https://www.checkpoint.com/cyber-hub/cloud-security/what-is-code-security/top-5-secret-scanning-tools/
 
 ---

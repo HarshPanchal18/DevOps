@@ -1,7 +1,7 @@
 .obsidian
 /harbor/templates
 /harbor/LICENSE
-*.env*
+# *.env*
 *.json
 *.properties*
 *application-management*

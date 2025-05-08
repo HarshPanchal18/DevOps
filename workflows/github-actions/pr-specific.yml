@@ -1,0 +1,33 @@
+on: # actions only run when the PR is "ready for review" and not in draft mode.
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches:
+      - main
+
+
+jobs:
+  run-on-ready:
+    runs-on: ubuntu-latest
+
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy
+        run: npm run deploy
+
+      - name: Notify
+        run: echo "Deployment successful!"
+
+      - name: Notify on PR
+        run: |
+          echo "Deployment successful!"
+          echo "This is a notification for the PR."
+          echo "You can add more details here."
