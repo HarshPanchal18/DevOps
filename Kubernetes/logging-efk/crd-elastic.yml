@@ -1,0 +1,47 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+
+metadata:
+  name: elasticsearch
+  namespace: kube-logging
+
+spec:
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+    service:
+      spec:
+        type: NodePort
+
+  nodeSets: # Node sets for Elasticsearch
+    - config: # Configuration for the Elasticsearch node set
+        node.roles:
+          - master
+          - data
+          - ingest
+        node.store.allow_mmap: false # Disable mmap for the node store
+        reindex.remote.whitelist:
+          - '*:*' # Allow remote reindexing from any host
+
+      count: 1 # Number of replicas for the node set
+      name: elasticsearch
+      podTemplate:
+        metadata:
+          labels:
+            app: elasticsearch
+        spec:
+          automountServiceAccountToken: true # Automount service account token for the pod
+
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 30Gi
+            storageClassName: logging
+
+  version: 8.18.1

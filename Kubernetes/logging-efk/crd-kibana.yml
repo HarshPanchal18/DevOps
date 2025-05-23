@@ -1,0 +1,44 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+
+metadata:
+  name: kibana
+  namespace: kube-logging
+
+spec:
+  config:
+    monitoring.ui.ccs.enabled: 'false'
+    xpack.reporting.roles.enabled: 'false'
+    xpack.security.session.idleTimeout: 4h
+    xpack.security.session.lifespan: 12h
+  count: 1
+
+  elasticsearchRef:
+    name: elasticsearch
+
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+    service:
+      spec:
+        type: NodePort
+
+  podTemplate:
+    metadata:
+      labels:
+        app: kibana
+
+    spec:
+      containers:
+        - name: kibana
+          readinessProbe: # Readiness probe to check if Kibana is ready
+            failureThreshold: 3 # Number of failures before marking the container as not ready
+            initialDelaySeconds: 10 # Delay before starting the probe
+            periodSeconds: 10 # Interval between probes
+            successThreshold: 2 # Number of successes before marking the container as ready
+            tcpSocket: # TCP socket to check if Kibana is ready
+              port: 5601
+            timeoutSeconds: 2 # Timeout for the probe
+
+  version: 8.18.1
