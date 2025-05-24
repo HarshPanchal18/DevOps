@@ -1,4 +1,4 @@
-# Troubleshootings
+# Brainstorms with LLMs
 
 ## Your jenkins pipeline fails post-merge. The log points to a missing env variables. How do you fix this without affecting other devs?
 
@@ -401,5 +401,56 @@ To audit the security of a CI/CD pipeline, I would check the following 5 things 
     * Ensure that auditing mechanisms are properly configured and integrated into the pipeline.
 
 By checking these 5 things, you can identify potential security issues and vulnerabilities in your CI/CD pipeline and take corrective action to improve its security.
+
+---
+
+## What happens if multiple StorageClasses are marked as default
+
+If multiple StorageClasses are marked as default in a Kubernetes cluster, the following occurs:
+
+* When a PersistentVolumeClaim (PVC) is created **without specifying a `storageClassName`**, Kubernetes will use the **most recently created default StorageClass** to provision the storage.
+* Having multiple default StorageClasses is technically allowed by Kubernetes, primarily to facilitate seamless migration between storage backends.
+* However, this situation is not recommended. It can lead to confusion and unpredictable behavior, as it may not be clear which StorageClass will be used for new PVCs.
+* Administrators will typically receive an alert (such as `MultipleDefaultStorageClasses`) indicating that more than one default StorageClass exists, and best practice is to ensure only one StorageClass is marked as default in the cluster.
+
+**In summary:**
+If more than one StorageClass is set as default, PVCs without an explicit `storageClassName` will use the most recently created default StorageClass. This can cause ambiguity and should be resolved by ensuring only one default StorageClass is set.
+
+Citations:
+
+* [1] https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/
+* [2] https://kubernetes.io/docs/concepts/storage/storage-classes/
+* [3] https://github.com/kubernetes/kubernetes/issues/110514
+* [4] https://access.redhat.com/solutions/3586351
+* [5] https://docs.okd.io/4.18/storage/container_storage_interface/persistent-storage-csi-sc-manage.html
+* [6] https://docs.openshift.com/rosa/storage/container_storage_interface/persistent-storage-csi-sc-manage.html
+* [7] https://github.com/pulumi/pulumi-eks/issues/141
+* [8] https://access.redhat.com/solutions/6779501
+
+---
+
+## If I delete the storage class directly, does the PVs and PVCs were affected? Why?
+
+Deleting a StorageClass in Kubernetes **does not directly affect existing Persistent Volumes (PVs) or Persistent Volume Claims (PVCs)** that were already provisioned using that StorageClass. Here’s why:
+
+* **PVs and PVCs are independent objects:** Once a PV is provisioned (either statically or dynamically via a StorageClass) and bound to a PVC, their relationship to the StorageClass is essentially historical. The StorageClass is referenced in the PV’s `storageClassName` field, but the PV and PVC continue to function normally even if the StorageClass is deleted.
+* **Existing PVs and PVCs remain functional:** Deleting the StorageClass does not delete or unbind existing PVs or PVCs. Applications using those PVCs will continue to have access to their storage as usual.
+* **Impact on new provisioning:** The main impact is that **no new PVs can be dynamically provisioned using the deleted StorageClass**. If a user tries to create a new PVC referencing the deleted StorageClass, the request will fail because the StorageClass no longer exists.
+
+**In summary:**
+
+* Deleting a StorageClass does not affect existing PVs or PVCs-they remain available and functional.
+* Only new dynamic provisioning using that StorageClass is prevented after its deletion.
+
+Citations:
+
+* [1] https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+* [2] https://kubernetes.io/docs/concepts/storage/storage-classes/
+* [3] https://stackoverflow.com/questions/61187909/how-do-i-change-the-storage-class-of-existing-persistent-volumes
+* [4] https://www.kubermatic.com/blog/keeping-the-state-of-apps-4-persistentvolumes-and-persistentvolum/
+* [5] https://kubernetes.io/blog/2024/08/16/kubernetes-1-31-prevent-persistentvolume-leaks-when-deleting-out-of-order/
+* [6] https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/
+* [7] https://www.reddit.com/r/kubernetes/comments/bp2xht/can_i_delete_a_storage_class_after_creating/
+* [8] https://aws.amazon.com/blogs/storage/persistent-storage-for-kubernetes/
 
 ---
