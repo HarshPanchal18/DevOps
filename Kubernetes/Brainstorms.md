@@ -454,3 +454,109 @@ Citations:
 * [8] https://aws.amazon.com/blogs/storage/persistent-storage-for-kubernetes/
 
 ---
+
+## In rollback of deployment, the deployment is rolled back to the previous working version. Right? If yes, then what is the case when the product is about to release for first time?
+
+### **Deployment Rollback**
+
+When rolling back a deployment, the previous working version is restored, usually to resolve issues or revert changes.
+
+### **First-Time Deployment**
+
+In the case of a first-time deployment, there is no previous working version to roll back to. Instead, the deployment is typically done by:
+
+1. **Initial Setup**: Setting up the initial version of the product or application.
+2. **First Deployment**: Deploying the initial version to production for the first time.
+3. **Post-Deployment Monitoring**: Monitoring the deployment to ensure it's working as expected and making any necessary adjustments.
+
+If issues arise during the first deployment, the team may need to troubleshoot and resolve the problems before proceeding with further deployments.
+
+## **Template Variables in PromQL**
+
+================================
+
+Template variables in PromQL are variables used in metric queries to avoid hard-coding details such as server, application, and sensor names. These variables are listed in dropdown select boxes at the top of a dashboard in Grafana and can be used to change the data displayed in the dashboard.
+
+You can use different types of variables, including **Query** variables, which query Prometheus for a list of metrics, labels, or label values.
+
+The templated variables in Prometheus queries are used to dynamically adjust the time range or interval for queries based on the dashboard's settings. Here are the three templated variables with use cases:
+
+* **`$__interval`**: This variable ensures that your queries automatically adjust to provide an appropriate level of detail based on the selected time range. For example, `rate(http_requests_total[$__interval])` would adapt the query interval to the dashboard's zoom level, showing more granular data when zoomed in and more summarized data when zoomed out.
+
+* **`$__range`**: This variable can be used in queries to adapt the time range of a query to the entire dashboard's time range. For instance, if you're calculating the total number of requests in the selected range, you might use `increase(http_requests_total[$__range])` to get the cumulative increase over the displayed period.
+
+* **`$__rate_interval`**: This variable is particularly useful in cases where you want to calculate rates over a dynamically adjusted time range. For example, using `rate(http_requests_total[$__rate_interval])` ensures that the rate calculation adapts to the dashboard's current resolution, making it suitable for both high and low-resolution data.
+
+These templated variables can be used to create more dynamic and flexible queries that adapt to the dashboard's settings, providing more accurate and relevant data to the user.
+
+* Templated variables in Prometheus queries with brief use cases:
+
+* **`$__interval`**: Adapts query interval to dashboard's zoom level (e.g., `rate(http_requests_total[$__interval])`).
+* **`$__range`**: Adjusts query time range to dashboard's time range (e.g., `increase(http_requests_total[$__range])`).
+* **`$__rate_interval`**: Calculates rates over dynamically adjusted time range (e.g., `rate(http_requests_total[$__rate_interval])`).
+
+### So what will be the difference between "sum(rate(container_memory_usage_bytes{namespace="production",container="poding"}[$__range])) by(pod) / 1000" and "sum(rate(container_memory_usage_bytes{namespace="production",container="poding"}[1m])) by(pod) / 1000"?
+
+The difference between the two queries is the time range used to calculate the rate.
+
+* The first query `sum(rate(container_memory_usage_bytes{namespace="production",container="poding"}[$__range])) by(pod) / 1000` uses the `__range` templated variable, which adapts to the dashboard's time range. This means the query will automatically adjust the time range based on the dashboard's zoom level.
+* The second query `sum(rate(container_memory_usage_bytes{namespace="production",container="poding"}[1m])) by(pod) / 1000` uses a fixed time range of 1 minute (`[1m]`). This means the query will always use a 1-minute time range, regardless of the dashboard's zoom level.
+
+In general, using `__range` allows the query to adapt to different time ranges, while using a fixed time range (like `[1m]`) locks the query to a specific time range.
+
+## What is Pushgateway in prometheus architecture?
+
+### **Pushgateway in Prometheus Architecture**
+
+In the Prometheus architecture, the Pushgateway is an intermediary service used for pushing metrics from quick, ephemeral processes, which would not be caught in Prometheus' regular scraping interval.
+
+Pushgateway allows for:
+
+* Pushing metrics from processes that do not have a stable network identity, such as short-lived jobs or processes running on ephemeral infrastructure.
+* Handling metrics from processes that do not have a stable IP address or hostname.
+* Providing a way to push metrics from processes that are not running on the same host as the Prometheus server.
+
+The Pushgateway acts as a buffer for metrics, allowing them to be collected and stored even if the original process is no longer running. This ensures that metrics are not lost and can be used for monitoring and alerting purposes.
+
+## Explain SSH tunnels
+
+* **SSH Tunnels: A Brief Overview**
+
+SSH (Secure Shell) tunnels are a feature of the SSH protocol that allows you to securely forward network traffic between a local machine and a remote machine. This is achieved by creating a secure, encrypted connection between the two machines, which can be used to forward traffic on specific ports.
+
+There are two main types of SSH tunnels:
+
+* **Local Port Forwarding**: This involves forwarding a local port on your machine to a remote port on a server. This is useful when you need to access a service on a remote server that is only available on a private interface.
+* **Remote Port Forwarding**: This involves forwarding a remote port on a server to a local port on your machine. This is useful when you need to expose a local service to the outside world.
+
+Both types of tunnels can be used to create secure, encrypted connections between machines, and can be useful for a variety of tasks, such as accessing services on private networks or exposing local services to the public internet.
+
+### Give an example
+
+* **Example: Local Port Forwarding**
+
+Suppose you have a web server running on a remote machine at `ssh.example.com` on port 8080, but you can only access the machine via its public IP address. You want to access the web server from your local machine.
+
+You can use SSH to forward the local port 8080 on your machine to the remote port 8080 on `ssh.example.com` using the following command:
+
+```bash
+ssh -L 8080:localhost:8080 user@ssh.example.com
+```
+
+This will forward any traffic on your local machine's port 8080 to the remote machine's port 8080, allowing you to access the web server from your local machine.
+
+* **Example: Remote Port Forwarding**
+
+Suppose you have a web server running on your local machine on port 8080, but you want to expose it to the outside world. You can use SSH to forward the remote port 8080 on `ssh.example.com` to your local port 8080.
+
+First, you need to configure the SSH server on `ssh.example.com` to allow remote port forwarding by setting `GatewayPorts yes` in the SSH configuration file.
+
+Then, you can use the following command to forward the remote port 8080 on `ssh.example.com` to your local port 8080:
+
+```bash
+ssh -R 8080:localhost:8080 user@ssh.example.com
+```
+
+This will forward any traffic on `ssh.example.com`'s port 8080 to your local machine's port 8080, allowing you to expose your web server to the outside world.
+
+SSH tunnels can be a bit tricky to understand at first, but they're a powerful tool for securely accessing remote services and exposing local services to the outside world.
