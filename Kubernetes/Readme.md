@@ -434,3 +434,325 @@ kubectl get hpa
 * By utilizing autoscaling, Kubernetes ensures that applications remain highly available, responsive, and cost-efficient, even in fluctuating workloads.
 
 [Reference](https://www.youtube.com/watch?v=jyBDbm1FHiM)
+
+## StorageClass, Persistent Volume, and Persistent Volume Claim in Kubernetes
+
+Kubernetes provides a robust storage abstraction layer to manage storage resources independently from compute resources. Three key concepts form the foundation of this system: **StorageClass**, **Persistent Volume (PV)**, and **Persistent Volume Claim (PVC)**.
+
+---
+
+### **StorageClass**
+
+A **StorageClass** defines a "class" of storage offered by a Kubernetes cluster. It allows administrators to describe different types of storage (such as SSDs, HDDs, or network storage) and their properties, such as performance, latency, or backup policies. Each StorageClass specifies a provisioner (the plugin or driver responsible for creating storage), parameters (like storage type or performance level), and a reclaim policy (what happens to the storage when released).
+
+* **Purpose**: Enables dynamic provisioning of storage resources.
+* **Usage**: Developers can request a specific StorageClass in their PVCs, or rely on the default if none is specified.
+* **Example**: A cluster may have a "fast-ssd" StorageClass for high-performance needs and a "standard" class for general use.
+
+---
+
+### **Persistent Volume (PV)**
+
+A **Persistent Volume** is a cluster-wide storage resource that has been provisioned by an administrator or dynamically provisioned using a StorageClass. PVs are independent of any particular Pod and exist beyond the lifecycle of individual Pods, making them suitable for stateful applications.
+
+* **Purpose**: Provides durable storage that persists even if Pods are deleted or recreated.
+* **Types**: Can be backed by various storage systems (NFS, iSCSI, cloud storage, etc.).
+* **Lifecycle**: PVs have their own lifecycle, separate from Pods, and are managed as first-class Kubernetes objects.
+
+---
+
+### **Persistent Volume Claim (PVC)**
+
+A **Persistent Volume Claim** is a request for storage by a user or application. PVCs specify the desired storage size, access modes, and optionally the StorageClass. When a PVC is created, Kubernetes matches it to a suitable PV (either pre-provisioned or dynamically created via a StorageClass).
+
+* **Purpose**: Allows users to request and consume storage resources without knowing the underlying details.
+* **Usage**: A Pod references a PVC to use the storage; the PVC is then bound to a matching PV.
+* **Dynamic Provisioning**: If a suitable PV does not exist, and a StorageClass is specified, Kubernetes can dynamically provision a new PV to satisfy the claim.
+
+---
+
+### **How They Work Together**
+
+* **Administrators** define StorageClasses to describe available storage types.
+* **Developers** create PVCs, optionally specifying a StorageClass.
+* **Kubernetes** matches PVCs to available PVs, or dynamically provisions new PVs using the requested StorageClass.
+* **Pods** mount PVCs to use persistent storage, ensuring data survives Pod restarts and rescheduling.
+
+---
+
+#### **Summary Table**
+
+| Concept             | Description                                                                 |
+|---------------------|-----------------------------------------------------------------------------|
+| StorageClass        | Defines storage types and properties for dynamic provisioning                |
+| Persistent Volume   | Actual storage resource in the cluster, provisioned statically or dynamically|
+| Persistent Volume Claim | User/application request for storage, matched to a PV                      |
+
+---
+
+This abstraction enables Kubernetes to manage storage resources flexibly and efficiently, supporting a wide range of application requirements and storage backends.
+
+* Citations:
+
+* [1] https://kubernetes.io/docs/concepts/storage/storage-classes/
+* [2] https://www.kubecost.com/kubernetes-best-practices/kubernetes-storage-class/
+* [3] https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+* [4] https://bluexp.netapp.com/blog/cvo-blg-kubernetes-storageclass-concepts-and-common-operations
+* [5] https://spacelift.io/blog/kubernetes-persistent-volumes
+* [6] https://bluexp.netapp.com/blog/cvo-blg-kubernetes-persistent-volume-claims-explained
+* [7] https://www.kubermatic.com/blog/keeping-the-state-of-apps-5-introduction-to-storage-classes/
+* [8] https://bluexp.netapp.com/blog/kubernetes-persistent-storage-why-where-and-how
+* [9] https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/
+* [10] https://thekubeguy.com/storage-classes-in-kubernetes-1bb62c6e937e
+* [11] https://www.groundcover.com/blog/kubernetes-pvc
+* [12] https://zesty.co/finops-glossary/kubernetes-persistent-volume-claim/
+* [13] https://www.appvia.io/blog/demystifying-kubernetes-storage-classes
+* [14] https://www.uffizzi.com/kubernetes-multi-tenancy/kubernetes-storage-class
+* [15] https://aws.amazon.com/blogs/storage/persistent-storage-for-kubernetes/
+* [16] https://kubernetes.io/docs/concepts/storage/volumes/
+* [17] https://cloud.google.com/kubernetes-engine/docs/concepts/persistent-volumes
+* [18] https://www.apptio.com/topics/kubernetes/best-practices/storage-class/
+* [19] https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/
+* [20] https://www.youtube.com/watch?v=BNKb-SOnoKk
+* [21] https://www.purestorage.com/knowledge/what-is-kubernetes-persistent-volume.html
+* [22] https://spot.io/resources/kubernetes-architecture/7-stages-in-the-life-of-a-kubernetes-persistent-volume-pv/
+* [23] https://www.netapp.com/devops/what-is-kubernetes-persistent-volumes/
+* [24] https://www.loft.sh/blog/kubernetes-persistent-volume
+* [25] https://ranchermanager.docs.rancher.com/how-to-guides/new-user-guides/manage-clusters/create-kubernetes-persistent-storage/manage-persistent-storage/about-persistent-storage
+
+---
+
+Kubernetes does not define a fixed set of "types" of StorageClasses. Instead, a StorageClass is a customizable Kubernetes object that cluster administrators use to describe different storage offerings available in the cluster. The types and features of StorageClasses are determined by the underlying storage provisioners, their parameters, and policies set by the administrator[3].
+
+## Common Types of StorageClasses
+
+**StorageClasses are typically differentiated by:**
+
+* The storage provisioner (e.g., AWS EBS, GCE PD, NFS, Ceph, CSI drivers, etc.)
+* Performance characteristics (e.g., SSD vs. HDD, high IOPS, low latency)
+* Data redundancy or backup policies
+* Availability zones or regions
+* Cost and reclaim policies
+
+**Examples of StorageClass types:**
+
+* Fast SSD storage
+* Standard HDD storage
+* Encrypted storage
+* Replicated or multi-zone storage
+* Low-latency storage
+* Backup-enabled storage
+
+**Each StorageClass includes fields such as:**
+
+* `provisioner`: The driver or plugin that provisions the storage (e.g., `kubernetes.io/aws-ebs`, `kubernetes.io/gce-pd`, or a CSI driver).
+* `parameters`: Key-value pairs for storage configuration (e.g., disk type, IOPS, encryption).
+* `reclaimPolicy`: What happens to the storage after release (e.g., `Delete` or `Retain`).
+* `allowVolumeExpansion`: Whether the volume can be resized.
+* `volumeBindingMode`: When and how the volume is bound to a node[3].
+
+**Sample StorageClass YAML:**
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+  encrypted: "true"
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+```
+
+### Default StorageClass
+
+You can mark one StorageClass as the default for the cluster. Any PersistentVolumeClaim (PVC) that does not specify a `storageClassName` will use the default StorageClass[3].
+
+### Summary Table
+
+| StorageClass Example      | Provisioner                 | Purpose/Type             |
+|--------------------------|-----------------------------|--------------------------|
+| fast-ssd                 | AWS EBS, GCE PD, CSI driver | High-performance SSD     |
+| standard-hdd             | AWS EBS, GCE PD, CSI driver | Cost-effective HDD       |
+| encrypted-storage        | Any                         | Encrypted volumes        |
+| replicated-multi-zone    | Cloud provider, CSI         | High-availability        |
+| low-latency              | Custom CSI driver           | Low-latency workloads    |
+
+**In summary:**
+There is no fixed list of StorageClass "types" in Kubernetes; rather, StorageClasses are defined by the cluster administrator to represent the storage capabilities and policies available in the environment. The actual types depend on the storage systems and provisioners integrated with the Kubernetes cluster[3].
+
+Citations:
+
+* [1] https://byjus.com/gate/storage-classes-in-c/
+* [2] https://www.upgrad.com/blog/storage-classes-in-c/
+* [3] https://kubernetes.io/docs/concepts/storage/storage-classes/
+* [4] https://cloud.google.com/storage/docs/storage-classes
+* [5] https://aws.amazon.com/s3/storage-classes/
+* [6] https://www.shiksha.com/online-courses/articles/storage-classes-in-c/
+* [7] https://www.nielit.gov.in/gorakhpur/sites/default/files/Gorakhpur/OLevel_2_B4_CLang_5May20_SS.pdf
+* [8] https://www.codecademy.com/resources/docs/c/storage-classes
+
+---
+
+## How do you set a default StorageClass in a Kubernetes cluster
+
+To set a default StorageClass in a Kubernetes cluster, you need to annotate the desired StorageClass with `storageclass.kubernetes.io/is-default-class: "true"`. Here’s how you can do it:
+
+1. **List existing StorageClasses** to see which one is currently set as default:
+
+    ```bash
+    kubectl get storageclass
+    ```
+
+    The default StorageClass will be marked with `(default)` in the output[1][4][5].
+
+2. **Mark an existing StorageClass as non-default** (if needed) by removing or setting its annotation to `"false"`:
+
+    ```bash
+    kubectl patch storageclass  -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+    ```
+
+    Replace `` with the name of the current default StorageClass.
+
+3. **Set your chosen StorageClass as the default** by adding or updating the annotation:
+
+    ```bash
+    kubectl patch storageclass  -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+    ```
+
+    Replace `` with the name of the StorageClass you want as default.
+
+4. **Verify the change**:
+
+    ```bash
+    kubectl get storageclass
+    ```
+
+    The new default will be marked with `(default)`.
+
+### Alternatively, when creating a new StorageClass, you can include this annotation directly in the manifest
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: my-storage-class
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner:
+parameters:
+  # ...
+```
+
+Then apply it with:
+
+```bash
+kubectl apply -f
+```
+
+**Note:**
+
+* You can technically have more than one default StorageClass, but Kubernetes will use the most recently created one for PVCs without a specified `storageClassName`. It's best practice to have only one default[2].
+* If you remove all default annotations, there will be no default StorageClass, and PVCs without a specified class will not be dynamically provisioned[2].
+
+This process allows you to control which StorageClass is used by default for dynamic provisioning of storage in your cluster.
+
+Citations:
+
+* [1] https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/
+* [2] https://kubernetes.io/docs/concepts/storage/storage-classes/
+* [3] https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/how-to/default-storage-class
+* [4] https://bluexp.netapp.com/blog/cvo-blg-kubernetes-storageclass-concepts-and-common-operations
+* [5] https://www.edureka.co/community/52699/how-do-i-change-the-default-storageclass
+* [6] https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/installing/default-storage-class
+* [7] https://docs.openshift.com/container-platform/4.13/storage/container_storage_interface/persistent-storage-csi-sc-manage.html
+* [8] https://www.kubecost.com/kubernetes-best-practices/kubernetes-storage-class/
+
+---
+
+## How does the reclaim policy affect PVs when a StorageClass is deleted
+
+The reclaim policy of a Persistent Volume (PV) determines what happens to the underlying storage asset when its associated Persistent Volume Claim (PVC) is deleted-not when the StorageClass itself is deleted. Deleting a StorageClass has **no direct effect** on the reclaim policy or the lifecycle of existing PVs and PVCs.
+
+Here’s how reclaim policy works in this context:
+
+* **Retain:** If a PV's reclaim policy is set to `Retain`, deleting the PVC will release the PV, but the PV and its data will remain. The PV is not automatically deleted or made available for another claim until an administrator manually intervenes.
+* **Delete:** If a PV's reclaim policy is `Delete`, deleting the PVC will also delete the PV and the underlying storage asset in the external infrastructure.
+
+**When a StorageClass is deleted:**
+
+* Existing PVs and PVCs that were provisioned using that StorageClass are unaffected and continue to follow their set reclaim policy.
+* The reclaim policy of a PV does not change or trigger any action due to the deletion of the StorageClass.
+* Only new dynamic provisioning using the deleted StorageClass is prevented.
+
+**Summary:**
+Deleting a StorageClass does not impact the reclaim policy or behavior of existing PVs. The reclaim policy continues to govern what happens when PVCs are deleted, regardless of the existence of the StorageClass.
+
+Citations:
+
+* [1] https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+* [2] https://kubernetes.io/docs/tasks/administer-cluster/change-pv-reclaim-policy/
+* [3] https://docs.oracle.com/en-us/iaas/compute-cloud-at-customer/topics/oke/retaining-a-persistent-volume.htm
+* [4] https://www.kubermatic.com/blog/keeping-the-state-of-apps-4-persistentvolumes-and-persistentvolum/
+* [5] https://docs.redhat.com/en/documentation/red_hat_build_of_microshift/4.14/html/storage/understanding-persistent-storage-microshift
+* [6] https://docs.openshift.com/container-platform/4.12/storage/understanding-persistent-storage.html
+* [7] https://github.com/openebs/zfs-localpv/issues/507
+* [8] https://github.com/jupyterhub/zero-to-jupyterhub-k8s/issues/901
+
+---
+
+## What are StatefulSets in Kubernetes?
+
+StatefulSets are designed to manage stateful applications that require persistent storage and ordering guarantees. They ensure that each Pod in the set has a unique identity and maintains its state across rescheduling.
+
+Here's a sample YAML for a StatefulSet that demonstrates the basic components:
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  replicas: 3
+  serviceName: web
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: web
+        image: nginx:latest
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+```
+
+This YAML defines a StatefulSet named `web` with 3 replicas, a service name `web`, and a container image `nginx:latest`. It also defines a volume claim template `www` that requests 1 GiB of storage. Each Pod in the set will have a unique identity and persistent storage.
+
+### So if one of pod restarts, it will retain the previous states?
+
+One of the key features of StatefulSets is that they maintain the state of each Pod across restarts. This is achieved through the use of Persistent Volumes (PVs) and Persistent Volume Claims (PVCs).
+
+When a Pod restarts, the StatefulSet controller will:
+
+1. Check if the Pod has a Persistent Volume Claim (PVC) associated with it.
+2. If the PVC exists, the controller will attempt to mount the associated Persistent Volume (PV) to the new Pod.
+3. The new Pod will retain the same identity and state as the previous Pod, including any data stored on the Persistent Volume.
+
+This ensures that the Pod retains its state and any data it was processing before it restarted.
+
+However, it's worth noting that the StatefulSet controller will only attempt to restore the state of a Pod if it has a matching Persistent Volume Claim (PVC) associated with it. If the PVC is deleted or not properly configured, the Pod will not retain its state across restarts.
