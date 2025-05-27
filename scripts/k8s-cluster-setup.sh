@@ -21,8 +21,8 @@ containerd_config() {
 }
 
 install_k8s() {
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg # Add Kubernetes' official GPG key
-    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list # Add Kubernetes repo
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg # Add Kubernetes' official GPG key
+    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list # Add Kubernetes repo
     sudo apt-get update
     sudo apt-get install -y kubelet kubeadm kubectl # Install Kubernetes
     sudo apt-mark hold kubelet kubeadm kubectl # Hold the installed packages
@@ -73,6 +73,7 @@ enable_kernel_module
 if [[ $1 == "master" ]]; then
     echo "Setting up Kubernetes master node..."
     setup_k8s
+    kubectl taint node $(hostname) node-role.kubernetes.io/control-plane:NoSchedule-
 
     echo "Installing Calico..."
     install_calico
@@ -83,3 +84,17 @@ fi
 
 echo "Kubernetes cluster setup completed successfully!"
 sudo kubectl get nodes
+
+destroy_cluster() {
+    echo "Destroying Kubernetes cluster..."
+    sudo kubeadm reset -f
+    sudo rm -rf $HOME/.kube
+    sudo rm -rf /etc/cni/net.d
+    sudo rm -rf /var/lib/etcd
+    sudo rm -rf /var/lib/kubelet/*
+    sudo systemctl restart containerd
+    echo "Kubernetes cluster destroyed successfully!"
+
+}
+# Uncomment the following line to destroy the cluster
+# destroy_cluster
