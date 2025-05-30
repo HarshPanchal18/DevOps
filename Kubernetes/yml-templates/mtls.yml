@@ -1,0 +1,21 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication # The PeerAuthentication policy is used to configure mutual TLS (mTLS) settings for workloads in the Istio service mesh.
+
+metadata:
+  name: default
+  namespace: production
+
+spec:
+  mtls:
+    mode: STRICT # mTLS is required for all traffic between workloads in the namespace. Value can be STRICT, PERMISSIVE, or DISABLE.
+  # STRICT: mTLS is required for all traffic between workloads in the namespace.
+  # PERMISSIVE: mTLS is optional, and workloads can communicate using either plaintext or mTLS. This mode is useful for gradually migrating to mTLS.
+  # DISABLE: mTLS is not enforced, and workloads can communicate using plaintext. This mode is useful for testing or when mTLS is not needed.
+
+  # This ensures that all communication between services is encrypted and authenticated using mutual TLS.
+  # This is a security measure to protect sensitive data and prevent unauthorized access to services within the mesh.
+  # The default value is DISABLE, which means that mTLS is not enforced.
+  # The PeerAuthentication policy can be overridden by more specific policies at the workload level.
+  # This allows for flexibility in configuring mTLS for different services or workloads within the mesh.
+  # The PeerAuthentication policy can also be used to configure other authentication mechanisms, such as JWT or OAuth2, in addition to mTLS.
+  # The PeerAuthentication policy is part of Istio's security features, which aim to provide a secure communication layer for microservices.
