@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+
+metadata:
+  name: mongodb-backup-cronjob
+
+spec:
+  schedule: "0 2 * * *" # Run every day at 2 AM.
+  concurrencyPolicy: Allow # Allow concurrent runs of the job. [Allow - parallel, Forbid - queued, Replace - stop & replace]. Default is Forbid.
+
+  failedJobsHistoryLimit: 3 # The number of failed jobs to keep in history. Default is 3.
+  successfulJobsHistoryLimit: 3 # The number of successful jobs to keep in history. Default is 3.
+
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 60
+      template:
+        spec:
+          containers:
+            - name: mongodb
+              image: mongo
+              command: ["/bin/sh", "-c"]
+              args: [ # Mongodump is a utility for creating backups of MongoDB databases in binary format.
+                'mongodump --uri "mongodb://user1:${MONGO_PASSWORD}@mongo-0.mongo.default.svc.cluster.local:27017,mongo" -o /usr/share/mongodump-$(date + "%d%m%Y-%H%M%S")'
+              ]
+          volumeMounts:
+            - mountPath: /usr/share/mongodump
+              name: mongodump-volume
+          env:
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-secret
+                  key: mongo-password
+
+      volumes:
+        - name: mongodump-volume
+          persistentVolumeClaim:
+            claimName: mongodump-pvc # The PVC must be created before the job is run.
+      restartPolicy: Never # The pods won't be restarted if they fail.
+
+# To stop creating the jobs, make suspend the job with the command:
+# kubectl patch cronjob mongodb-backup-cronjob -p '{"spec" : {"suspend" : true}}'
