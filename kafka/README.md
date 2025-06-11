@@ -6,19 +6,44 @@ For building realtime architectures, realtime analytics, and streaming pipelines
 
 Kafka architecture is based on **`producer-subscriber`** model and follows distributed architecture, runs as cluster.
 
+## Index
+
+- [Core Components of Kafka Architecture](#core-components-of-kafka-architecture)
+- [Kafka APIs](#kafka-apis)
+- [Interactions in the Kafka Architecture](#interactions-in-the-kafka-architecture)
+- [Key Features of Kafka Architecture](#key-features-of-kafka-architecture)
+- [Real-World Kafka Architectures](#real-world-kafka-architectures)
+- [Advantages of Kafka Architecture](#advantages-of-kafka-architecture)
+- [Replication in Kafka](#replication-in-kafka)
+- [Key Metrics in Kafka](#key-metrics-in-kafka)
+- [Security in Kafka](#security-in-kafka)
+- [What are Kafka Connectors?](#what-are-kafka-connectors)
+
 ## Core Components of Kafka Architecture
+
+![Kafka Architecture](https://www.cloudkarafka.com/img/blog/apache-kafka-partition.png "Kafka Architecture")
+From _[hevodata.com](https://hevodata.com/learn/kafka-topic/)_
 
 1. **`Kafka Cluster`**: A Kafka cluster is a distributed system composed of multiple Kafka brokers working together to **handle the storage and processing of real-time streaming data.** It provides fault tolerance, scalability, and high availability for efficient data streaming and messaging in large-scale applications.
 
 2. **`Brokers`**: Brokers are the servers that form the Kafka cluster. Each broker is responsible for **receiving, storing, and serving data.** They handle the read and write operations from `producers and consumers`. Brokers also manage the replication of data to ensure fault tolerance.
 
+    ![Kafka Brokers](https://res.cloudinary.com/hevo/images/c_scale,w_448,h_170/f_webp,q_auto:best/v1709656054/hevo-learn-1/kafka-topics-2_1873330e242/kafka-topics-2_1873330e242.png?_i=AA)
+    From _[hevodata.com](https://hevodata.com/learn/kafka-topic/)_
+
 3. **`Topics and Partitions`**: Data in Kafka is organized into `topics`, which are **logical channels to which producers send data and from which consumers read data**. Each topic is divided into partitions, which are the basic unit of parallelism in Kafka. Partitions allow Kafka to **scale horizontally by distributing data across multiple brokers.**
+
+    ![Kafka Topics](https://res.cloudinary.com/hevo/images/c_scale,w_648,h_336/f_webp,q_auto:best/v1705316196/hevo-learn-1/streams-and-tables-p1_p4_nmkgsy/streams-and-tables-p1_p4_nmkgsy.webp?_i=AA "Kafka Topics")
+    From _[hevodata.com](https://hevodata.com/learn/kafka-topic/)_
 
 4. **`Producers`**: Producers are client applications that **publish (write) data to Kafka topics.** They send records to the appropriate topic and partition based on `the partitioning strategy`, which can be `key-based` or `round-robin`.
 
 5. **`Consumers`**: Consumers are client applications that **subscribe to Kafka topics and process the data.** They read records from the topics and can be part of a consumer group, which allows for load balancing and fault tolerance. **Each consumer in a group reads data from a unique set of partitions.**
 
 6. **`ZooKeeper`**: ZooKeeper is a centralized service for **maintaining configuration information, naming, providing distributed synchronization, and providing group services.** In Kafka, ZooKeeper is used to **manage and coordinate the Kafka brokers**. ZooKeeper is shown as a `separate component` interacting with the Kafka cluster.
+
+    ![ZooKeeper](https://imgix.datadoghq.com/img/blog/monitoring-kafka-performance-metrics/kafka-diagram.jpg?auto=compress%2Cformat&cs=origin&lossless=true&fit=max&q=75&w=1400&dpr=1)
+    From _[Datadog](https://www.datadoghq.com/blog/monitoring-kafka-performance-metrics/)_
 
 7. **`Offsets`** : Offsets are **unique identifiers assigned to each message in a partition.** Consumers will use these offsets to track their progress in consuming messages from a topic.
 
@@ -36,11 +61,11 @@ Kafka provides several APIs to interact with the system:
 
 ## Interactions in the Kafka Architecture
 
-* **`Producers to Kafka Cluster`**: Producers send data to the Kafka cluster. The data is published to specific topics, which are then divided into partitions and distributed across the brokers.
+- **`Producers to Kafka Cluster`**: Producers send data to the Kafka cluster. The data is published to specific topics, which are then divided into partitions and distributed across the brokers.
 
-* **`Kafka Cluster to Consumers`**: Consumers read data from the Kafka cluster. They subscribe to topics and consume data from the partitions assigned to them. The consumer group ensures that the load is balanced and that each partition is processed by only one consumer in the group.
+- **`Kafka Cluster to Consumers`**: Consumers read data from the Kafka cluster. They subscribe to topics and consume data from the partitions assigned to them. The consumer group ensures that the load is balanced and that each partition is processed by only one consumer in the group.
 
-* **`ZooKeeper to Kafka Cluster`**: ZooKeeper coordinates and manages the Kafka cluster. It keeps track of the cluster's metadata, manages broker configurations, and handles leader elections for partitions.
+- **`ZooKeeper to Kafka Cluster`**: ZooKeeper coordinates and manages the Kafka cluster. It keeps track of the cluster's metadata, manages broker configurations, and handles leader elections for partitions.
 
 ## Key Features of Kafka Architecture
 
@@ -56,18 +81,18 @@ Kafka provides several APIs to interact with the system:
 
 ## Real-World Kafka Architectures
 
-* Apache Kafka is a versatile platform used in various real-world applications due to its high throughput, fault tolerance, and scalability.
+- Apache Kafka is a versatile platform used in various real-world applications due to its high throughput, fault tolerance, and scalability.
 
 1. **Pub-Sub Systems**
 
     In a publish-subscribe (pub-sub) system, **producers publish messages to topics, and consumers subscribe to those topics to receive the messages.** Kafka's architecture is well-suited for pub-sub systems due to its ability to handle high volumes of data and provide reliable message delivery.
 
-    * **Key Components**
+    - **Key Components**
 
-        * `Producers`: Applications that send data to Kafka topics.
-        * `Topics`: Logical channels to which producers send data and from which consumers read data.
-        * `Consumers`: Applications that subscribe to topics and process the data.
-        * `Consumer Groups`: Groups of consumers that share the load of reading from topics.
+        - `Producers`: Applications that send data to Kafka topics.
+        - `Topics`: Logical channels to which producers send data and from which consumers read data.
+        - `Consumers`: Applications that subscribe to topics and process the data.
+        - `Consumer Groups`: Groups of consumers that share the load of reading from topics.
 
     >A real-world example of a pub-sub system using Kafka could be a **news feed application** where multiple news sources (producers) publish articles to a topic, and various user applications (consumers) subscribe to receive updates in real-time.
 
@@ -75,12 +100,12 @@ Kafka provides several APIs to interact with the system:
 
     Stream processing pipelines involve **continuously ingesting, processing, and transforming data** in real-time. Kafka's ability to handle high-throughput data streams and its integration with stream processing frameworks like `Apache Flink` and `Apache Spark` make it ideal for building such pipelines.
 
-    * **Key Components**
+    - **Key Components**
 
-        * `Producers`: Applications that send raw data streams to Kafka topics.
-        * `Topics`: Channels where raw data is stored before processing.
-        * `Stream Processors`: Applications or frameworks that consume raw data, process it, and produce transformed data.
-        * `Sink Topics`: Topics where processed data is stored for further use.
+        - `Producers`: Applications that send raw data streams to Kafka topics.
+        - `Topics`: Channels where raw data is stored before processing.
+        - `Stream Processors`: Applications or frameworks that consume raw data, process it, and produce transformed data.
+        - `Sink Topics`: Topics where processed data is stored for further use.
 
     >A real-world example of a stream processing pipeline using Kafka could be a **financial trading platform** where market data (producers) is ingested in real-time, processed to detect trading signals (stream processors), and the results are stored in sink topics for further analysis.
 
@@ -88,25 +113,21 @@ Kafka provides several APIs to interact with the system:
 
     Log aggregation involves **collecting log data from various sources, centralizing it, and making it available for analysis.** Kafka's durability and scalability make it an excellent choice for log aggregation systems.
 
-    * **Key Components**
+    - **Key Components**
 
-        * `Log Producers`: Applications or services that generate log data.
-        * `Log Topics`: Kafka topics where log data is stored.
-        * `Log Consumers`: Applications that read log data for analysis or storage in a centralized system.
+        - `Log Producers`: Applications or services that generate log data.
+        - `Log Topics`: Kafka topics where log data is stored.
+        - `Log Consumers`: Applications that read log data for analysis or storage in a centralized system.
 
     >A real-world example of a log aggregation architecture using Kafka could be a **microservices-based application** where each microservice produces logs. These logs are sent to Kafka topics, and a centralized logging system (like ELK Stack) consumes the logs for analysis and monitoring.
 
 ## Advantages of Kafka Architecture
 
-* `Decoupling of Producers and Consumers`: Kafka decouples producers and consumers, allowing them to operate independently. This makes it easier to scale and manage the system.
+- `Decoupling of Producers and Consumers`: Kafka decouples producers and consumers, allowing them to operate independently. This makes it easier to scale and manage the system.
 
-* `Ordered and Immutable Logs`: Kafka maintains the order of records within a partition and ensures that records are immutable. This guarantees the integrity and consistency of the data.
+- `Ordered and Immutable Logs`: Kafka maintains the order of records within a partition and ensures that records are immutable. This guarantees the integrity and consistency of the data.
 
-* `High Availability`: Kafka's replication and fault tolerance mechanisms ensure high availability and reliability of the data.
-
-<details>
-
-<summary>Click to expand for more details on Kafka</summary>
+- `High Availability`: Kafka's replication and fault tolerance mechanisms ensure high availability and reliability of the data.
 
 ## Replication in Kafka
 
@@ -114,22 +135,31 @@ Kafka provides several APIs to interact with the system:
 
 In **Apache Kafka**, each **partition** of a topic has one **leader** replica and multiple **follower** replicas:
 
-* **Leader**: The leader is the single replica that handles all **read** and **write** operations for the partition. Producers send messages to the leader, and consumers read messages from the leader (with one exception, which we'll skip for now).
+![Kafka Leader and Follower](https://mbukowicz.github.io/images/replication-in-kafka/leaders-followers.png "Kafka Leader and Follower")<br/>
+From _[mbukowicz.github.io](https://mbukowicz.github.io/replication-in-kafka/)_
 
-* **Follower**: Follower replicas are **read-only** and replicate data from the leader. They do not handle client requests directly but maintain a copy of the data to ensure **high availability** and **data durability**.
+<!-- ![Kafka Partition Leader and follower](https://imgix.datadoghq.com/img/blog/monitoring-kafka-performance-metrics/broker-topic-partition2.png?auto=compress%2Cformat&cs=origin&lossless=true&fit=max&q=75&w=1400&dpr=1)
+From _[Datadog](https://www.datadoghq.com/blog/monitoring-kafka-performance-metrics/)_ -->
 
-When a leader fails or becomes unavailable, Kafka automatically **elects a new leader** from the in-sync replicas (ISR). Follower replicas continue to fetch data from the new leader to stay up to date.
+- **Leader**: The leader is the single replica that handles all **read** and **write** operations for the partition. Producers send messages to the leader, and consumers read messages from the leader (with one exception, which we'll skip for now).
+
+- **Follower**: Follower replicas are **read-only** and replicate data from the leader. They do not handle client requests directly but maintain a copy of the data to ensure **high availability** and **data durability**.
+
+    When a leader fails or becomes unavailable, Kafka automatically **elects a new leader** from the in-sync replicas (ISR). Follower replicas continue to fetch data from the new leader to stay up to date.
 
 ### What is an ISR?
 
-**ISR** stands for **In-Sync Replicas**. In Apache Kafka, it refers to a set of replicas (brokers) that are in sync with the *leader replica* of a partition. These replicas have successfully replicated all the messages from the leader and are considered up-to-date.
+**ISR** stands for **In-Sync Replicas**. In Apache Kafka, it refers to a set of replicas (brokers) that are in sync with the _leader replica_ of a partition. These replicas have successfully replicated all the messages from the leader and are considered up-to-date.
+
+![ISR Kafka](https://pic4.zhimg.com/v2-0cb9b66cdb1e6028d13b644cba19e703_r.jpg "Kafka ISR")
+From _[zhihu.com](https://zhuanlan.zhihu.com/p/35088564)_
 
 Key points about ISR:
 
-* **ISR list** contains all replicas that are in sync with the leader.
-* If a replica falls behind (due to network issues, slow performance, or failure), it is **removed from the ISR list** (this is called an **ISR shrink**).
-* When a replica catches up, it is **added back to the ISR list** (this is called an **ISR expand**).
-* Producers typically send messages to the leader and require acknowledgments from a minimum number of replicas in the ISR (controlled by the `min.insync.replicas` configuration).
+- **ISR list** contains all replicas that are in sync with the leader.
+- If a replica falls behind (due to network issues, slow performance, or failure), it is **removed from the ISR list** (this is called an **ISR shrink**).
+- When a replica catches up, it is **added back to the ISR list** (this is called an **ISR expand**).
+- Producers typically send messages to the leader and require acknowledgments from a minimum number of replicas in the ISR (controlled by the `min.insync.replicas` configuration).
 
 ### What is `min.insync.replicas`?
 
@@ -137,8 +167,8 @@ When producers send messages to a Kafka topic, they typically send them to the l
 
 This minimum number of replicas is defined by the `min.insync.replicas` configuration. For example:
 
-* If `min.insync.replicas` is set to 2, the producer will wait for acknowledgments from at least 2 replicas (the leader and at least one follower) before considering the message successfully written.
-* If this number is not met (e.g., due to a broker failure), the producer may retry or fail based on its configuration.
+- If `min.insync.replicas` is set to 2, the producer will wait for acknowledgments from at least 2 replicas (the leader and at least one follower) before considering the message successfully written.
+- If this number is not met (e.g., due to a broker failure), the producer may retry or fail based on its configuration.
 This setting helps balance availability and durability depending on your system's requirements.
 
 ### What is `replica.lag.time.max.ms`?
@@ -146,10 +176,10 @@ This setting helps balance availability and durability depending on your system'
 **`replica.lag.time.max.ms`** defines the `maximum amount of time a follower replica can lag behind the leader replica before it is considered out of sync.`
 This parameter is crucial for maintaining the health of the Kafka cluster and ensuring that all replicas are up-to-date with the leader.
 
-* If a follower replica does not catch up to the leader within the specified time, it may be removed from the In-Sync Replicas (ISR) list.
-* This can lead to data loss if the leader fails, as the `out-of-sync` replica may not have the latest messages.
-* The default value for `replica.lag.time.max.ms` is 10 seconds (10000 milliseconds), but it can be adjusted based on the specific requirements of your Kafka deployment.
-* Setting it lower will allow us to detect failures more quickly, but it may also lead to more frequent ISR changes and potential data loss if the follower is unable to catch up in time.
+- If a follower replica does not catch up to the leader within the specified time, it may be removed from the In-Sync Replicas (ISR) list.
+- This can lead to data loss if the leader fails, as the `out-of-sync` replica may not have the latest messages.
+- The default value for `replica.lag.time.max.ms` is 10 seconds (10000 milliseconds), but it can be adjusted based on the specific requirements of your Kafka deployment.
+- Setting it lower will allow us to detect failures more quickly, but it may also lead to more frequent ISR changes and potential data loss if the follower is unable to catch up in time.
 
 ### What is `replica.lag.max.messages`?
 
@@ -160,79 +190,235 @@ This parameter is crucial for maintaining the health of the Kafka cluster and en
 
 **`acks=all`** specifies how many acknowledgments the producer requires from the broker before considering a message as successfully sent.
 
-* When `acks=all` is set, the producer will wait for acknowledgments from all in-sync replicas (ISRs) of the partition before considering the message as successfully sent.
-* This ensures that the message is replicated to all in-sync replicas, providing a higher level of durability and fault tolerance.
-* If any of the in-sync replicas fail to acknowledge the message, the producer will retry sending the message until it receives acknowledgments from all in-sync replicas or until a timeout occurs.
+- When `acks=all` is set, the producer will wait for acknowledgments from all in-sync replicas (ISRs) of the partition before considering the message as successfully sent.
+- This ensures that the message is replicated to all in-sync replicas, providing a higher level of durability and fault tolerance.
+- If any of the in-sync replicas fail to acknowledge the message, the producer will retry sending the message until it receives acknowledgments from all in-sync replicas or until a timeout occurs.
 
-* Possible values can be:
-  * `acks=0`: The producer does not wait for any acknowledgment from the broker.
-  * `acks=1`: The producer waits for acknowledgment from the leader replica only.
-  * `acks=all`: The producer waits for acknowledgment from all in-sync replicas.
-  * `acks=-1`: This is equivalent to `acks=all` and waits for acknowledgment from all in-sync replicas.
+- Possible values can be:
+  - `acks=0`: The producer does not wait for any acknowledgment from the broker.
+  - `acks=1`: The producer waits for acknowledgment from the leader replica only.
+  - `acks=all`: The producer waits for acknowledgment from all in-sync replicas.
+  - `acks=-1`: This is equivalent to `acks=all` and waits for acknowledgment from all in-sync replicas.
 
-* Usually the number of ISR is equal to the replication factor of the topic, but it can be less if some replicas are not in sync.
+- Usually the number of ISR is equal to the replication factor of the topic, but it can be less if some replicas are not in sync.
 
-* Example: `min.insync.replicas=3` and `ReplicationFactor=4`
-  * This allows our application to tolerate 1 broker failure, as long as the remaining 3 brokers are in sync.
-  * If the number of in-sync replicas is less than `min.insync.replicas`, the producer will receive an error and may retry sending the message based on its configuration. (Exception: `NotEnoughReplicas`)
-  * This setting is crucial for ensuring data durability and consistency in Kafka, especially in scenarios where high availability and fault tolerance are required.
+- Example: `min.insync.replicas=3` and `ReplicationFactor=4`
+  - This allows our application to tolerate 1 broker failure, as long as the remaining 3 brokers are in sync.
+  - If the number of in-sync replicas is less than `min.insync.replicas`, the producer will receive an error and may retry sending the message based on its configuration. (Exception: `NotEnoughReplicas`)
+  - This setting is crucial for ensuring data durability and consistency in Kafka, especially in scenarios where high availability and fault tolerance are required.
 
 ### What is `replica.fetch.wait.max.ms`?
 
 **`replica.fetch.wait.max.ms`** defines the maximum amount of time a follower replica will wait for new data from the leader replica before fetching it. This setting is crucial for controlling the replication lag and ensuring that follower replicas stay up-to-date with the leader.
 
-* If the leader replica has no new data to send, the follower will wait for this duration before attempting to fetch data again.
-* This parameter helps balance the trade-off between replication lag and resource utilization. A shorter wait time can reduce lag but may increase network traffic, while a longer wait time can lead to higher lag but lower network usage.
-* The default value for `replica.fetch.wait.max.ms` is 500 ms (0.5 seconds).
+- If the leader replica has no new data to send, the follower will wait for this duration before attempting to fetch data again.
+- This parameter helps balance the trade-off between replication lag and resource utilization. A shorter wait time can reduce lag but may increase network traffic, while a longer wait time can lead to higher lag but lower network usage.
+- The default value for `replica.fetch.wait.max.ms` is 500 ms (0.5 seconds).
 
 ### What is `replica.fetch.min.bytes`?
 
 **`replica.fetch.min.bytes`** defines the minimum amount of data that a follower replica must fetch from the leader replica in a single request. This setting is crucial for controlling the efficiency of data replication and minimizing network overhead.
 
-* If the amount of data available on the leader is less than this threshold, the follower will wait until enough data is available before fetching it.
-* This parameter helps optimize network usage by ensuring that the follower does not make frequent requests for small amounts of data, which can lead to increased latency and reduced throughput.
-* The default value for `replica.fetch.min.bytes` is 1 byte, meaning that the follower will fetch data as soon as it is available, regardless of the amount.
-* If you set a higher value, the follower will wait until it has at least that much data to fetch, which can help reduce the number of requests and improve overall replication efficiency.
+- If the amount of data available on the leader is less than this threshold, the follower will wait until enough data is available before fetching it.
+- This parameter helps optimize network usage by ensuring that the follower does not make frequent requests for small amounts of data, which can lead to increased latency and reduced throughput.
+- The default value for `replica.fetch.min.bytes` is 1 byte, meaning that the follower will fetch data as soon as it is available, regardless of the amount.
+- If you set a higher value, the follower will wait until it has at least that much data to fetch, which can help reduce the number of requests and improve overall replication efficiency.
 
 ### What is `num.replica.fetchers`?
 
 **`num.replica.fetchers`** defines the number of threads used by a broker to fetch data from leader replicas for replication purposes. This setting is crucial for controlling the efficiency and performance of data replication across the Kafka cluster.
 
-* Each broker can have multiple partitions, and each partition may have multiple replicas. The `num.replica.fetchers` setting determines how many threads will be used to fetch data from the leader replicas for all partitions on that broker.
-* Increasing the number of replica fetchers can improve the replication throughput, especially in scenarios where a broker has many partitions or high data volume.
-* The default value for `num.replica.fetchers` is 1, meaning that a single thread will be used to fetch data from leader replicas. However, this can be increased based on the broker's hardware capabilities and the expected workload.
+- Each broker can have multiple partitions, and each partition may have multiple replicas. The `num.replica.fetchers` setting determines how many threads will be used to fetch data from the leader replicas for all partitions on that broker.
+- Increasing the number of replica fetchers can improve the replication throughput, especially in scenarios where a broker has many partitions or high data volume.
+- The default value for `num.replica.fetchers` is 1, meaning that a single thread will be used to fetch data from leader replicas. However, this can be increased based on the broker's hardware capabilities and the expected workload.
 
 ## Key Metrics in Kafka
 
 Kafka provides various metrics to monitor the health and performance of the cluster. Some key metrics include:
 
-* **`Messages In Per Second`**: The number of messages produced to the Kafka cluster per second. Understanding `the throughput of the system.`
-* **`Messages Out Per Second`**: The number of messages consumed from the Kafka cluster per second. Understanding `the consumption rate of the system.`
+- **`Messages In Per Second`**: The number of messages produced to the Kafka cluster per second. Understanding `the throughput of the system.`
+- **`Messages Out Per Second`**: The number of messages consumed from the Kafka cluster per second. Understanding `the consumption rate of the system.`
 
-* **`Bytes In Per Second`**: The total number of bytes produced to the Kafka cluster per second. Understanding `the data volume being processed.`
-* **`Bytes Out Per Second`**: The total number of bytes consumed from the Kafka cluster per second. Understanding `the data volume being consumed.`
+- **`Bytes In Per Second`**: The total number of bytes produced to the Kafka cluster per second. Understanding `the data volume being processed.`
+- **`Bytes Out Per Second`**: The total number of bytes consumed from the Kafka cluster per second. Understanding `the data volume being consumed.`
 
-* **`Active Controller Count`**: The number of active controllers in the Kafka cluster.
-* **`Under Replicated Partitions`**: The number of partitions that are not fully replicated. Identifying `potential data loss scenarios.`
-* **`Offline Partitions Count`**: The number of partitions that are currently offline. Identifying `partitions that are not available for reading or writing.`
-* **`Consumer Lag`**: The difference between the latest offset in a partition and the offset that a consumer has processed. Understanding `how far behind a consumer is in processing messages.`
+- **`Active Controller Count`**: The number of active controllers in the Kafka cluster.
+- **`Under Replicated Partitions`**: The number of partitions that are not fully replicated. Identifying `potential data loss scenarios.`
+- **`Offline Partitions Count`**: The number of partitions that are currently offline. Identifying `partitions that are not available for reading or writing.`
+- **`Consumer Lag`**: The difference between the latest offset in a partition and the offset that a consumer has processed. Understanding `how far behind a consumer is in processing messages.`
 
-* **`Producer Error Rate`**: The rate of errors encountered by producers when sending messages to the Kafka cluster.
-* **`Consumer Error Rate`**: The rate of errors encountered by consumers when reading messages from the Kafka cluster.
+- **`Producer Error Rate`**: The rate of errors encountered by producers when sending messages to the Kafka cluster.
+- **`Consumer Error Rate`**: The rate of errors encountered by consumers when reading messages from the Kafka cluster.
 
-* **`Request Latency`**: The time taken to process requests in the Kafka cluster. Understanding `the responsiveness of the system.`
-* **`Network I/O`**: The amount of data sent and received over the network by the Kafka brokers. Understanding `the network load on the cluster.`
-* **`Disk I/O`**: The amount of data read from and written to disk by the Kafka brokers. Understanding `the disk load on the cluster.`
+- **`Request Latency`**: The time taken to process requests in the Kafka cluster. Understanding `the responsiveness of the system.`
+- **`Network I/O`**: The amount of data sent and received over the network by the Kafka brokers. Understanding `the network load on the cluster.`
+- **`Disk I/O`**: The amount of data read from and written to disk by the Kafka brokers. Understanding `the disk load on the cluster.`
 
-* **`Cluster Metrics`**: Metrics related to the overall health and performance of the Kafka cluster, such as the `number of active brokers, the status of each broker, and the health of the cluster as a whole.`
-* **`Replication Metrics`**: Metrics related to the replication process, such as the `time taken to replicate messages, the number of messages replicated, and the status of replication across brokers.`
-* **`Controller Metrics`**: Metrics related to the Kafka controller, such as the `time taken to elect a new controller, the number of controller requests processed, and the status of controller operations.`
-* **`Partition Metrics`**: Metrics related to individual partitions, such as the `number of messages in each partition, the status of each partition, and the health of each partition.`
-* **`Topic Metrics`**: Metrics related to specific topics, such as the `number of partitions, the replication factor, and the status of each partition.`
-* **`Broker Metrics`**: Metrics related to individual brokers, such as the `number of active connections, the status of each broker, and the health of each broker.`
-* **`Consumer Group Metrics`**: Metrics related to consumer groups, such as the `number of active consumers, the lag for each consumer group, and the status of each consumer group.`
+- **`Cluster Metrics`**: Metrics related to the overall health and performance of the Kafka cluster, such as the `number of active brokers, the status of each broker, and the health of the cluster as a whole.`
+- **`Replication Metrics`**: Metrics related to the replication process, such as the `time taken to replicate messages, the number of messages replicated, and the status of replication across brokers.`
+- **`Controller Metrics`**: Metrics related to the Kafka controller, such as the `time taken to elect a new controller, the number of controller requests processed, and the status of controller operations.`
+- **`Partition Metrics`**: Metrics related to individual partitions, such as the `number of messages in each partition, the status of each partition, and the health of each partition.`
+- **`Topic Metrics`**: Metrics related to specific topics, such as the `number of partitions, the replication factor, and the status of each partition.`
+- **`Broker Metrics`**: Metrics related to individual brokers, such as the `number of active connections, the status of each broker, and the health of each broker.`
+- **`Consumer Group Metrics`**: Metrics related to consumer groups, such as the `number of active consumers, the lag for each consumer group, and the status of each consumer group.`
 
-* **`ISR Shrink/Expand Metrics`**: Metrics related to the shrinking and expanding of the In-Sync Replicas (ISR) list, such as the `number of times the ISR list has shrunk or expanded, and the time taken for these operations.`
-* **`Under Min ISR Partitions`**: The number of partitions that do not have the minimum number of in-sync replicas. Identifying `partitions that may not be fully available for reading or writing.`
+- **`ISR Shrink/Expand Metrics`**: Metrics related to the shrinking and expanding of the In-Sync Replicas (ISR) list, such as the `number of times the ISR list has shrunk or expanded, and the time taken for these operations.`
+- **`Under Min ISR Partitions`**: The number of partitions that do not have the minimum number of in-sync replicas. Identifying `partitions that may not be fully available for reading or writing.`
 
-</details>
+### References
+
+- BLOG - [Datadog](https://www.datadoghq.com/blog/monitoring-kafka-performance-metrics/)
+- DOCUMENTATION - [Apache Kafka](https://kafka.apache.org/documentation/#monitoring)
+- DOCUMENTATION - [Confluent](https://docs.confluent.io/platform/current/monitoring/kafka-monitoring.html)
+
+## Security in Kafka
+
+### SASL
+
+SASL `(Simple Authentication and Security Layer)` is a security protocol supported by Kafka, in addition to SSL (Secure Sockets Layer).
+
+![SASL](https://images.ctfassets.net/gt6dp23g0g38/5Wg6QMjsyCxBJ1rKJ936qB/12f7a3e3ecbf3ec1ff4de1645946b2b9/sasl-ssl-kafka.jpg)
+From _[Confluent](https://www.confluent.io/blog/)_
+
+The key points about SASL are:
+
+1. **Encryption**: Like SSL, SASL SSL encrypts the traffic between `Kafka clients and brokers` using the TLS cryptographic protocol.
+
+2. **Authentication**: While SSL uses client certificates for authentication, SASL provides alternative authentication mechanisms such as:
+   - GSSAPI (Kerberos)
+   - PLAIN (username/password)
+   - SCRAM-SHA-256 and SCRAM-SHA-512 (salted challenge response authentication mechanism)
+   - OAUTHBEARER (OAuth 2.0 token-based authentication)
+
+3. **Integration with Existing Infrastructure**: The main reason to choose SASL over SSL is to integrate Kafka with an existing authentication infrastructure in the organization, such as Kerberos, password servers, or OAuth providers.
+
+4. **Configuration Overhead**: Each SASL mechanism has its own configuration requirements, often involving integration with external servers and services.
+
+In summary, SASL provides an alternative to SSL-based authentication in Kafka, allowing integration with existing security infrastructure in the organization, at the cost of additional configuration complexity.
+
+#### How it differs from SSL?
+
+The key differences between SASL and SSL/TLS in the context of Apache Kafka are:
+
+1. **Authentication Mechanism**:
+   - **SSL/TLS**: Uses client certificates for authentication. Clients and brokers authenticate each other using X.509 certificates.
+   - **SASL**: Supports various authentication mechanisms, such as Kerberos (GSSAPI), username/password (PLAIN), salted challenge-response (SCRAM), and OAuth (OAUTHBEARER).
+
+2. **Integration with Existing Infrastructure**:
+   - **SSL/TLS**: Requires managing and distributing client certificates, which can be more complex to integrate with existing authentication systems.
+   - **SASL**: Allows integration with existing authentication infrastructure, such as Kerberos, LDAP, or OAuth providers, making it easier to leverage existing user credentials and authentication workflows.
+
+3. **Encryption**:
+   - **SSL/TLS**: Provides encryption of the communication between Kafka clients and brokers using the TLS protocol.
+   - **SASL**: Does not provide encryption by itself. SASL is often used in conjunction with SSL/TLS to provide both authentication and encryption.
+
+4. **Configuration Complexity**:
+   - **SSL/TLS**: Requires configuring SSL/TLS certificates, trust stores, and related settings on both the client and broker side.
+   - **SASL**: Requires configuring the specific SASL mechanism, including integration with external authentication systems, which can be more complex than SSL/TLS.
+
+5. **Performance**:
+   - **SSL/TLS**: Adds some overhead due to the cryptographic operations required for encryption and authentication.
+   - **SASL**: Adds less overhead compared to SSL/TLS, as the authentication process is generally less computationally intensive.
+
+In summary, SSL/TLS focuses on `providing encryption and certificate-based authentication`, while SASL offers more flexibility in terms of authentication mechanisms, allowing integration with existing authentication infrastructure.
+
+### Kerberos
+
+Kerberos is an authentication protocol that allows for secure communication over an insecure network. It is a widely used authentication mechanism in enterprise environments.
+
+The key aspects of Kerberos are:
+
+1. **Authentication**: Kerberos uses a trusted `third-party authentication server` to verify the identity of users and services. This is done through the exchange of `encrypted tickets`.
+
+2. **Single Sign-On (SSO)**: With Kerberos, users only need to authenticate once to gain access to multiple services and applications.
+
+3. **Mutual Authentication**: Kerberos ensures that both the client and the server `mutually` authenticate each other before establishing a secure connection.
+
+4. **Ticket-Based Authorization**: Kerberos uses tickets, which are `time-limited cryptographic credentials`, to grant access to services. These tickets are obtained from the authentication server.
+
+The main components in a Kerberos system are:
+
+- **Key Distribution Center (KDC)**: The authentication server that `issues tickets` for client-server authentication.
+- **Client**: The user or application that `requests access` to a service.
+- **Server**: The service that the client wants to access.
+
+    ![Kerberos](https://kerberos.org/images/krbmsg.gif)
+
+Kerberos is commonly used in enterprise environments, such as Active Directory, to provide secure authentication and authorization across different systems and applications.
+It is considered a robust and secure authentication protocol, especially in scenarios where multiple services and users need to communicate securely over an untrusted network.
+
+### SCRAM
+
+SCRAM `(Salted Challenge Response Authentication Mechanism)` is an authentication mechanism that is used in various protocols, including SASL (Simple Authentication and Security Layer) and XMPP (Extensible Messaging and Presence Protocol).
+
+The key features of SCRAM are:
+
+1. **Password-based Authentication**: SCRAM is a password-based authentication mechanism, where the client authenticates to the server using a shared secret (password).
+
+2. **Salted Hashing**: SCRAM uses salted hashing to store and verify passwords. This helps protect against password cracking and rainbow table attacks.
+
+3. **Challenge-Response**: SCRAM uses a challenge-response protocol, where the server challenges the client, and the client responds with a cryptographic proof of their identity.
+
+4. **Mutual Authentication**: SCRAM provides mutual authentication, where both the client and the server authenticate each other.
+
+5. **Resistance to Replay Attacks**: SCRAM includes nonces (unique numbers used only once) in the challenge-response exchange, which helps prevent replay attacks.
+
+6. **Channel Binding**: SCRAM can be used with channel binding, which allows the authentication to be tied to the underlying secure transport layer (e.g., TLS/SSL).
+
+![SCRAM Auth](https://cdn.bloghunch.com/uploads/LtJucb4325vX5cI7.webp)
+
+SCRAM is designed to be a more secure alternative to traditional password-based authentication mechanisms, such as plaintext password transmission or the use of unsalted hashes.
+It is commonly used in protocols like XMPP, LDAP, and MongoDB to provide secure authentication between clients and servers.
+
+## What are Kafka Connectors?
+
+Kafka connectors are pluggable components used within the Kafka Connect framework to move data between Apache Kafka and external systems, such as databases, file systems, cloud services, or search indexes. They simplify the integration process, allowing you to build robust data pipelines without custom code.
+
+### Types of Kafka Connectors
+
+- **Source Connectors:**
+  Import data from external systems into Kafka topics [e.g., ingesting data from a database into Kafka].
+
+- **Sink Connectors:**
+  Export data from Kafka topics to external systems [e.g., sending Kafka topic data to Elasticsearch, S3, or a relational database].
+
+### Key Concepts
+
+- **Connector Plugins:**
+  Encapsulate the logic for connecting to a specific external system. You can use pre-built connectors or develop custom ones.
+
+- **Tasks:**
+  Units of work assigned to connectors, responsible for processing subsets of data. Multiple tasks can run in parallel for scalability.
+
+- **Workers:**
+  Kafka Connect processes that execute connectors and tasks. Workers can be run in standalone mode (single node) or distributed mode [multi-node for scalability and fault tolerance].
+
+- **Transformations:**
+  Single Message Transformations (SMTs) allow lightweight data manipulation as messages pass through Kafka Connect.
+
+- **Converters:**
+  Handle serialization and deserialization of data between Kafka and external systems.
+
+### Use Cases
+
+- Streaming data from databases (like MySQL or PostgreSQL) into Kafka topics.
+- Exporting Kafka topic data to data lakes, warehouses, or analytics platforms.
+- Real-time data synchronization between systems.
+
+### Benefits
+
+- Reduces the need for custom integration code.
+- Scalable and fault-tolerant architecture.
+- Supports both batch and streaming data movement.
+- Easily extensible with pre-built or custom connectors.
+
+In summary, Kafka connectors are essential building blocks within Kafka Connect, enabling efficient and reliable data integration between Kafka and a wide variety of external systems.
+
+- <https://www.redpanda.com/guides/kafka-tutorial-what-is-kafka-connect> "kafka-tutorial-what-is-kafka-connect"
+- <https://www.baeldung.com/kafka-connectors> "kafka-connectors"
+- <https://docs.confluent.io/platform/current/connect/index.html> "confluent-kafka-connect"
+- <https://docs.snowflake.com/en/user-guide/kafka-connector-overview> "snowflake-kafka-connector-overview"
+- <https://www.redpanda.com/guides/kafka-cloud-kafka-connectors> "kafka-cloud-kafka-connectors"
+- <https://www.instaclustr.com/education/apache-kafka/apache-kafka-connect-the-basics-and-a-quick-tutorial> "apache-kafka-connect-the-basics-and-a-quick-tutorial"
+- <https://docs.confluent.io/platform/current/connect/kafka_connectors.html> "confluent-kafka_connectors"
+- <https://cloud.google.com/integration-connectors/docs/connectors/apachekafka/configure> "google-cloud-integration-connectors-apachekafka-configure"
