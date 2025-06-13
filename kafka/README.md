@@ -18,11 +18,16 @@ Kafka architecture is based on **`producer-subscriber`** model and follows distr
 - [Key Metrics in Kafka](#key-metrics-in-kafka)
 - [Security in Kafka](#security-in-kafka)
 - [What are Kafka Connectors?](#what-are-kafka-connectors)
+- [Important feature/configuirations in Kafka](#important-featureconfigurations-in-kafka)
+- [Strimzi Operators](#strimzi-operator)
 
 ## Core Components of Kafka Architecture
 
 ![Kafka Architecture](https://www.cloudkarafka.com/img/blog/apache-kafka-partition.png "Kafka Architecture")
 From _[hevodata.com](https://hevodata.com/learn/kafka-topic/)_
+
+![Kafka Architecture](https://strimzi.io/docs/operators/latest/images/overview/kafka-concepts-supporting-components.png "Kafka Architecture")
+From _[strimzi.io](https://strimzi.io/docs/operators/latest/overview.html)_
 
 1. **`Kafka Cluster`**: A Kafka cluster is a distributed system composed of multiple Kafka brokers working together to **handle the storage and processing of real-time streaming data.** It provides fault tolerance, scalability, and high availability for efficient data streaming and messaging in large-scale applications.
 
@@ -382,6 +387,8 @@ Kafka connectors are pluggable components used within the Kafka Connect framewor
 - **Sink Connectors:**
   Export data from Kafka topics to external systems [e.g., sending Kafka topic data to Elasticsearch, S3, or a relational database].
 
+  ![Kafka connector](https://camunda.com/wp-content/uploads/camunda/zeebe-images/blog/zeebe-kafka-connect/kafka-connect-from-confluent.png "Kafka Connector")
+
 ### Key Concepts
 
 - **Connector Plugins:**
@@ -390,14 +397,79 @@ Kafka connectors are pluggable components used within the Kafka Connect framewor
 - **Tasks:**
   Units of work assigned to connectors, responsible for processing subsets of data. Multiple tasks can run in parallel for scalability.
 
+  Tasks themselves have no state stored within them. Rather a task’s state is stored in special topics in Kafka, config.storage.topic and status.storage.topic, and managed by the associated connector. Tasks may be started, stopped, or restarted at any time to provide a resilient and scalable data pipeline.
+
+  ![Tasks](https://docs.confluent.io/platform/current/_images/data-model-simple.png "Tasks")
+
+- **Task rebalancing:**
+  When a connector is first submitted to the cluster, the workers rebalance the full set of connectors in the cluster and their tasks so that each worker has approximately the same amount of work.
+
+  This rebalancing procedure is also used when connectors increase or decrease the number of tasks they require, or when a connector’s configuration is changed. When a worker fails, tasks are rebalanced across the active workers.
+
+  When a task fails, no rebalance is triggered, as a task failure is considered an exceptional case. As such, failed tasks are not restarted by the framework and should be restarted using the REST API.
+
+  ![Task failover](https://docs.confluent.io/platform/current/_images/task-failover.png "Task Failover")
+
 - **Workers:**
-  Kafka Connect processes that execute connectors and tasks. Workers can be run in standalone mode (single node) or distributed mode [multi-node for scalability and fault tolerance].
+  Connectors and tasks are logical units of work and must be scheduled to execute in a process. Kafka Connect calls these processes workers.
+
+  Workers can be run in `standalone` mode (single node) or `distributed` mode (multi-node for scalability and fault tolerance).
+
+  - **Standalone workers**
+    - Simplest mode, where a single process is responsible for executing all connectors and tasks.
+    - Requires minimal configuration.
+    - Convenient for getting started, during development, and in certain situations where only one process makes sense, such as collecting logs from a host.
+
+  - **Destributed workers**
+    - Multiple processes (workers) run in a cluster, allowing for horizontal scaling and fault tolerance.
+    - Connectors and tasks are distributed across the workers, enabling parallel processing.
+    - Provides automatic task rebalancing and failover capabilities.
+    - In distributed mode, you start many worker processes using the same `group.id` and they coordinate to schedule execution of connectors and tasks across all available workers.
+    - Note that all workers with the same `group.id` will be in the same connect cluster. For example, if worker A has `group.id=connect-cluster-a` and worker B has the same `group.id`, worker A and worker B will form a cluster called `connect-cluster-a`.
+
+    ![Distributed workers](https://docs.confluent.io/platform/current/_images/worker-model-basics.png "Distributed Workers")
 
 - **Transformations:**
   Single Message Transformations (SMTs) allow lightweight data manipulation as messages pass through Kafka Connect.
 
+  - This can be convenient for `minor data adjustments` and `event routing`, and many transformations can be chained together in the connector configuration.
+
+  - Accepts one record as an input and outputs a modified record.
+
 - **Converters:**
-  Handle serialization and deserialization of data between Kafka and external systems.
+  Handle `serialization and deserialization` of data between Kafka and external systems.
+
+  - **AvroConverter** `io.confluent.connect.avro.AvroConverter`: use with Schema Registry
+  - **ProtobufConverter** `io.confluent.connect.protobuf.ProtobufConverter`: use with Schema Registry
+  - **JsonSchemaConverter** `io.confluent.connect.json.JsonSchemaConverter`: use with Schema Registry
+  - **JsonConverter** `org.apache.kafka.connect.json.JsonConverter` (without Schema Registry): use with structured data
+  - **StringConverter** `org.apache.kafka.connect.storage.StringConverter`: simple string format
+  - **ByteArrayConverter** `org.apache.kafka.connect.converters.ByteArrayConverter`: provides a “pass-through” option that does no conversion
+
+  Converters are decoupled from connectors themselves to allow for the reuse of converters between connectors.
+
+  **E.X.**
+
+  ```json
+  {
+    "name": "jdbc-source-connector",
+    "config": {
+      "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
+      "tasks.max": "1",
+      "connection.url": "jdbc:mysql://localhost:3306/mydb",
+      "table.whitelist": "my_table",
+      "mode": "incrementing",
+      "incrementing.column.name": "id",
+      "topic.prefix": "jdbc-",
+      "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "value.converter": "org.apache.kafka.connect.json.JsonConverter"
+    }
+  }
+  ```
+
+  >The same converter can be used even though, for example, the JDBC source returns a ResultSet that is eventually written to HDFS as a parquet file.
+
+  ![Converters](https://docs.confluent.io/platform/current/_images/converter-basics.png "Converters")
 
 ### Use Cases
 
@@ -422,3 +494,305 @@ In summary, Kafka connectors are essential building blocks within Kafka Connect,
 - <https://www.instaclustr.com/education/apache-kafka/apache-kafka-connect-the-basics-and-a-quick-tutorial> "apache-kafka-connect-the-basics-and-a-quick-tutorial"
 - <https://docs.confluent.io/platform/current/connect/kafka_connectors.html> "confluent-kafka_connectors"
 - <https://cloud.google.com/integration-connectors/docs/connectors/apachekafka/configure> "google-cloud-integration-connectors-apachekafka-configure"
+
+## Important feature/configurations in Kafka
+
+### `auto.create.topics.enable`
+
+The `auto.create.topics.enable` configuration in Apache Kafka determines whether Kafka automatically creates topics when a producer or consumer attempts to access a non-existent topic. By default, this setting is enabled, allowing for dynamic topic creation. However, in production environments, it is often recommended to disable this feature to avoid unintentional topic creation and to maintain better control over the Kafka ecosystem.
+
+### `delete.topic.enable`
+
+Controls whether topics can be deleted in Kafka. By default, this setting is disabled, meaning that topics cannot be deleted once they are created. Enabling this feature allows for more flexible topic management but should be done with caution to avoid accidental data loss.
+
+### `enable.idempotence`
+
+Ensure that messages are produced exactly once to a Kafka topic, even in the presence of failures. When this setting is enabled, Kafka producers will automatically handle retries and deduplicate messages, providing stronger guarantees about message delivery. This feature is particularly important in scenarios where data integrity is critical.
+
+### `cleanup.policy`
+
+Determines how Kafka handles the retention and deletion of messages in a topic. It can be set to either `delete` or `compact`.
+
+- **`delete`**: Messages are deleted after a specified retention period, allowing for efficient storage management.
+- **`compact`**: Messages are retained based on their keys, allowing for the latest version of each key to be kept while older versions are removed. This is useful for topics that require a compacted view of the data, such as change logs or state stores.
+
+Imagine you’re building a user profile service.
+
+Each update event looks like: `| Key (User ID) | Value (Profile Data) |`
+
+Over time, users update their profile many times:
+
+```text
+Day 1: User123 → Name = John
+Day 2: User123 → Name = Johnny
+Day 3: User123 → Name = Jonathan
+```
+
+- Without log compaction: All three events would stay in the topic.
+- With log compaction: Only the latest (Name = Jonathan) is retained.
+
+### `compression.type`
+
+Specifies the compression algorithm used for messages in a Kafka topic. It can be set to various values, including:
+
+- **`none`**: No compression is applied.
+- **`gzip`**: Uses the GZIP compression algorithm, which provides a good balance between compression ratio and speed.
+- **`snappy`**: Uses the Snappy compression algorithm, which is optimized for speed and provides lower compression ratios compared to GZIP.
+- **`lz4`**: Uses the LZ4 compression algorithm, which provides high compression ratios and fast decompression speeds.
+- **`zstd`**: Uses the Zstandard compression algorithm, which offers a good balance between compression ratio and speed, and is suitable for high-throughput scenarios.
+
+### `retention.ms`
+
+The `retention.ms` configuration in Apache Kafka determines how long messages are retained in a topic before they are eligible for deletion (default: 7 days). It is specified in milliseconds and can be set to a specific duration or to `-1` to indicate that messages should be retained indefinitely.
+
+```bash
+kafka-topics.sh --alter --topic my-topic --config retention.ms=604800000 --bootstrap-server localhost:9092
+```
+
+### `transactiona.id`
+
+The `transactional.id` configuration in Apache Kafka is used to enable exactly-once semantics (EOS) for producers. It uniquely identifies a producer instance and allows it to participate in transactions, ensuring that messages are produced atomically and consistently.
+
+To enable this feature, you need to set the `transactional.id` property in the producer configuration. This ID must be unique across all producer instances in the Kafka cluster.
+
+- On a producer side.
+
+```properties
+transactional.id=my-transactional-id
+```
+
+- On a consumer side, you need to set the `isolation.level` property to `read_committed` to ensure that consumers only read messages that are part of committed transactions.
+
+```properties
+isolation.level=read_committed
+```
+
+```python
+producer.init_transactions()
+producer.begin_transaction()
+producer.send('habit-topic', value=b'Finished Reading')
+producer.send('streak-topic', value=b'Increment Streak')
+producer.commit_transaction()
+```
+
+### MirrorMaker
+
+**MirrorMaker** is a tool provided by Apache Kafka that allows you to `replicate data between Kafka clusters`. It is particularly useful for scenarios such as `disaster recovery`, `data migration`, or `creating a backup` of your Kafka data.
+
+MirrorMaker continuously copies messages from the source to the target.
+
+Key Features of MirrorMaker
+
+- **Cross-Cluster Replication**: MirrorMaker can replicate data from one Kafka cluster to another, enabling you to maintain multiple copies of your data across different clusters.
+- **Data Synchronization**: It ensures that data is synchronized between the source and destination clusters, allowing for real-time or near-real-time replication.
+- **Fault Tolerance**: MirrorMaker can handle failures in the source or destination clusters, ensuring that data replication continues even in the event of issues.
+- **Scalability**: It can be scaled horizontally by adding more MirrorMaker instances to handle larger data volumes or higher replication rates.
+
+It’s mostly used for:
+
+- Disaster Recovery (DR)
+- Multi-region deployments (e.g., US cluster + EU cluster)
+- Cloud migrations (on-prem → cloud)
+
+You configure:
+
+- Source cluster details
+- Target cluster details
+- Topics to replicate
+
+MirrorMaker does the rest.
+
+```bash
+kafka-mirror-maker.sh --consumer.config source-cluster.properties --producer.config target-cluster.properties --whitelist "topic1,topic2"
+```
+
+### ACLs (Access Control Lists)
+
+ACLs in Kafka are used to manage permissions for users and applications interacting with Kafka resources (topics, consumer groups, etc.). They help enforce security and ensure that only authorized entities can perform specific actions.
+
+#### How to Create and Manage ACLs in Kafka
+
+1. **Create ACLs**
+
+   You can create ACLs using the `kafka-acls.sh` command-line tool.
+
+   For example, to allow a user to read from a specific topic:
+
+   ```bash
+   kafka-acls.sh --add --allow-principal User:Alice --operation Read --topic my-topic --bootstrap-server localhost:9092
+   ```
+
+2. **List ACLs**
+
+   To view the existing ACLs for a specific resource:
+
+   ```bash
+   kafka-acls.sh --list --topic my-topic --bootstrap-server localhost:9092
+   ```
+
+3. **Delete ACLs**
+
+   To remove an existing ACL:
+
+   ```bash
+   kafka-acls.sh --remove --allow-principal User:Alice --operation Read --topic my-topic --bootstrap-server localhost:9092
+   ```
+
+Kafka ACLs can be based on:
+
+- User identities (authenticated via SASL, Kerberos, etc.)
+- IP addresses
+- Groups
+
+ACLs define permissions like:
+
+- Allow or Deny
+- Operation: Read, Write, Delete, Alter, etc.
+- Resource: Topic, Group, Cluster
+
+ACLs are stored internally by Kafka (or sometimes in Zookeeper, depending on mode).
+
+## Strimzi Operator
+
+Strimzi provides container images and operators for running Kafka on Kubernetes. These operators are designed with specialized operational knowledge to efficiently manage Kafka on Kubernetes.
+
+Strimzi operators simplify:
+
+- Deploying and running Kafka clusters
+- Deploying and managing Kafka components
+- Configuring Kafka access
+- Securing Kafka access
+- Upgrading Kafka
+- Managing brokers
+- Creating and managing topics
+- Creating and managing users
+
+### Operators
+
+Operators are Kubernetes components that package, deploy, and manage applications by extending the Kubernetes API. They simplify administrative tasks and reduce manual intervention.
+
+Strimzi operators automate the deployment and management of Apache Kafka components on Kubernetes. Strimzi custom resources define the deployment configuration.
+
+The following operators manage Kafka in a Kubernetes cluster:
+
+- **Cluster Operator**: Manages Kafka clusters and related components.
+- **Entity Operator**: Comprises the Topic Operator and User Operator.
+- **Topic Operator**: Creates, configures, and deletes Kafka topics.
+- **User Operator**: Manages Kafka users and their authentication credentials.
+
+Additionally, Strimzi provides Drain Cleaner, a separate tool that can be used alongside the Cluster Operator to **assist with safe pod eviction during maintenance or upgrades**.
+
+![Strimzi Operator](https://snourian.com/wp-content/uploads/2020/10/operators-1024x799.png "Strimzi Operator")
+
+1. Cluster Operator
+
+    The Cluster Operator manages the clusters of the following Kafka components:
+    - Kafka (including Entity Operator, Kafka Exporter, and Cruise Control)
+    - Kafka Connect
+    - Kafka MirrorMaker
+    - Kafka Bridge
+
+    For example, to deploy a Kafka cluster:
+    - A Kafka resource with the cluster configuration is created within the Kubernetes cluster.
+    - The Cluster Operator deploys a corresponding Kafka cluster, based on what is declared in the Kafka resource.
+
+    The Cluster Operator can also deploy the following Strimzi operators through configuration of the Kafka resource:
+    - `Topic Operator` to provide operator-style topic management through KafkaTopic custom resources
+    - `User Operator` to provide operator-style user management through KafkaUser custom resources
+
+    ![Cluster Operator](<https://strimzi.io/docs/operators/latest/images/cluster-operator.png> "Cluster Operator")
+
+2. Topic Operator
+
+    The Topic Operator manages Kafka topics and their configurations. It automates tasks such as:
+
+    - Creating and deleting topics
+    - Configuring topic settings (partitions, replication factor, etc.)
+    - Managing topic ACLs (Access Control Lists)
+
+    ```yaml
+    apiVersion: kafka.strimzi.io/v1beta2
+    kind: KafkaTopic
+    metadata:
+      name: osds-topic
+      labels:
+        strimzi.io/cluster: "osds-cluster"
+    spec:
+      partitions: 3
+      replicas: 1
+    ```
+
+    The Topic Operator watches for changes to `KafkaTopic` custom resources and applies the necessary changes to the Kafka cluster.
+
+   ![Topic Operator](<https://strimzi.io/docs/operators/latest/images/topic-operator.png> "Topic Operator")
+
+    The Topic Operator manages Kafka topics by watching for `KafkaTopic` resources that describe Kafka topics, and ensuring that they are configured properly in the Kafka cluster.
+
+    When a `KafkaTopic` is created, deleted, or changed, the Topic Operator performs the corresponding action on the Kafka topic.
+    You can declare a `KafkaTopic` as part of your application’s `deployment` and the Topic Operator manages the Kafka topic for you.
+
+3. User Operator
+
+    The User Operator manages Kafka users and their authentication credentials. It automates tasks such as:
+    - Creating and deleting users
+    - Configuring user authentication (SASL, SSL, etc.)
+    - Managing user ACLs (Access Control Lists)
+
+    The User Operator watches for changes to `KafkaUser` custom resources and applies the necessary changes to the Kafka cluster.
+
+    <!-- ![User Operator](<https://strimzi.io/docs/operators/latest/images/user-operator.png> "User Operator") -->
+
+    The User Operator manages Kafka users by watching for `KafkaUser` resources that describe Kafka users, and ensuring that they are configured properly in the Kafka cluster.
+
+    ```yaml
+    apiVersion: kafka.strimzi.io/v1beta2
+    kind: KafkaUser
+    metadata:
+      name: my-user
+      labels:
+        strimzi.io/cluster: "my-cluster"
+    spec:
+      authentication:
+        type: tls
+      authorization:
+        acls:
+          - resource:
+              type: topic
+              name: my-topic
+            operation: Read
+            principal: User:my-user
+          - resource:
+              type: group
+              name: my-group
+            operation: Read
+            principal: User:my-user
+    ```
+
+    When a `KafkaUser` is created, deleted, or changed, the User Operator performs the corresponding action on the Kafka user.
+    You can declare a `KafkaUser` as part of your application’s `deployment` and the User Operator manages the Kafka user for you.
+
+4. Entity Operator
+
+    The Entity Operator is a combination of the `Topic Operator` and `User Operator`. It provides a unified interface for managing both Kafka topics and users.
+
+    The Entity Operator watches for changes to `KafkaTopic` and `KafkaUser` custom resources and applies the necessary changes to the Kafka cluster.
+
+    ```yaml
+    apiVersion: kafka.strimzi.io/v1beta2
+    kind: EntityOperator
+    metadata:
+      name: entity-operator
+      labels:
+        strimzi.io/cluster: "my-cluster"
+    spec:
+      topicOperator:
+        reconciliationInterval: 60s
+      userOperator:
+        reconciliationInterval: 60s
+    ```
+
+    <!-- ![Entity Operator](<https://strimzi.io/docs/operators/latest/images/entity-operator.png> "Entity Operator") -->
+
+5. Drain Cleaner
+
+    The Drain Cleaner is a tool that can be used alongside the Cluster Operator to assist with safe pod eviction during maintenance or upgrades.
