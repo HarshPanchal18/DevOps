@@ -60,7 +60,7 @@
     [Reference](https://github.com/strimzi/strimzi-kafka-operator/issues/11386)
 
     ```bash
-    kubectl set env deployment/strimzi-cluster-operator STRIMZI_KUBERNETES_VERSION="major=1,minor=33"
+    kubectl set env deployment/strimzi-cluster-operator -n myproject STRIMZI_KUBERNETES_VERSION="major=1,minor=33"
     ```
 
     - If above command says that `deployment/strimzi-cluster-operator not found`, then you need to manually append the environment variable inside `strimzi-cluster-operator` YAML file.

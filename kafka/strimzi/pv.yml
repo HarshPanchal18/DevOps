@@ -1,0 +1,84 @@
+# This file contains the StorageClass, PV and PVC definitions for Kafka and Zookeeper.
+
+# Kafka
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sc-kafka
+
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kafka-pv
+
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /home/harsh/volume/kafka
+
+  storageClassName: sc-kafka
+
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cloud-cluster-new
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: data-0-kafka-data-kafka-0 # The name of the PVC that Kafka will use created by storageClass dynamically.
+    # This ensure that this PersistentVolume is reserved for use by the specified PersistentVolumeClaim, preventing other claims from binding to it.
+    # This is especially important in stateful applications like Kafka, where data persistence and correct volume association are critical for reliability and data integrity.
+
+
+# Zookeeper
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sc-zookeeper
+
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: zookeeper-pv
+
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /home/harsh/volume/zookeeper
+
+  storageClassName: sc-zookeeper
+
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cloud-cluster-new
+
+  claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: data-0-kafka-data-zookeeper-0
