@@ -67,78 +67,93 @@ If your data format is fixed or you use simple formats (such as `plain JSON` or 
 - [7] <https://www.kai-waehner.de/blog/2023/10/16/data-quality-and-policy-enforcement-for-apache-kafka-with-schema-registry/>
 - [8] <https://conduktor.io/blog/what-is-the-schema-registry-and-why-do-you-need-to-use-it>
 
-## How to Find Out Who Subscribed to Topics in Kafka?
+## How does Kafka store data?
 
-**Kafka does not directly track or expose a list of all consumers currently subscribed to a topic.** However, you can determine which consumer groups are actively consuming from a topic using built-in Kafka tools.
+Kafka stores data using a `distributed`, `partitioned`, and `replicated commit log` architecture designed for scalability, fault tolerance, and high throughput.
 
-### Using the Kafka Consumer Groups Tool
+Here’s how it works:
 
-Kafka provides the `kafka-consumer-groups.sh` command-line tool, which allows you to list consumer groups and see their topic subscriptions. Here’s how you can use it:
+### **Core Storage Concepts**
 
-- To list all consumer groups:
+- **Topics and Partitions**: Data in Kafka is organized into *topics*, which are logical channels for messages. Each topic is divided into one or more *partitions*, allowing parallel processing and scalability. Each partition is an ordered, immutable sequence of messages.
+- **Commit Log**: Each partition is stored as a commit log on disk. Messages are appended sequentially, ensuring order and immutability—records cannot be modified or deleted, only added.
+- **Offsets**: Every message within a partition is assigned a unique, sequential *offset*. Consumers use these offsets to track their position in the log, enabling reliable recovery and replay.
+- **Brokers**: Kafka brokers are servers responsible for storing partition data on their local file system. Each partition is stored as a `directory` on disk, and brokers handle both `read and write requests` for the partitions they manage.
+- **Replication**: For fault tolerance, each partition is replicated across multiple brokers. One broker acts as the *leader* for each partition, handling all reads and writes, while others serve as *followers* and replicate the data.
 
-  ```bash
-  kafka-consumer-groups.sh --bootstrap-server <broker>  --list
-  ```
+### **Storage Management**
 
-- To see which consumer groups are subscribed to a specific topic:
+- **Retention Policies**: Kafka retains data on disk based on configurable policies—by time (e.g., keep data for 7 days) or by size (e.g., keep up to 1GB per partition). After the retention period or size is exceeded, older data is deleted.
+- **Tiered Storage**: Recent Kafka versions support *tiered storage*, allowing older data to be offloaded from broker disks to cheaper, scalable storage (like cloud object stores), while recent data remains on local disks for fast access. This improves scalability and cost efficiency for large-scale deployments.
 
-  ```bash
-  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --group <group_id>
-  ```
+### **Summary Table**
 
-- To see all consumer groups and their topic subscriptions:
+| Component      | Storage Role                                            |
+|----------------|---------------------------------------------------------|
+| Topic          | Logical grouping of messages                            |
+| Partition      | Ordered, immutable log; unit of parallelism             |
+| Broker         | Stores partitions on disk; handles reads/writes         |
+| Offset         | Unique ID for each message in a partition               |
+| Replication    | Copies partitions to other brokers for fault tolerance  |
+| Tiered Storage | Offloads older data to external storage (optional)      |
 
-  ```bash
-  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --all-groups
-  ```
+Kafka’s design—using partitioned, replicated commit logs stored on disk—enables high-throughput, reliable, and scalable data streaming.
 
-- To list all consumer groups and their offsets for a specific topic:
+- [1] <https://www.instaclustr.com/education/apache-kafka/apache-kafka-architecture-a-complete-guide-2025/>
+- [2] <https://kafka.apache.org/20/documentation/streams/architecture>
+- [3] <https://developer.confluent.io/courses/architecture/get-started/>
+- [4] <https://rohithsankepally.github.io/Kafka-Storage-Internals/>
+- [5] <https://aws.amazon.com/what-is/apache-kafka/>
+- [6] <https://www.kai-waehner.de/blog/2023/12/05/why-tiered-storage-for-apache-kafka-is-a-big-thing/>
+- [7] <https://www.site24x7.com/learn/apache-kafka-architecture.html>
+- [8] <https://www.upsolver.com/blog/apache-kafka-architecture-what-you-need-to-know>
 
-  ```bash
-  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --all-groups --topic <topic_name>
-  ```
+## How Does a Kafka Subscriber Know When a New Update Arrives?
 
-- To describe a specific consumer group and see which topics and partitions it is consuming:
+A Kafka subscriber (consumer) detects new updates by continuously polling the Kafka broker for new messages on its subscribed topics. This is a fundamental part of how Kafka's consumer API is designed.
 
-  ```bash
-  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --group <group_id>
-  ```
+### **Polling Mechanism:**
 
-This will show you:
+- After a consumer subscribes to one or more topics, it enters an infinite loop where it repeatedly calls the `poll()` method.
+- Each poll checks the broker for any new messages that have been published to the subscribed topics since the last poll.
+- If there are new messages, the broker returns them to the consumer, which can then process them as needed.
 
-- The consumer `group ID`.
-- The `topics and partitions` the group is consuming.
-- The `current offset` and `lag` for each partition.
+### **Key Points:**
 
-### Key Points
+- There is no push mechanism; Kafka does not notify consumers of new messages. Instead, consumers are responsible for asking (polling) for updates.
+- This polling loop is typical in streaming applications, where data is expected to arrive continuously, and there is no concept of a "last" message.
+- The consumer can adjust the polling interval (how frequently it checks for new messages) by configuring the duration passed to the `poll()` method.
 
-- **Consumer Groups**: Kafka organizes consumers into consumer groups. Each group can subscribe to one or more topics, and Kafka will distribute partitions of those topics among the consumers in the group.
-- **No Direct List of Individual Consumers**: Kafka does not maintain a direct registry of all individual consumers for a topic. It tracks consumer groups and their partition assignments.
-- **Non-Group Consumers**: If a consumer is not part of a consumer group (rare in production), it is not tracked by Kafka’s offset management, making it difficult to discover via standard tools.
-- **Network Traffic Analysis (Advanced)**: In extreme cases, you could analyze network traffic between brokers and clients to infer which consumers are fetching from which topics, but this is complex and rarely necessary.
+### **Example (Java):**
 
-### Summary Table
+```java
+while (true) {
+    ConsumerRecords records = consumer.poll(Duration.ofMillis(10));
+    for (ConsumerRecord record : records) {
+        // Process the new record (message)
+    }
+}
+```
 
-| What You Can See           | How to See It                                    | Tool/Method                  |
-|----------------------------|--------------------------------------------------|------------------------------|
-| Consumer groups per topic  | List and describe consumer groups                | kafka-consumer-groups.sh     |
-| Individual consumers in CG | See members of a consumer group                  | kafka-consumer-groups.sh     |
-| Non-group consumers        | Not directly visible (requires network analysis) | Advanced network monitoring  |
+In this example, the consumer polls every 10 milliseconds for new updates.
 
-### Additional Notes
+### **Summary Table: Kafka Consumer Update Detection**
 
-- The `kafka-topics.sh` tool is for topic management (create, delete, describe) and does not show consumer information.
-- For managed Kafka (e.g., Confluent, Strimzi), similar CLI or UI tools are available.
-- In Kubernetes environments like Strimzi, you can run these commands from a pod with Kafka client tools installed.
+| Mechanism          | Description                                      |
+|--------------------|--------------------------------------------------|
+| Polling            | Consumer repeatedly calls `poll()` for new data  |
+| No Push            | Kafka does not push updates to consumers         |
+| Infinite Loop      | Consumer runs an endless loop to check for data  |
+| Configurable Delay | Polling interval can be adjusted                 |
 
-**In summary:** Use `kafka-consumer-groups.sh` to find out which consumer groups are subscribed to a topic. Kafka does not provide a direct list of all individual consumers, but you can see the group-level assignments and partition consumption details.
+**Conclusion:**
+A Kafka subscriber knows a new update has arrived because its polling call to the broker returns new messages. This continuous polling is the standard way for consumers to stay up-to-date with the latest data in Kafka topics.
 
-- [1] <https://stackoverflow.com/questions/53090441/check-subscribers-of-a-kafka-topic>
-- [2] <https://kafka.apache.org/intro>
-- [3] <https://codemia.io/knowledge-hub/path/apache_kafka_how_to_find_out_consumer_group_of_a_topic>
-- [4] <https://learn.conduktor.io/kafka/kafka-topics-cli-tutorial/>
-- [5] <https://www.redpanda.com/guides/kafka-architecture-kafka-topics>
-- [6] <https://www.instaclustr.com/education/apache-kafka/apache-kafka-architecture-a-complete-guide-2025/>
-- [7] <https://www.youtube.com/watch?v=QkdkLdMBuL0>
-- [8] <https://docs.confluent.io/kafka/operations-tools/kafka-tools.html>
+- [1] <https://developer.confluent.io/courses/apache-kafka/consumers/>
+- [2] <https://doc.akka.io/docs/alpakka-kafka/current/subscription.html>
+- [3] <https://kafka.apache.org/28/javadoc/org/apache/kafka/clients/consumer/Consumer.html>
+- [4] <https://www.youtube.com/watch?v=mHaVGVLyfB4>
+- [5] <https://storm.apache.org/releases/1.2.3/javadocs/org/apache/storm/kafka/spout/Subscription.html>
+- [6] <https://docs.oracle.com/en/database/oracle/oracle-database/23/okjdc/org/oracle/okafka/clients/consumer/KafkaConsumer.html>
+- [7] <https://doc.akka.io/libraries/alpakka-kafka/current/consumer.html>
+- [8] <https://www.youtube.com/watch?v=Z9g4jMQwog0>

@@ -20,6 +20,9 @@ Kafka architecture is based on **`producer-subscriber`** model and follows distr
 - [What are Kafka Connectors?](#what-are-kafka-connectors)
 - [Important feature/configuirations in Kafka](#important-featureconfigurations-in-kafka)
 - [Strimzi Operators](#strimzi-operator)
+- [Kafka Tuning](#kafka-high-performance-tuning)
+- [Kafka Backup](#backup-of-kafka-data-and-configurations)
+- [Kafka MirrorMaker](#what-is-kafka-mirrormaker)
 
 ## Core Components of Kafka Architecture
 
@@ -326,6 +329,75 @@ The key differences between SASL and SSL/TLS in the context of Apache Kafka are:
    - **SASL**: Adds less overhead compared to SSL/TLS, as the authentication process is generally less computationally intensive.
 
 In summary, SSL/TLS focuses on `providing encryption and certificate-based authentication`, while SASL offers more flexibility in terms of authentication mechanisms, allowing integration with existing authentication infrastructure.
+
+### Enabling SASL Authentication in Kafka
+
+Kafka supports various authentication mechanisms, and one of those is **SASL (Simple Authentication and Security Layer)**. Enabling SASL authentication adds a layer of security, ensuring that **only authenticated users or systems can publish or consume messages.**
+
+1. Configure the Kafka broker
+    - Edit the `server.properties` file in the Kafka configuration directory (usually located at `/etc/kafka` or `/opt/kafka/config`).
+    - Add the following lines to enable SASL authentication:
+
+    **server.properties**
+
+    ```properties
+    listeners=SASL_PLAINTEXT://:9092
+    security.inter.broker.protocol=SASL_PLAINTEXT # Do not include any encryption, use SASL_SSL for encrypted communication
+    sasl.mechanism.inter.broker.protocol=PLAIN # Use PLAIN mechanism for inter-broker communication
+    sasl.enabled.mechanisms=PLAIN # Enable PLAIN mechanism for client authentication
+    ```
+
+2. Create a JAAS config file
+    - Create a file named `kafka_server_jaas.conf` in the Kafka configuration directory and reference it in Kafka start-up by setting the `KAFKA_OPTS` environment variable.
+    - Add the following lines to define the SASL authentication mechanism and user credentials:
+
+    **kafka_server_jaas.conf** - Every user mentioned in this file can authenticate using the designated password. The same file is also used to authenticate inter-broker communication with the admin user’s credentials.
+
+    ```properties
+    KafkaServer {
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="admin" # Replace with your desired username
+        password="admin-secret" # Replace with your desired password
+        user_admin="admin-secret"; # Define user credentials
+        user_alice="alice-secret"; # Define another user
+    };
+
+    KafkaClient {
+      org.apache.kafka.common.security.plain.PlainLoginModule required
+      username="alice"
+      password="alice-secret";
+    };
+    ```
+
+    ```bash
+    export KAFKA_OPTS="-Djava.security.auth.login.config=/path/to/kafka_server_jaas.conf"
+    ```
+
+3. Start the Kafka broker
+    - If everything is set up right, your Kafka server should boot up and be secured with SASL/PLAIN authentication.
+    - Start the Kafka broker using the following command:
+
+    ```bash
+    bin/kafka-server-start.sh config/server.properties
+    ```
+
+4. Testing the configuration
+
+    - Run a Kafka producer and consumer to test the SASL authentication.
+
+    **Producer**
+
+    ```bash
+    bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test-topic --producer.config /path/to/server.properties
+    ```
+
+    **Consumer**
+
+    ```bash
+    bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test-topic --from-beginning --consumer.config /path/to/server.properties
+    ```
+
+    - If either client isn’t properly authenticated, the operation will fail, and the broker will log an error with details that can help in diagnosing the problem.
 
 ### Kerberos
 
@@ -796,3 +868,217 @@ Additionally, Strimzi provides Drain Cleaner, a separate tool that can be used a
 5. Drain Cleaner
 
     The Drain Cleaner is a tool that can be used alongside the Cluster Operator to assist with safe pod eviction during maintenance or upgrades.
+
+## Kafka High performance Tuning
+
+Kafka is designed to handle high throughput and low latency, but performance tuning is often necessary to achieve optimal results. Here are some key configurations and practices for tuning Kafka performance:
+
+### 1. Broker Configuration
+
+- **`num.network.threads`**: Increase the number of network threads to handle more concurrent connections. The default is `3`, but you can increase it based on your hardware capabilities and expected workload.
+- **`num.io.threads`**: Increase the number of I/O threads to handle more disk operations. The default is `8`, but you can increase it based on your hardware capabilities and expected workload.
+- **`socket.send.buffer.bytes`**: Increase the send buffer size to allow larger messages to be sent without fragmentation. The default is `102400 bytes`, but you can increase it based on your message size and network capabilities.
+- **`socket.receive.buffer.bytes`**: Increase the receive buffer size to allow larger messages to be received without fragmentation. The default is `102400 bytes`, but you can increase it based on your message size and network capabilities.
+- **`log.flush.interval.messages`**: Set the number of messages after which the log is flushed to disk. A lower value can improve durability but may impact performance. The default is `10000`, but you can adjust it based on your durability requirements.
+- **`log.flush.interval.ms`**: Set the time interval after which the log is flushed to disk. A lower value can improve durability but may impact performance. The default is `60000 ms`, but you can adjust it based on your durability requirements.
+- **`queued.max.requests`**: Increase the maximum number of requests that can be queued for processing. The default is `500`, but you can increase it based on your expected workload and hardware capabilities.
+- **`replica.fetch.max.bytes`**: Increase the maximum size of messages that can be fetched by replicas. The default is `1048576 bytes`, but you can increase it based on your message size and replication requirements.
+
+```properties
+num.network.threads=5
+num.io.threads=8
+queued.max.requests=500
+replica.fetch.max.bytes=2097152
+```
+
+### 2. Producer Configuration
+
+- **`linger.ms`**: Set the time to wait before sending a batch of messages. A higher value can improve throughput but may increase latency. The default is `0 ms`, but you can adjust it based on your performance requirements. Delays sending messages to batch up more data.
+- **`batch.size`**: Set the maximum size of a batch of messages. A larger batch size can improve throughput but may increase latency. The default is `16384 bytes`, but you can adjust it based on your message size and performance requirements.
+- **`compression.type`**: Use compression to reduce the size of messages sent over the network. Options include `none`, `gzip`, `snappy`, `lz4`, and `zstd`. Compression can improve throughput and reduce network bandwidth usage.
+
+```properties
+linger.ms=100
+batch.size=32768
+compression.type=gzip
+```
+
+### 3. Consumer Configuration
+
+- **`fetch.min.bytes`**: Set the minimum amount of data that the consumer will wait for before returning a response. A higher value can improve throughput but may increase latency. The default is `1 byte`, but you can adjust it based on your performance requirements.
+- **`fetch.max.wait.ms`**: Set the maximum time the consumer will wait for data before returning a response. A higher value can improve throughput but may increase latency. The default is `500 ms`, but you can adjust it based on your performance requirements.
+- **`max.partition.fetch.bytes`**: Set the maximum size of a single partition fetch request. A larger value can improve throughput but may increase memory usage. The default is `1048576 bytes`, but you can adjust it based on your message size and performance requirements.
+
+```properties
+fetch.min.bytes=1024
+fetch.max.wait.ms=1000
+max.partition.fetch.bytes=2097152
+```
+
+### 4. Topic Configuration
+
+- **`num.partitions`**: Increase the number of partitions for a topic to improve parallelism and throughput. The default is `1`, but you can increase it based on your expected workload and hardware capabilities.
+- **`segment.bytes`**: Set the maximum size of a single log segment file. A larger value can improve throughput but may increase disk usage. The default is `1073741824 bytes (1 GB)`, but you can adjust it based on your storage capabilities and performance requirements.
+- **`retention.ms`**: Set the time to retain log segments before they are eligible for deletion. A longer retention period can improve durability but may increase disk usage. The default is `604800000 ms (7 days)`, but you can adjust it based on your durability requirements.
+- **`min.cleanable.dirty.ratio`**: Set the minimum ratio of dirty log segments that must be cleaned up before a log segment can be deleted. A higher value can improve throughput but may increase disk usage. The default is `0.2 (20%)`, but you can adjust it based on your performance requirements.
+
+```bash
+bin/kafka-configs.sh --bootstrap-server localhost:9092 \
+  --entity-type topics \
+  --entity-name my-high-performance-topic \
+  --alter \
+  --add-config num.partitions=10,segment.bytes=1073741824,retention.ms=604800000,min.cleanable.dirty.ratio=0.2
+```
+
+## Backup of Kafka data and configurations
+
+Backing up Apache Kafka involves safeguarding both the data stored in topics and the critical metadata that maintains cluster configuration. This includes topic data, consumer offsets, configuration settings, Access Control Lists (ACLs), and, depending on your setup, the state stored in ZooKeeper or KRaft's metadata directory.
+
+### What Needs to Be Backed Up
+
+- **Topic Data:** The messages stored in Kafka topics.
+- **Consumer Offsets:** Tracks how much of each topic each consumer group has read.
+- **Configuration Settings:** Broker, topic, and cluster configurations.
+- **ACLs:** Access control information for security.
+- **ZooKeeper or KRaft Metadata:** Stores cluster state, topic configurations, users, ACLs, and passwords.
+
+### Methods for Backing Up Kafka
+
+#### 1. File System Snapshots
+
+- **Process:** Shut down each broker one at a time, take a snapshot of the file system where Kafka data is stored, copy the snapshot to backup storage, and then restart the broker.
+- **Pros:** Simple, uses native OS tools, ensures offsets and internal topics are backed up.
+- **Cons:** Requires broker downtime, risk of missing data during partition rebalancing, harder to do incremental backups.
+
+#### 2. Copying Broker Logs
+
+- **Process:** Use tools like `rsync` to copy the broker log directories, then compress the copy with `zip` or `gzip`.
+- **Note:** This is feasible but not always recommended for live clusters due to potential inconsistencies.
+
+#### 3. Kafka Backup Tools
+
+- **Kafka Backup (Open Source):** A tool that backs up and restores topic data and consumer group offsets via `Kafka Connect` connectors. It supports backup/restore to/from the local file system and is designed for cold backups.
+- **Commercial Solutions:** Tools like `Kannika` (commercial) and `Veeam Kasten` (for Kubernetes environments) offer more advanced, automated, and cloud-integrated backup options.
+- **S3 Connectors:** Use connectors (e.g., Adobe S3 Kafka connector) to periodically export topic data to cloud storage like S3 for backup and restore.
+
+#### 4. ZooKeeper/KRaft Metadata Backup
+
+- **ZooKeeper:** Backup the `dataDir` directory specified in `zookeeper.properties`. This contains the cluster state, topic configs, users, ACLs, and more. Create a compressed archive of this directory for storage.
+- **KRaft Mode:** Backup the entire KRaft metadata directory, which contains similar information as ZooKeeper but is used in newer Kafka deployments.
+
+### Example Commands
+
+**Backing up ZooKeeper data:**
+
+```bash
+tar -czvf zookeeper-backup.tar.gz /path/to/zookeeper/dataDir
+```
+
+**Backing up Kafka data using kafka-backup:** [GitHub](https://github.com/itadventurer/kafka-backup)
+
+```bash
+backup-standalone.sh --bootstrap-server localhost:9092 \
+    --target-dir /path/to/backup/dir --topics 'topic1,topic2'
+```
+
+Or via Docker:
+
+```bash
+docker run -d -v /path/to/backup-dir/:/kafka-backup/ --rm \
+    kafka-backup:[LATEST_TAG] \
+    backup-standalone.sh --bootstrap-server kafka:9092 \
+    --target-dir /kafka-backup/ --topics 'topic1,topic2'
+```
+
+### Recommendations
+
+- **For full resilience:** Use Kafka’s replication features and consider multi-datacenter setups for high availability.
+- **For disaster recovery:** Regularly backup both data and configuration/metadata, store backups offsite (e.g., S3), and test your restore procedures.
+- **For configuration:** Always backup ZooKeeper or KRaft metadata directories in addition to topic data.
+
+### Summary Table: Kafka Backup Approaches
+
+| Method                    | What It Backs Up                  | Pros                      | Cons                           |
+|---------------------------|-----------------------------------|---------------------------|--------------------------------|
+| File System Snapshots     | Data logs, offsets, configs       | Simple, native tools      | Broker downtime, risk of missing partitions |
+| Kafka Backup Tool         | Topic data, consumer offsets      | Incremental, cold backup  | File system only, project status |
+| S3/Cloud Connectors       | Topic data                        | Automated, cloud storage  | May not include metadata   |
+| ZooKeeper/KRaft Backup    | Cluster configs, ACLs, offsets    | Full config backup        | Manual steps, critical for recovery |
+
+### Conclusion
+
+A comprehensive Kafka backup strategy covers both topic data and all configuration/metadata. Use a combination of file system snapshots, specialized backup tools, and regular ZooKeeper/KRaft metadata backups to ensure you can recover from data loss or cluster failures.
+
+- [1] <https://www.digitalocean.com/community/tutorials/how-to-back-up-import-and-migrate-your-apache-kafka-data-on-ubuntu-18-04>
+- [2] <https://forum.confluent.io/t/backing-up-the-kafka-cluster-data/603>
+- [3] <https://github.com/itadventurer/kafka-backup>
+- [4] <https://www.instaclustr.com/support/documentation/kafka/kafka-cluster-operations/cluster-config-backup/>
+- [5] <https://github.com/itadventurer/kafka-backup/blob/master/docs/Comparing_Kafka_Backup_Solutions.md>
+- [6] <https://docs.kasten.io/8.0.0/kanister/kafka/k8s/install/>
+- [7] <https://canonical.com/data/docs/kafka/iaas/h-backup>
+- [8] <https://aws.amazon.com/blogs/big-data/back-up-and-restore-kafka-topic-data-using-amazon-msk-connect/>
+- [9] <https://github.com/itadventurer/kafka-backup/blob/master/docs/>
+
+## What is Kafka MirrorMaker?
+
+Kafka MirrorMaker is a tool designed for replicating data between two or more Apache Kafka clusters. Its primary purpose is to enable seamless data movement and synchronization across clusters, which is essential for disaster recovery, data migration, geo-replication, and multi-region deployments.
+
+MirrorMaker comes in two major versions:
+
+- **MirrorMaker 1:** Uses a simple consumer-producer pair.
+- **MirrorMaker 2 (MM2):** Built on the Kafka Connect framework, offering advanced features, scalability, and reliability.
+
+### How Does MirrorMaker Work?
+
+MirrorMaker operates by **consuming messages from topics in a source Kafka cluster and producing them to corresponding topics in a target Kafka cluster**. `MM2` leverages Kafka Connect, using specialized connectors to automate and manage the replication process.
+
+### Key Components in MirrorMaker 2
+
+- **MirrorSourceConnector:** Replicates topics, configurations, and ACLs from the source to the target cluster.
+- **MirrorCheckpointConnector:** Handles consumer group offset translation, allowing consumers to switch clusters without losing their position.
+- **MirrorHeartbeatConnector:** Monitors the health and connectivity between clusters.
+- **MirrorSinkConnector:** Writes replicated data into the target cluster.
+
+### Main Features of MirrorMaker 2
+
+- **Automated Topic Management:** Detects and replicates new topics and partitions automatically.
+- **Consumer Offset Synchronization:** Translates consumer offsets to enable seamless failover and migration.
+- **Bidirectional and Multi-Cluster Replication:** Supports unidirectional, bidirectional, and complex topologies [e.g., hub-and-spoke, multi-region].
+- **Dynamic Configuration:** Allows changes to replication rules without restarts.
+- **High Availability and Scalability:** Built on Kafka Connect for distributed, fault-tolerant operation.
+
+### Common Use Cases
+
+- **Disaster Recovery:** Keeps a backup Kafka cluster in sync for failover in case of primary cluster failure.
+- **Data Migration:** Moves data between clusters during cloud adoption or infrastructure upgrades.
+- **Geo-Replication:** Ensures data is available across multiple data centers or regions.
+- **Data Aggregation:** Consolidates data from multiple clusters into a central analytics cluster.
+- **Data Isolation:** Selectively replicates topics to control data exposure between environments.
+
+### Example: How MirrorMaker 2 Replicates Data
+
+1. **Source Connector** reads messages from the source cluster.
+2. **Checkpoint Connector** synchronizes consumer offsets.
+3. **Heartbeat Connector** monitors replication health.
+4. **Sink Connector** writes messages to the target cluster.
+
+### Summary Table: MirrorMaker 2 Features
+
+| Feature                        | Description                                        |
+|--------------------------------|----------------------------------------------------|
+| Automated Topic Detection      | Replicates new topics/partitions automatically.  |
+| Offset Synchronization         | Maintains consumer position across clusters.  |
+| Multi-Cluster Topologies       | Supports various replication patterns.        |
+| Dynamic Configuration          | Change rules without restarts.                   |
+| High Availability              | Distributed, fault-tolerant via Kafka Connect.   |
+
+- [1] <https://www.openlogic.com/blog/kafka-mirrormaker-overview>
+- [2] <https://developers.redhat.com/articles/2023/11/13/demystifying-kafka-mirrormaker-2-use-cases-and-architecture>
+- [3] <https://risingwave.com/blog/complete-guide-to-kafka-mirrormaker/>
+- [4] <https://www.redpanda.com/guides/kafka-alternatives-kafka-mirrormaker>
+- [5] <https://www.instaclustr.com/blog/kafka-mirrormaker-2-theory/>
+- [6] <https://github.com/AutoMQ/automq/wiki/Kafka-MirrorMaker-2(MM2):-Usages-&-Best-Practices>
+- [7] <https://learn.microsoft.com/en-us/azure/hdinsight/kafka/kafka-mirrormaker-2-0-guide>
+- [8] <https://cloud.google.com/managed-service-for-apache-kafka/docs/move-kafka-mirrormaker>
+- [9] <https://learn.microsoft.com/en-us/azure/event-hubs/event-hubs-kafka-mirrormaker-2-tutorial>
+- [10] <https://www.automq.com/blog/kafka-mirrormaker-2-usages-best-practices>
