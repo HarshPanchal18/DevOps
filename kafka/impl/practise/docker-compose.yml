@@ -4,13 +4,21 @@ services:
     container_name: zookeeper
     ports:
       - "32181:2181"
-      - "7071:7071"
+      - "7071:7071" # Expose JMX exporter for Zookeeper
     environment:
       CLUSTER_ID: 'AsATLSToRraxoh2CYWnW0Q'
       ZOOKEEPER_CLIENT_HOSTNAME: zookeeper
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      KAFKA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7071:/jmx-exporter/zookeeper.yml"
+      CONFLUENT_METRICS_ENABLE: 'false'
+      # KAFKA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7071:/jmx-exporter/zookeeper.yml"
+      CONFLUENT_JAVA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7071:/jmx-exporter/zookeeper.yml"
+      KAFKA_JMX_PORT: 7071
+      # KAFKA_JMX_OPTS: >-
+      #   -Dcom.sun.management.jmxremote
+      #   -Dcom.sun.management.jmxremote.authenticate=false
+      #   -Dcom.sun.management.jmxremote.ssl=false
+      #   -Dcom.sun.management.jmxremote.port=9101
 
     volumes:
       - /home/harshm/kafka/zookeeper1/data:/var/lib/zookeeper/data
@@ -30,17 +38,24 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_NODE_ID: 1
-      CLUSTER_ID: 'AsATLSToRraxoh2CYWnW0Q'
+      CLUSTER_ID: 'Csk7o_MlT4mO7djoIssExw'
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
-
-      KAFKA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7072:/jmx-exporter/kafka.yml"
+      CONFLUENT_METRICS_ENABLE: 'false'
+      # KAFKA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7072:/jmx-exporter/kafka.yml"
+      CONFLUENT_JAVA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7072:/jmx-exporter/kafka.yml"
+      KAFKA_JMX_PORT: 7072
+      # KAFKA_JMX_OPTS: >-
+      #   -Dcom.sun.management.jmxremote
+      #   -Dcom.sun.management.jmxremote.authenticate=false
+      #   -Dcom.sun.management.jmxremote.ssl=false
+      #   -Dcom.sun.management.jmxremote.port=9101
 
     volumes:
       - /home/harshm/kafka/broker1:/var/lib/kafka/data
@@ -61,17 +76,24 @@ services:
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_NODE_ID: 2
-      CLUSTER_ID: 'AsATLSToRraxoh2CYWnW0Q'
+      CLUSTER_ID: 'Csk7o_MlT4mO7djoIssExw'
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_DEFAULT_REPLICATION_FACTOR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
       KAFKA_MIN_INSYNC_REPLICAS: 1
-
-      KAFKA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7073:/jmx-exporter/kafka.yml"
+      CONFLUENT_METRICS_ENABLE: 'false'
+      # KAFKA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7073:/jmx-exporter/kafka.yml"
+      CONFLUENT_JAVA_OPTS: "-javaagent:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar=7073:/jmx-exporter/kafka.yml"
+      KAFKA_JMX_PORT: 7073
+      # KAFKA_JMX_OPTS: >-
+      #   -Dcom.sun.management.jmxremote
+      #   -Dcom.sun.management.jmxremote.authenticate=false
+      #   -Dcom.sun.management.jmxremote.ssl=false
+      #   -Dcom.sun.management.jmxremote.port=9101
 
     volumes:
       - /home/harshm/kafka/broker2:/var/lib/kafka/data
@@ -113,6 +135,10 @@ services:
     container_name: grafana
     ports:
       - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-clock-panel
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
       - kafka-net
 
