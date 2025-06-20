@@ -5,8 +5,13 @@ services:
     ports:
       - "32181:2181"
     environment:
+      CLUSTER_ID: 'AsATLSToRraxoh2CYWnW0Q'
+      ZOOKEEPER_CLIENT_HOSTNAME: zookeeper
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - /home/harshm/kafka/zookeeper1/data:/var/lib/zookeeper/data
+      - /home/harshm/kafka/zookeeper1/log:/var/lib/zookeeper/log
     networks:
       - kafka-net
 
@@ -19,6 +24,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_NODE_ID: 1
+      CLUSTER_ID: 'AsATLSToRraxoh2CYWnW0Q'
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
@@ -27,6 +33,8 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_DEFAULT_REPLICATION_FACTOR: 2
       KAFKA_MIN_INSYNC_REPLICAS: 1
+    volumes:
+      - /home/harshm/kafka/broker1:/var/lib/kafka/data
     depends_on:
       - zookeeper
     networks:
@@ -41,6 +49,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 2
       KAFKA_NODE_ID: 2
+      CLUSTER_ID: 'AsATLSToRraxoh2CYWnW0Q'
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
@@ -49,6 +58,8 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_DEFAULT_REPLICATION_FACTOR: 2
       KAFKA_MIN_INSYNC_REPLICAS: 1
+    volumes:
+      - /home/harshm/kafka/broker2:/var/lib/kafka/data
     depends_on:
       - zookeeper
     networks:
