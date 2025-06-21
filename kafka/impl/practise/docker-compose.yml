@@ -21,8 +21,8 @@ services:
       #   -Dcom.sun.management.jmxremote.port=9101
 
     volumes:
-      - /home/harshm/kafka/zookeeper1/data:/var/lib/zookeeper/data
-      - /home/harshm/kafka/zookeeper1/log:/var/lib/zookeeper/log
+      - ./environment/kafka/zookeeper1/data:/var/lib/zookeeper/data
+      - ./environment/kafka/zookeeper1/log:/var/lib/zookeeper/log
       - ./jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar
       - ./jmx-exporter/kafka.yml:/jmx-exporter/zookeeper.yml
     networks:
@@ -58,7 +58,7 @@ services:
       #   -Dcom.sun.management.jmxremote.port=9101
 
     volumes:
-      - /home/harshm/kafka/broker1:/var/lib/kafka/data
+      - ./environment/kafka/broker1:/var/lib/kafka/data
       - ./jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar
       - ./jmx-exporter/kafka.yml:/jmx-exporter/kafka.yml
     depends_on:
@@ -96,7 +96,7 @@ services:
       #   -Dcom.sun.management.jmxremote.port=9101
 
     volumes:
-      - /home/harshm/kafka/broker2:/var/lib/kafka/data
+      - ./environment/kafka/broker2:/var/lib/kafka/data
       - ./jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar:/jmx-exporter/jmx_prometheus_javaagent-0.20.0.jar
       - ./jmx-exporter/kafka.yml:/jmx-exporter/kafka.yml
     depends_on:
