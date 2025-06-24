@@ -1,5 +1,17 @@
 # How To and setups particularly in Kafka
 
+## Index
+
+- [How to set up Kafka with Docker](#how-to-set-up-kafka-with-docker)
+- [How to set up Kafka with Docker Compose](#how-to-set-up-kafka-with-docker-compose)
+- [How to create a schema registry in Kafka?](#how-to-create-a-schema-registry-in-kafka)
+- [How to use Avro serialization with Kafka?](#how-to-use-avro-serialization-with-kafka)
+- [How to achieve Message Delivery Semantics in Kafka?](#how-to-achieve-message-delivery-semantics-in-kafka)
+- [How to Find Out Who Subscribed to Topics in Kafka?](#how-to-find-out-who-subscribed-to-topics-in-kafka)
+- [How to Expand a Kafka Cluster?](#how-to-expand-a-kafka-cluster)
+- [How MirrorMaker2 Connectors Handle Topic Filtering and Renaming](#how-mirrormaker-2-connectors-handle-topic-filtering-and-renaming)
+- [How are internal topics used to manage and track filtered or renamed topics](#how-are-internal-topics-used-to-manage-and-track-filtered-or-renamed-topics)
+
 ## How to set up Kafka with Docker
 
 ```bash
@@ -54,6 +66,8 @@ networks:
 ### Overview
 
 A Kafka Schema Registry is a centralized service for managing and validating schemas used in Kafka messages. It ensures producers and consumers agree on data structure, supports schema evolution, and helps prevent serialization and deserialization errors.
+
+![Schema Registry](https://miro.medium.com/v2/resize:fit:1358/1*LSf9VtT7qd8JVsu8QmpV1g.png "Schema Registry")
 
 ### Steps to Create and Use a Schema Registry in Kafka
 
@@ -362,43 +376,301 @@ By combining `idempotent producers`, `transactional commits`, and proper `consum
 
 ---
 
-## How does Kafka store data?
+## How to Find Out Who Subscribed to Topics in Kafka?
 
-Kafka stores data using a `distributed`, `partitioned`, and `replicated commit log` architecture designed for scalability, fault tolerance, and high throughput.
+**Kafka does not directly track or expose a list of all consumers currently subscribed to a topic.** However, you can determine which consumer groups are actively consuming from a topic using built-in Kafka tools.
 
-Here’s how it works:
+### Using the Kafka Consumer Groups Tool
 
-### **Core Storage Concepts**
+Kafka provides the `kafka-consumer-groups.sh` command-line tool, which allows you to list consumer groups and see their topic subscriptions. Here’s how you can use it:
 
-- **Topics and Partitions**: Data in Kafka is organized into *topics*, which are logical channels for messages. Each topic is divided into one or more *partitions*, allowing parallel processing and scalability. Each partition is an ordered, immutable sequence of messages.
-- **Commit Log**: Each partition is stored as a commit log on disk. Messages are appended sequentially, ensuring order and immutability—records cannot be modified or deleted, only added.
-- **Offsets**: Every message within a partition is assigned a unique, sequential *offset*. Consumers use these offsets to track their position in the log, enabling reliable recovery and replay.
-- **Brokers**: Kafka brokers are servers responsible for storing partition data on their local file system. Each partition is stored as a `directory` on disk, and brokers handle both `read and write requests` for the partitions they manage.
-- **Replication**: For fault tolerance, each partition is replicated across multiple brokers. One broker acts as the *leader* for each partition, handling all reads and writes, while others serve as *followers* and replicate the data.
+- To list all consumer groups:
 
-### **Storage Management**
+  ```bash
+  kafka-consumer-groups.sh --bootstrap-server <broker>  --list
+  ```
 
-- **Retention Policies**: Kafka retains data on disk based on configurable policies—by time (e.g., keep data for 7 days) or by size (e.g., keep up to 1GB per partition). After the retention period or size is exceeded, older data is deleted.
-- **Tiered Storage**: Recent Kafka versions support *tiered storage*, allowing older data to be offloaded from broker disks to cheaper, scalable storage (like cloud object stores), while recent data remains on local disks for fast access. This improves scalability and cost efficiency for large-scale deployments.
+- To see which consumer groups are subscribed to a specific topic:
 
-### **Summary Table**
+  ```bash
+  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --group <group_id>
+  ```
 
-| Component      | Storage Role                                            |
-|----------------|---------------------------------------------------------|
-| Topic          | Logical grouping of messages                            |
-| Partition      | Ordered, immutable log; unit of parallelism             |
-| Broker         | Stores partitions on disk; handles reads/writes         |
-| Offset         | Unique ID for each message in a partition               |
-| Replication    | Copies partitions to other brokers for fault tolerance  |
-| Tiered Storage | Offloads older data to external storage (optional)      |
+- To see all consumer groups and their topic subscriptions:
 
-Kafka’s design—using partitioned, replicated commit logs stored on disk—enables high-throughput, reliable, and scalable data streaming.
+  ```bash
+  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --all-groups
+  ```
 
-- [1] <https://www.instaclustr.com/education/apache-kafka/apache-kafka-architecture-a-complete-guide-2025/>
-- [2] <https://kafka.apache.org/20/documentation/streams/architecture>
-- [3] <https://developer.confluent.io/courses/architecture/get-started/>
-- [4] <https://rohithsankepally.github.io/Kafka-Storage-Internals/>
-- [5] <https://aws.amazon.com/what-is/apache-kafka/>
-- [6] <https://www.kai-waehner.de/blog/2023/12/05/why-tiered-storage-for-apache-kafka-is-a-big-thing/>
-- [7] <https://www.site24x7.com/learn/apache-kafka-architecture.html>
-- [8] <https://www.upsolver.com/blog/apache-kafka-architecture-what-you-need-to-know>
+- To list all consumer groups and their offsets for a specific topic:
+
+  ```bash
+  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --all-groups --topic <topic_name>
+  ```
+
+- To describe a specific consumer group and see which topics and partitions it is consuming:
+
+  ```bash
+  kafka-consumer-groups.sh --bootstrap-server <broker>  --describe --group <group_id>
+  ```
+
+This will show you:
+
+- The consumer `group ID`.
+- The `topics and partitions` the group is consuming.
+- The `current offset` and `lag` for each partition.
+
+### Key Points
+
+- **Consumer Groups**: Kafka organizes consumers into consumer groups. Each group can subscribe to one or more topics, and Kafka will distribute partitions of those topics among the consumers in the group.
+- **No Direct List of Individual Consumers**: Kafka does not maintain a direct registry of all individual consumers for a topic. It tracks consumer groups and their partition assignments.
+- **Non-Group Consumers**: If a consumer is not part of a consumer group (rare in production), it is not tracked by Kafka’s offset management, making it difficult to discover via standard tools.
+- **Network Traffic Analysis (Advanced)**: In extreme cases, you could analyze network traffic between brokers and clients to infer which consumers are fetching from which topics, but this is complex and rarely necessary.
+
+### Summary Table
+
+| What You Can See           | How to See It                                    | Tool/Method                  |
+|----------------------------|--------------------------------------------------|------------------------------|
+| Consumer groups per topic  | List and describe consumer groups                | kafka-consumer-groups.sh     |
+| Individual consumers in CG | See members of a consumer group                  | kafka-consumer-groups.sh     |
+| Non-group consumers        | Not directly visible (requires network analysis) | Advanced network monitoring  |
+
+### Additional Notes
+
+- The `kafka-topics.sh` tool is for topic management (create, delete, describe) and does not show consumer information.
+- For managed Kafka (e.g., Confluent, Strimzi), similar CLI or UI tools are available.
+- In Kubernetes environments like Strimzi, you can run these commands from a pod with Kafka client tools installed.
+
+**In summary:** Use `kafka-consumer-groups.sh` to find out which consumer groups are subscribed to a topic. Kafka does not provide a direct list of all individual consumers, but you can see the group-level assignments and partition consumption details.
+
+- [1] <https://stackoverflow.com/questions/53090441/check-subscribers-of-a-kafka-topic>
+- [2] <https://kafka.apache.org/intro>
+- [3] <https://codemia.io/knowledge-hub/path/apache_kafka_how_to_find_out_consumer_group_of_a_topic>
+- [4] <https://learn.conduktor.io/kafka/kafka-topics-cli-tutorial/>
+- [5] <https://www.redpanda.com/guides/kafka-architecture-kafka-topics>
+- [6] <https://www.instaclustr.com/education/apache-kafka/apache-kafka-architecture-a-complete-guide-2025/>
+- [7] <https://www.youtube.com/watch?v=QkdkLdMBuL0>
+- [8] <https://docs.confluent.io/kafka/operations-tools/kafka-tools.html>
+
+## How to Expand a Kafka Cluster?
+
+A Kafka cluster consists of multiple brokers, and it is through adding more brokers that scalability is achieved. Topics, where messages are stored, are divided into partitions, which can be spread across multiple brokers for load balancing and redundancy.
+
+### Prerequisites
+
+- Existing Kafka cluster running with at least one broker
+- Zookeeper ensemble managing the Kafka brokers
+- Basic understanding of Kafka architecture and concepts
+- Access to Kafka and Zookeeper configuration files
+- Proper backup of Kafka data and configurations
+
+1. Install a new Kafka broker on the new machine:
+
+    - Download and extract the Kafka binaries.
+
+      ```bash
+      wget https://dlcdn.apache.org/kafka/3.9.0/kafka_2.13-3.9.0.tgz
+      tar -xzf kafka_2.13-3.9.0.tgz
+      ```
+
+    - Ensure Java is installed on the new machine.
+
+2. Configure the new broker:
+
+    - Configure the `server.properties` file for the new broker:
+      - Set a unique `broker.id`.
+      - Configure `listeners` and `advertised.listeners` to match your network setup.
+      - Set the `log.dirs` to a directory where Kafka can store its data.
+
+    ```properties
+    # Set unique broker ID and Zookeeper connect string
+    broker.id=3
+    zookeeper.connect=zoo1:2181,zoo2:2181,zoo3:2181
+
+    # Configuring rack awareness
+    broker.rack=RackA
+    default.replication.factor=3
+    ```
+
+3. Start the new broker:
+
+    - Start the Kafka server with the new configuration.
+
+      ```bash
+      bin/kafka-server-start.sh config/server.properties
+      ```
+
+4. Reconfigure topics for load balancing.
+
+    - Use the `kafka-topics.sh` tool to reassign partitions across the cluster.
+    - Create a reassignment JSON file specifying the new partition distribution.
+
+      ```json
+      {
+        "version": 1,
+        "partitions": [
+          {"topic": "my-topic", "partition": 0, "replicas": [1, 2, 3]},
+          {"topic": "my-topic", "partition": 1, "replicas": [2, 3, 4]}
+        ]
+      }
+      ```
+
+    - Execute the reassignment command:
+
+      ```bash
+      bin/kafka-reassign-partitions.sh --zookeeper zoo1:2181,zoo2:2181,zoo3:2181 --reassignment-json-file reassignment.json --execute
+      ```
+
+5. Verify the new broker and partition distribution:
+
+    - Use the `kafka-topics.sh` tool to describe the topic and check partition assignments.
+
+      ```bash
+      bin/kafka-topics.sh --zookeeper zoo1:2181,zoo2:2181,zoo3:2181 --describe --topic my-topic
+      ```
+
+6. Monitor the cluster:
+
+    - Use Kafka monitoring tools (e.g., Confluent Control Center, Prometheus, Grafana) to ensure the new broker is functioning correctly and partitions are balanced.
+
+7. Update client configurations:
+
+    - If clients are using static broker lists, update them to include the new broker's address.
+    - Ensure that clients can connect to the new broker and consume/produce messages as expected.
+
+## How MirrorMaker 2 Connectors Handle Topic Filtering and Renaming
+
+MirrorMaker 2 (MM2) provides robust mechanisms for topic filtering and renaming to manage and control cross-cluster replication.
+
+### **Topic Filtering**
+
+- **Filtering by Topic Name:**
+  MM2 allows you to specify which topics to replicate using **regular expressions** or **allow-lists** in the connector configuration. This means you can include or exclude topics based on **naming patterns**, ensuring only the desired topics are mirrored to the target cluster.
+
+- **Cycle Prevention Filtering:**
+  MM2 has built-in logic to **prevent replication loops**. It filters out topics that already contain the target cluster's name as a prefix, which indicates the topic originated from that cluster. For example, if a topic named `A.topic1` exists on cluster B, MM2 will not replicate it back to cluster A, preventing infinite replication cycles.
+
+  A replication loop incident can happen in MirrorMaker 2 (MM2) when you have **bidirectional replication** set up between two Kafka clusters (for example, Cluster A and Cluster B), and there is no filtering or renaming to distinguish the origin of topics.
+
+### **Topic Renaming**
+
+- **Automatic Renaming (Default Behavior):**
+  By default, MM2 renames replicated topics in the target cluster by prefixing them with the **source cluster’s alias** (e.g., replicating `topic1` from cluster A to cluster B results in `A.topic1` on cluster B).
+
+  This naming convention:
+  - Clearly distinguishes between local and remote (replicated) topics.
+  - Supports active-active replication by keeping local and remote records separate.
+  - Prevents accidental merging of data from different clusters and supports cycle prevention.
+
+- **Disabling Renaming:**
+  If renaming is disabled, MM2 replicates topics without changing their names (e.g., `topic1` on cluster A becomes `topic1` on cluster B). However, this can create the risk of infinite replication loops in bidirectional setups, as MM2 cannot distinguish between locally produced and remotely replicated messages.
+
+### **Summary Table: MM2 Topic Filtering and Renaming**
+
+| Feature                  | Description                                                                                    | Default Behavior      |
+|--------------------------|------------------------------------------------------------------------------------------------|-----------------------|
+| Topic Filtering          | Select topics to replicate using regular expressions or allow-lists                            | Configurable          |
+| Cycle Prevention         | Filters out topics with target cluster prefix to avoid loops                                   | Enabled               |
+| Topic Renaming           | Prefixes replicated topics with source cluster alias (e.g., `A.topic1`)                        | Enabled               |
+| Renaming Disabled        | Replicates topics with the same name in both clusters (risk of loops in bidirectional setups)  | Optional              |
+
+### **Key Points**
+
+- MM2’s filtering and renaming policies are essential for safe, scalable, and manageable multi-cluster Kafka deployments.
+- These features are configured in the connector’s configuration file, allowing fine-grained control over which topics are replicated and how they are named in the target cluster.
+
+**In summary:**
+MirrorMaker 2 connectors use configurable topic filters and a default renaming policy to control which topics are replicated and to prevent replication cycles, ensuring reliable and organized cross-cluster Kafka replication.
+
+- [1] <https://www.instaclustr.com/blog/apache-kafka-mirrormaker-2-practice/>
+- [2] <https://developers.redhat.com/articles/2023/11/13/demystifying-kafka-mirrormaker-2-use-cases-and-architecture>
+- [3] <https://community.zenduty.com/t/mirror-maker-filtering-messages-on-topic-based-on-key-value-in-headers/580>
+- [4] <https://github.com/AutoMQ/automq/wiki/Kafka-MirrorMaker-2(MM2):-Usages-&-Best-Practices>
+- [5] <https://www.instaclustr.com/blog/kafka-mirrormaker-2-theory/>
+- [6] <https://cwiki.apache.org/confluence/display/KAFKA/KIP-382:+MirrorMaker+2.0>
+- [7] <https://stackoverflow.com/questions/75080963/is-it-possible-to-filter-some-data-from-topic-instead-of-moving-its-data-content>
+- [8] <https://docs.cloudera.com/runtime/7.3.1/kafka-managing/topics/kafka-manage-mirrormaker.html>
+
+## How are internal topics used to manage and track filtered or renamed topics
+
+Kafka’s internal topics—those with names beginning with an underscore (_)—play a crucial role in managing, tracking, and supporting the behavior of advanced features, including topic filtering and renaming in tools like MirrorMaker 2. These internal topics are not intended for direct user interaction or modification, as doing so can disrupt the correct functioning of the platform.
+
+**How Internal Topics Are Used:**
+
+- **Tracking State and Metadata:**
+  Internal topics are automatically created and managed by Kafka and its ecosystem tools (such as MirrorMaker 2 and Kafka Streams) to store metadata, checkpoints, state stores, and other operational information. For example, when topics are filtered or renamed during replication, internal topics may track which topics have been replicated, their original names, and their new names in the target cluster. This ensures consistency and prevents issues like replication loops.
+
+- **Supporting Filtering and Renaming Logic:**
+  When MirrorMaker 2 filters or renames topics, it relies on internal topics to maintain mappings and to record the state of replication. For instance, these topics can store information about which topics have already been processed, what their source and target names are, and any offset translation required for consumer failover. This is especially important in complex topologies or when bidirectional replication is configured.
+
+- **Cycle Prevention and Consistency:**
+  By leveraging internal topics, MirrorMaker 2 can prevent cycles (where a topic is replicated back and forth endlessly) and ensure that only the intended topics are replicated, even as filtering rules or renaming conventions change.
+
+**Best Practices:**
+
+- **Do Not Modify Internal Topics:**
+  Internal topics should not be manually altered or deleted unless explicitly required and understood, as they are essential for the correct operation of Kafka and its replication tools.
+- **Visibility and Management:**
+  Kafka management tools (like Confluent Control Center) allow you to view but not modify internal topics, reinforcing their special status and critical operational role.
+
+> "Internal topics names start with an underscore (_) and should not be individually modified. Modifying an internal topic could adversely impact your Confluent Platform installation and result in unexpected behavior."
+
+**In summary:**
+Internal topics in Kafka are foundational for tracking, managing, and ensuring the correctness of operations such as topic filtering and renaming in MirrorMaker 2. They store essential metadata and state, enabling robust, automated, and safe replication across clusters without user intervention.
+
+- [1] <https://docs.confluent.io/platform/current/control-center/topics/overview.html>
+- [2] <https://forum.confluent.io/t/understanding-internal-topics/13459>
+- [3] <https://support.atlassian.com/platform-experiences/docs/categorize-goals-and-projects-with-topics/>
+- [4] <https://docs.oracle.com/en/industries/life-sciences/empirica/9.2.3/userguide/overview-topic-management.html>
+- [5] <https://www.manageengine.com/products/support-center/help/adminguide/solutions/manage-topics.html>
+- [6] <https://docs.oracle.com/health-sciences/empirica-signal-811/ESIUG/About_Topics.htm>
+- [7] <https://stackoverflow.com/questions/56080896/what-are-internal-topics-used-in-kafka>
+- [8] <https://developer.confluent.io/courses/apache-kafka/topics/>
+
+## Partition reassignment in Kafka
+
+- Get current partition replica assignment, create `/tmp/topics.json`
+
+  ```bash
+  kubectl exec -n myproject kafka-data-kafka-0 -ti -- \
+      /bin/sh -c 'echo "{ \"topics\" : [ {\"topic\": \"broker-topic\"}], \"version\": 1}" > /tmp/topics.json'
+  ```
+
+  ```bash
+  kubectl exec -n myproject kafka-data-kafka-0 -it -- cat /tmp/topics.json
+  ```
+
+and generate reassignment configuration.
+
+  ```bash
+  kubectl exec -n myproject kafka-data-kafka-0 -it -- bin/kafka-reassign-partitions.sh \
+      --broker-list "0,1,2" \
+      --topics-to-move-json-file /tmp/topics.json \
+      --bootstrap-server kafka-data-kafka-bootstrap:9092 --generate
+  ```
+
+- This commands generate json file like below. It includes current partition assignments. Keep that file in somewhere for rollback, just in case.
+
+Current partition replica assignment
+
+```json
+{"version":1,"partitions":[{"topic":"broker-topic","partition":0,"replicas":[2,0,1],"log_dirs":["any","any","any"]},{"topic":"broker-topic","partition":1,"replicas":[1,2,0],"log_dirs":["any","any","any"]},{"topic":"broker-topic","partition":2,"replicas":[0,1,2],"log_dirs":["any","any","any"]}]}
+```
+
+Proposed partition reassignment configuration
+
+```json
+{"version":1,"partitions":[{"topic":"broker-topic","partition":0,"replicas":[2,0,1],"log_dirs":["any","any","any"]},{"topic":"broker-topic","partition":1,"replicas":[0,1,2],"log_dirs":["any","any","any"]},{"topic":"broker-topic","partition":2,"replicas":[1,2,0],"log_dirs":["any","any","any"]}]}
+```
+
+- Let’s add 2 more brokers and new partitions.
+
+```bash
+kubectl exec -n myproject kafka-data-kafka-0 -it -- bin/kafka-topics.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --topic broker-topic --alter --partitions 5
+```
+
+- Verify the partition reassignment configuration
+
+```bash
+kubectl exec -n myproject kafka-data-kafka-0 -it -- bin/kafka-topics.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --topic broker-topic --describe
+```

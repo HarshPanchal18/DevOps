@@ -451,6 +451,29 @@ It is commonly used in protocols like XMPP, LDAP, and MongoDB to provide secure 
 
 Kafka connectors are pluggable components used within the Kafka Connect framework to move data between Apache Kafka and external systems, such as databases, file systems, cloud services, or search indexes. They simplify the integration process, allowing you to build robust data pipelines without custom code.
 
+### Kafka Connect architecture
+
+```text
+External System <-> Connector Plugin <-> Kafka Connect Workers <-> Kafka Cluster
+```
+
+You deploy Kafka Connect Workers (processes or pods).
+
+They run Connectors — plugin classes that know how to pull data from / push data to external systems.
+
+### Core Components
+
+| Component             | Purpose                                |
+| --------------------- | -------------------------------------- |
+| Kafka Connect cluster | Workers that manage connectors/tasks   |
+| Connector             | Plugin defining how to pull/push data  |
+| Source Connector      | Reads data _into_ Kafka                |
+| Sink Connector        | Writes data _from_ Kafka to target     |
+| Tasks                 | Parallel units of work for a connector |
+| Config storage        | Stores connector configs in Kafka      |
+| Offset storage        | Stores offsets in Kafka topics         |
+| Status storage        | Tracks connector/task status           |
+
 ### Types of Kafka Connectors
 
 - **Source Connectors:**
@@ -469,14 +492,14 @@ Kafka connectors are pluggable components used within the Kafka Connect framewor
 - **Tasks:**
   Units of work assigned to connectors, responsible for processing subsets of data. Multiple tasks can run in parallel for scalability.
 
-  Tasks themselves have no state stored within them. Rather a task’s state is stored in special topics in Kafka, config.storage.topic and status.storage.topic, and managed by the associated connector. Tasks may be started, stopped, or restarted at any time to provide a resilient and scalable data pipeline.
+  Tasks themselves have no state stored within them. Rather a task’s state is stored in special topics in Kafka, `config.storage.topic` and `status.storage.topic`, and managed by the associated connector. Tasks may be started, stopped, or restarted at any time to provide a resilient and scalable data pipeline.
 
   ![Tasks](https://docs.confluent.io/platform/current/_images/data-model-simple.png "Tasks")
 
 - **Task rebalancing:**
   When a connector is first submitted to the cluster, the workers rebalance the full set of connectors in the cluster and their tasks so that each worker has approximately the same amount of work.
 
-  This rebalancing procedure is also used when connectors increase or decrease the number of tasks they require, or when a connector’s configuration is changed. When a worker fails, tasks are rebalanced across the active workers.
+  This rebalancing procedure is also used when connectors increase or decrease the number of tasks they require, or when a `connector’s configuration` is changed. When a worker fails, tasks are rebalanced across the active workers.
 
   When a task fails, no rebalance is triggered, as a task failure is considered an exceptional case. As such, failed tasks are not restarted by the framework and should be restarted using the REST API.
 
@@ -542,6 +565,20 @@ Kafka connectors are pluggable components used within the Kafka Connect framewor
   >The same converter can be used even though, for example, the JDBC source returns a ResultSet that is eventually written to HDFS as a parquet file.
 
   ![Converters](https://docs.confluent.io/platform/current/_images/converter-basics.png "Converters")
+
+### Example data flow
+
+- Postgres → Kafka
+
+```text
+Postgres DB → JDBC Source Connector → Kafka Connect → Kafka Topic
+```
+
+- Kafka → Elasticsearch
+
+```text
+Kafka Topic → Elasticsearch Sink Connector → Elasticsearch Cluster
+```
 
 ### Use Cases
 
@@ -1082,3 +1119,64 @@ MirrorMaker operates by **consuming messages from topics in a source Kafka clust
 - [8] <https://cloud.google.com/managed-service-for-apache-kafka/docs/move-kafka-mirrormaker>
 - [9] <https://learn.microsoft.com/en-us/azure/event-hubs/event-hubs-kafka-mirrormaker-2-tutorial>
 - [10] <https://www.automq.com/blog/kafka-mirrormaker-2-usages-best-practices>
+
+## What is Cruise Control in Kafka?
+
+Cruise Control is one of the earliest open source tools to provide a solution for the failure management problem but lately for the monitoring problem as well.
+
+### Architecture
+
+Cruise Control is integrated with Kafka through metrics reporting. In CDP it connects to Cloudera Manager’s time series database to fetch metrics.
+
+Based on these metrics it builds an internal picture of the cluster, the so-called workload model, that will be used as the input of the optimization based on parameters such as network throughput, CPU or disk usage. These optimizations — or proposals — will be executed upon user request or automatically depending on how Cruise Control is configured.
+
+### Metrics Reporting
+
+This is a pluggable component that fetches and stores Kafka metrics. The open source version of Cruise Control stores metrics back to Kafka or Prometheus.
+
+### Unbalanced workloads
+
+When a new topic is created in Kafka, the partitions and its replicas are distributed evenly among the available brokers in the cluster. This is a wise behavior if your cluster is empty and you have no idea of your actual workload for different partitions. Figure 1 shows an example of how eight topics with three partitions are distributed across a cluster of three brokers. Partitions belonging to the same topic have the same color.
+
+![How 8 topics with 3 equal partitions are distributed across a cluster of 3 brokers.](https://developers.redhat.com/sites/default/files/styles/article_floated/public/equal-partitions_0.png.webp?itok=ZEXJShGN)
+
+_An illustration of a topic with eight partitions and three replicas that is distributed across a cluster of three brokers with equal partitions._
+
+Over time, layering multiple topics from different applications can result in partitions with different sizes and workloads. Simply increasing the size of the cluster does not solve the problem. In fact, the new cluster member will be used along with the existing ones to accommodate newly created topic partitions, but it won’t change the assignment of the existing topics.
+
+In below figure, a cluster running out of resources expands with a new broker, then the user adds another topic with two partitions. New partitions are assigned in a round-robin fashion. So some will be assigned to the new broker, but the overloaded brokers are not relieved.
+
+![The new broker hosts only new partition replicas.](https://developers.redhat.com/sites/default/files/styles/article_floated/public/scaled-unbalanced.png.webp?itok=ueDaIiCX)
+
+_An illustration of a new broker hosting only new partition replicas._
+
+A Kafka cluster can be unbalanced from these different points of view:
+
+- Network utilization
+- RAM and CPU utilization
+- Disk utilization
+
+There are tools that allow the administrator to selectively reassign partitions across the cluster (`kafka-reassign-partitions.sh`), but this approach might work if there is a clear idea of the root cause of the unbalanced workload. Moreover, there are also other requirements that you need to address:
+
+- Replicas of the same partition must be in different racks.
+- All the physical resources cannot be exhausted (maximum capacity for disk, network, CPU).
+
+Trying to improve the partition assignment manually is **tedious and error prone**. Moreover, when the number of options grows, the mathematical optimization theory tells us that it will also lead to **poorly optimized solutions.**
+
+### Cruise Control for Apache Kafka
+
+LinkedIn, who originally created Apache Kafka and operates it on a large scale, developed **Cruise Control** to keep their clusters healthy. Then they made it open source.
+
+Here is a summary of the key features of Kafka Cruise Control:
+
+- Resource utilization tracking for brokers, topics, and partitions.
+- Multi-goal rebalance proposal generation (subset)
+- Rack-awareness
+- Resource capacity violation checks (CPU, DISK, Network I/O)
+- Per-broker replica count violation check
+- Resource utilization balance (CPU, DISK, Network I/O)
+- Leader traffic distribution
+- Actualize the previous proposal:
+- Rebalance the current partition topology
+- Rebalance on newly added brokers
+- Rebalance before removing brokers

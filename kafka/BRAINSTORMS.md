@@ -157,3 +157,103 @@ A Kafka subscriber knows a new update has arrived because its polling call to th
 - [6] <https://docs.oracle.com/en/database/oracle/oracle-database/23/okjdc/org/oracle/okafka/clients/consumer/KafkaConsumer.html>
 - [7] <https://doc.akka.io/libraries/alpakka-kafka/current/consumer.html>
 - [8] <https://www.youtube.com/watch?v=Z9g4jMQwog0>
+
+## What does the Kafka consumer do when it receives a message?
+
+When a Kafka consumer receives a message, it typically follows these steps:
+
+1. **Polling for Messages**: The consumer continuously polls the Kafka broker for new messages using the `poll()` method. This method retrieves messages from the topics it is subscribed to.
+2. **Processing Messages**: Once messages are received, the consumer processes them according to its application logic. This could involve:
+   - Deserializing the message data (e.g., converting from bytes to a specific format like JSON or Avro).
+   - Performing business logic based on the message content.
+   - Storing the processed data in a database or another system.
+3. **Committing Offsets**: After processing the messages, the consumer commits the offsets of the messages it has successfully processed. This is done to ensure that if the consumer restarts, it knows where to continue reading from. Offsets can be committed automatically or manually, depending on the consumer configuration.
+4. **Error Handling**: If an error occurs during message processing, the consumer may:
+   - Retry processing the message.
+   - Log the error for later analysis.
+   - Skip the message or move it to a dead-letter queue if it cannot be processed after several attempts.
+5. **Continuing the Loop**: The consumer continues polling for new messages in a loop, repeating the above steps until it is stopped or interrupted.
+
+### What happens if a Kafka consumer does not commit offsets?
+
+If a Kafka consumer does not commit offsets after processing messages, several consequences can occur:
+
+1. **Reprocessing Messages**: If the consumer crashes or is restarted without committing offsets, it will re-read and reprocess messages from the last committed offset. This can lead to duplicate processing of messages, which may not be desirable in all applications.
+2. **Data Loss**: If the consumer fails to commit offsets and does not handle messages correctly, it may lose track of which messages have been processed, leading to potential data loss or inconsistencies in the application state.
+3. **Increased Latency**: The consumer may experience increased latency as it repeatedly processes the same messages without moving forward in the topic.
+4. **Consumer Group Rebalance**: If the consumer is part of a consumer group and does not commit offsets, it may cause issues during rebalancing. Other consumers in the group may not know which messages have been processed, leading to inefficiencies and potential message loss.
+5. **Offset Retention**: Kafka retains committed offsets for a configurable period (default is 7 days). If offsets are not committed, the consumer group may be removed after this retention period, leading to the loss of the consumer group's state.
+6. **Manual Offset Management**: If the consumer is configured to manage offsets manually, it must explicitly commit offsets after processing messages. Failing to do so means the consumer will not progress, and it will keep reprocessing the same messages indefinitely.
+
+## Explain lines coming from describing kafka topics
+
+When you describe a Kafka topic using the `kafka-topics.sh --describe` command, it provides detailed information about the topic's configuration and state. Here’s a breakdown of the key lines you might see in the output:
+
+### Example Output
+
+```bash
+Topic: broker-topic     TopicId: VqFKdC5sTr2UaholaO9PSg PartitionCount: 3       ReplicationFactor: 3    Configs: min.insync.replicas=2,message.format.version=3.0-IV1
+        Topic: broker-topic     Partition: 0    Leader: 2       Replicas: 2,0,1 Isr: 2,0,1      Elr: N/A        LastKnownElr: N/A
+        Topic: broker-topic     Partition: 1    Leader: 1       Replicas: 1,2,0 Isr: 1,2,0      Elr: N/A        LastKnownElr: N/A
+        Topic: broker-topic     Partition: 2    Leader: 0       Replicas: 0,1,2 Isr: 0,1,2      Elr: N/A        LastKnownElr: N/A
+```
+
+These lines are describing the metadata and current state of a Kafka topic called `broker-topic`. Here’s a breakdown of what each part means:
+
+### General Topic Information
+
+- **Topic:** `broker-topic`
+- **TopicId:** `VqFKdC5sTr2UaholaO9PSg` (unique identifier for the topic)
+- **PartitionCount:** 3 (the topic is split into 3 partitions)
+- **ReplicationFactor:** 3 (each partition has 3 replicas, meaning its data is stored on 3 different brokers for fault tolerance)
+- **Configs:**
+  - `min.insync.replicas=2` (at least 2 replicas must be in sync for writes to succeed)
+  - `message.format.version=3.0-IV1` (the message format version used for this topic)
+
+---
+
+### Per-Partition Details
+
+For each partition, the following columns are shown:
+
+- **Partition:** The partition number (0, 1, or 2)
+- **Leader:** The broker ID currently acting as the leader for this partition. All read and write requests go to this broker for this partition.
+- **Replicas:** The list of `broker IDs` that store a copy of this partition’s data (the first is the preferred leader).
+- **Isr:** "**In-Sync Replicas**" — the brokers that are fully caught up with the leader and eligible to be promoted if the leader fails.
+- **Elr/LastKnownElr:** Not applicable here (N/A); these columns can relate to "**Eligible Leader Replicas**," which are not used in this output.
+
+#### Example (Partition 0)
+
+- **Partition:** 0
+- **Leader:** 2 (broker ID 2 is the leader for partition 0)
+- **Replicas:** 2,0,1 (partition 0 is stored on brokers 2, 0, and 1)
+- **Isr:** 2,0,1 (all three replicas are in sync and up-to-date)
+
+This means that for partition 0, broker 2 is handling all requests, but if broker 2 fails, either broker 0 or 1 can take over because they are in sync.
+
+| Partition | Leader | Replicas  | In-Sync Replicas (ISR) |
+|-----------|--------|-----------|------------------------|
+| 0         | 2      | 2,0,1     | 2,0,1                  |
+| 1         | 1      | 1,2,0     | 1,2,0                  |
+| 2         | 0      | 0,1,2     | 0,1,2                  |
+
+### What This Tells You
+
+- The topic is distributed across three partitions for parallelism and scalability.
+- Each partition is replicated across three brokers for high availability.
+- The "**leader**" column shows which broker is currently responsible for each partition.
+- The "**replicas**" column lists all brokers holding a copy of the partition.
+- The "**isr**" column shows which replicas are fully in sync and can take over if the leader fails.
+
+This structure ensures that Kafka can handle failures and scale efficiently, distributing partitions and replicas across multiple brokers.
+
+- [1] <https://linuxhint.com/apache-kafka-producer-partition-metadata-given-topic/>
+- [2] <https://stackoverflow.com/questions/59617341/what-is-kafka-topics-sh-describe-showing-me>
+- [3] <https://redhat-developer-demos.github.io/kafka-tutorial/kafka-tutorial/1.0.x/02-topics-partitions.html>
+- [4] <https://www.cloudkarafka.com/blog/understanding-kafka-topics-and-partitions.html>
+- [5] <https://stackoverflow.com/questions/37499349/understanding-kafka-partition-metadata>
+- [6] <https://developer.confluent.io/faq/apache-kafka/topics-in-kafka/>
+- [7] <https://dev.to/clasnake/what-are-topics-and-partitions-in-kafka-31i4>
+- [8] <https://docs.confluent.io/kafka/introduction.html>
+- [9] <https://kafka.apache.org/intro>
+- [10] <https://kafka.apache.org/documentation/>
