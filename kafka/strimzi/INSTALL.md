@@ -141,7 +141,7 @@
 
     **OR**
 
-    In case of getting warning messages such as `The metadata response from the cluster reported a recoverable issue with correlation id 6 : {my-topic=UNKNOWN_TOPIC_OR_PARTITION} (org.apache.kafka.clients.NetworkClient)`, you can create a topic manually before running the producer:
+    In case of getting warning messages such as `The metadata response from the cluster reported a recoverable issue with correlation id 6 : {my-topic=UNKNOWN_TOPIC_OR_PARTITION} (org.apache.kafka.clients.NetworkClient)`, it means that `mytopic` does not exist yet, and you can create a topic manually before running the producer:
 
     ```bash
     kubectl -n myproject run kafka-topic-create -ti --image=quay.io/strimzi/kafka:0.46.0-kafka-4.0.0 --rm=true --restart=Never -- bin/kafka-topics.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --create --topic mytopic --partitions 1 --replication-factor 1
@@ -155,6 +155,8 @@
     kubectl -n myproject run kafka-topic-list -ti --image=quay.io/strimzi/kafka:0.46.0-kafka-4.0.0 --rm=true --restart=Never -- \
     bin/kafka-topics.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --list
     ```
+
+    - To make sure this doesn't happen again, you can enable the auto topic creation feature in Kafka by setting the `kafka.spec.config.auto.create.topics.enable` property to `true` in the Kafka configuration. This is usually enabled by default, but you can verify it in your Kafka configuration file or through the Strimzi Kafka custom resource.
 
     - Once everything is set up correctly, you’ll see a prompt where you can type in your messages:
 

@@ -1,5 +1,4 @@
 .obsidian
 *.env*
-*.json
 *.properties*
 *application-management*
