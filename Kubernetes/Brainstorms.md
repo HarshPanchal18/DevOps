@@ -404,7 +404,7 @@ By checking these 5 things, you can identify potential security issues and vulne
 
 ---
 
-## What happens if multiple StorageClasses are marked as default
+## What happens if multiple StorageClasses are marked as default?
 
 If multiple StorageClasses are marked as default in a Kubernetes cluster, the following occurs:
 
@@ -418,14 +418,14 @@ If more than one StorageClass is set as default, PVCs without an explicit `stora
 
 Citations:
 
-* [1] https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/
-* [2] https://kubernetes.io/docs/concepts/storage/storage-classes/
-* [3] https://github.com/kubernetes/kubernetes/issues/110514
-* [4] https://access.redhat.com/solutions/3586351
-* [5] https://docs.okd.io/4.18/storage/container_storage_interface/persistent-storage-csi-sc-manage.html
-* [6] https://docs.openshift.com/rosa/storage/container_storage_interface/persistent-storage-csi-sc-manage.html
-* [7] https://github.com/pulumi/pulumi-eks/issues/141
-* [8] https://access.redhat.com/solutions/6779501
+* [1] <https://kubernetes.io/docs/tasks/administer-cluster/change-default-storage-class/>
+* [2] <https://kubernetes.io/docs/concepts/storage/storage-classes/>
+* [3] <https://github.com/kubernetes/kubernetes/issues/110514>
+* [4] <https://access.redhat.com/solutions/3586351>
+* [5] <https://docs.okd.io/4.18/storage/container_storage_interface/persistent-storage-csi-sc-manage.html>
+* [6] <https://docs.openshift.com/rosa/storage/container_storage_interface/persistent-storage-csi-sc-manage.html>
+* [7] <https://github.com/pulumi/pulumi-eks/issues/141>
+* [8] <https://access.redhat.com/solutions/6779501>
 
 ---
 
@@ -444,14 +444,14 @@ Deleting a StorageClass in Kubernetes **does not directly affect existing Persis
 
 Citations:
 
-* [1] https://kubernetes.io/docs/concepts/storage/persistent-volumes/
-* [2] https://kubernetes.io/docs/concepts/storage/storage-classes/
-* [3] https://stackoverflow.com/questions/61187909/how-do-i-change-the-storage-class-of-existing-persistent-volumes
-* [4] https://www.kubermatic.com/blog/keeping-the-state-of-apps-4-persistentvolumes-and-persistentvolum/
-* [5] https://kubernetes.io/blog/2024/08/16/kubernetes-1-31-prevent-persistentvolume-leaks-when-deleting-out-of-order/
-* [6] https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/
-* [7] https://www.reddit.com/r/kubernetes/comments/bp2xht/can_i_delete_a_storage_class_after_creating/
-* [8] https://aws.amazon.com/blogs/storage/persistent-storage-for-kubernetes/
+* [1] <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>
+* [2] <https://kubernetes.io/docs/concepts/storage/storage-classes/>
+* [3] <https://stackoverflow.com/questions/61187909/how-do-i-change-the-storage-class-of-existing-persistent-volumes>
+* [4] <https://www.kubermatic.com/blog/keeping-the-state-of-apps-4-persistentvolumes-and-persistentvolum/>
+* [5] <https://kubernetes.io/blog/2024/08/16/kubernetes-1-31-prevent-persistentvolume-leaks-when-deleting-out-of-order/>
+* [6] <https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/>
+* [7] <https://www.reddit.com/r/kubernetes/comments/bp2xht/can_i_delete_a_storage_class_after_creating/>
+* [8] <https://aws.amazon.com/blogs/storage/persistent-storage-for-kubernetes/>
 
 ---
 
