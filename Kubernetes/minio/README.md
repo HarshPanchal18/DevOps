@@ -29,12 +29,6 @@ And just like directories and files, buckets and objects can have permissions. T
 
 ## Installations
 
-### Through YAML: Apply the minio.yml file of this directory
-
-```bash
-kubectl apply -f minio.yml
-```
-
 ### Helm Chart
 
 To install MinIO using Helm, you can use the following commands. This will set up the MinIO operator in a dedicated namespace called `minio-operator`.
@@ -48,4 +42,54 @@ Verify the installation by checking the status of the MinIO operator:
 
 ```bash
 kubectl get all -n minio-operator
+```
+
+### Operator
+
+Create a namespace for the MinIO operator:
+
+```bash
+kubectl create namespace minio-operator
+```
+
+Apply the MinIO operator CRDs:
+
+```bash
+kubectl apply -f crd/ -n minio-operator
+```
+
+Apply other resources for deployment:
+
+```bash
+kubectl apply -f sa.yml -n minio-operator
+kubectl apply -f cr-crb.yml -n minio-operator
+kubectl apply -f svc.yml -n minio-operator
+kubectl apply -f sc-pv.yml -n minio-operator
+kubectl apply -f deployment.yml -n minio-operator
+kubectl apply -f console-ui.yml -n minio-operator
+```
+
+Get JWT token for the MinIO Console:
+
+```bash
+kubectl -n minio-operator get secret console-sa-secret -o jsonpath="{.data.token}" | base64 --decode
+```
+
+Get tenant management URL via viewing tenant's logs.
+
+```bash
+kubectl logs -n demo test-tenant-pool-0-0
+```
+
+Get secret for tenant user:
+
+```bash
+kubectl get secrets -oyaml -n demo test-tenant-user-0
+```
+
+and decode the access key and secret key:
+
+```bash
+echo $CONSOLE_ACCESS_KEY | base64 --decode # username
+echo $CONSOLE_SECRET_KEY | base64 --decode # password
 ```
