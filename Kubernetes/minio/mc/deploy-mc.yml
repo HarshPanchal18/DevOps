@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: minio-mc
+  labels:
+    app: minio-client
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio-client
+
+  template:
+    metadata:
+      labels:
+        app: minio-client
+
+    spec:
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2025-05-21T01-59-54Z.hotfix.e98f1ead
+          command: [ "sleep", "infinity" ]  # Keep it running
+          # If you want to run a command directly instead, replace the above line
+          # Example: [ "mc", "ls", "myminio" ]
+          env:
+            - name: MINIO_ALIAS
+              value: myminio
+            - name: MINIO_URL
+              value: https://minio.demo.svc.cluster.local # Replace with your MinIO service URL
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: test-tenant-user-0
+                  key: CONSOLE_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: test-tenant-user-0
+                  key: CONSOLE_SECRET_KEY
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          volumeMounts:
+            - name: minio-upload-data
+              mountPath: /data/minio-uploads  # Mount path inside the container
+      restartPolicy: Always
+      volumes:
+        - name: minio-upload-data
+          persistentVolumeClaim:
+            claimName: minio-upload-pvc

@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mc
+  labels:
+    app: minio-client
+spec:
+  containers:
+    - name: mc
+      image: minio/mc:RELEASE.2025-05-21T01-59-54Z.hotfix.e98f1ead
+      command: [ "sleep", "3600" ]  # Keeps the container running
+      # If you want to run a command directly instead, replace the above line
+      # Example: [ "mc", "ls", "myminio" ]
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "50m"
+        limits:
+          memory: "128Mi"
+          cpu: "200m"
+      env:
+        - name: MINIO_ALIAS
+          value: myminio
+        - name: MINIO_URL
+          value: https://minio.demo.svc.cluster.local # Replace with your MinIO service URL
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: test-tenant-user-0
+              key: CONSOLE_ACCESS_KEY
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: test-tenant-user-0
+              key: CONSOLE_SECRET_KEY
+  restartPolicy: Never

@@ -1,0 +1,58 @@
+# kubectl create job --from=cronjob/mc-upload-job manual-upload -n demo
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mc-upload-job
+  namespace: demo
+
+spec:
+  schedule: "0 * * * *"  # every hour
+
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: uploader
+              image: minio/mc:RELEASE.2025-05-21T01-59-54Z.hotfix.e98f1ead
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  mc alias set myminio $MINIO_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY &&
+                  mc cp --recursive /data myminio/mybucket
+              env:
+                - name: MINIO_URL
+                  value: http://test-tenant-hl.demo.svc.cluster.local:9000
+                - name: MINIO_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: test-tenant-secret
+                      key: accesskey
+                - name: MINIO_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: test-tenant-secret
+                      key: secretkey
+              volumeMounts:
+                - name: upload-data
+                  mountPath: /data
+          restartPolicy: Never
+          volumes:
+            - name: upload-data
+              persistentVolumeClaim:
+                claimName: minio-upload-pvc
+      backoffLimit: 4
+      completions: 1
+      parallelism: 1
+
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  suspend: false
+  timezone: "UTC"  # Adjust as needed
+
+  startingDeadlineSeconds: 300  # Optional, to avoid running if the job is delayed
+  progressDeadlineSeconds: 600  # Optional, to define how long to wait for job completion
+  activeDeadlineSeconds: 3600  # Optional, to limit how long the job can run
