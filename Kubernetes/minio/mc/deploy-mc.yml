@@ -21,9 +21,15 @@ spec:
       containers:
         - name: mc
           image: minio/mc:RELEASE.2025-05-21T01-59-54Z.hotfix.e98f1ead
-          command: [ "sleep", "infinity" ]  # Keep it running
-          # If you want to run a command directly instead, replace the above line
-          # Example: [ "mc", "ls", "myminio" ]
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              echo "MinIO is up. Creating alias..." &&
+              until mc alias set $MINIO_ALIAS $MINIO_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY; do
+                echo "Failed to create alias. Retrying..."; sleep 2;
+              done &&
+              echo "Alias created. Pod is now sleeping..." &&
+              sleep infinity # Sleeps forever so you can still exec into the pod
           env:
             - name: MINIO_ALIAS
               value: myminio
