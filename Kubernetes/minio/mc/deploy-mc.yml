@@ -20,18 +20,18 @@ spec:
     spec:
       containers:
         - name: mc
-          image: minio/mc:RELEASE.2025-05-21T01-59-54Z.hotfix.e98f1ead
+          image: minio/mc:RELEASE.2025-05-21T01-59-54Z
           command: [ "/bin/sh", "-c" ]
           args:
             - |
               echo "MinIO is up. Creating alias..." &&
-              until mc alias set $MINIO_ALIAS $MINIO_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY; do
+              until mc alias set $MINIO_TENANT $MINIO_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY; do
                 echo "Failed to create alias. Retrying..."; sleep 2;
               done &&
               echo "Alias created. Pod is now sleeping..." &&
               sleep infinity # Sleeps forever so you can still exec into the pod
           env:
-            - name: MINIO_ALIAS
+            - name: MINIO_TENANT
               value: myminio
             - name: MINIO_URL
               value: https://minio.demo.svc.cluster.local # Replace with your MinIO service URL
