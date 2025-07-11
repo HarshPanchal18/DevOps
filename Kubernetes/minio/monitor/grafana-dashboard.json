@@ -229,7 +229,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 7,
+        "w": 9,
         "x": 9,
         "y": 0
       },
@@ -306,8 +306,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 18,
         "y": 0
       },
       "id": 102,
@@ -547,7 +547,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
+        "w": 2,
         "x": 3,
         "y": 8
       },
@@ -618,8 +618,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 5,
         "y": 8
       },
       "id": 78,
@@ -713,7 +713,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 12,
+        "x": 9,
         "y": 8
       },
       "id": 77,
@@ -781,7 +781,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 16,
+        "x": 13,
         "y": 8
       },
       "id": 76,
@@ -915,8 +915,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 20,
+        "w": 7,
+        "x": 17,
         "y": 8
       },
       "id": 68,
@@ -1107,12 +1107,12 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(minio_cluster_bucket_total{job=~\"$scrape_jobs\"})",
+          "expr": "sum(minio_cluster_bucket_total{job=~\"$scrape_jobs\"}) by (job)",
           "format": "time_series",
           "instant": true,
           "interval": "1m",
           "intervalFactor": 1,
-          "legendFormat": "",
+          "legendFormat": "{{job}}",
           "range": false,
           "refId": "A"
         }
@@ -1200,7 +1200,7 @@
           "instant": true,
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "Total objects of {{job}}",
+          "legendFormat": "{{job}}",
           "range": false,
           "refId": "A"
         }
@@ -1252,7 +1252,7 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 6,
+        "w": 5,
         "x": 9,
         "y": 13
       },
@@ -1312,7 +1312,7 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "fillOpacity": 80,
+            "fillOpacity": 100,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1327,6 +1327,7 @@
               "mode": "off"
             }
           },
+          "fieldMinMax": false,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1346,16 +1347,16 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 9,
-        "x": 15,
+        "w": 10,
+        "x": 14,
         "y": 13
       },
       "id": 73,
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
+        "barRadius": 0.15,
+        "barWidth": 0.95,
         "fullHighlight": false,
-        "groupWidth": 0.7,
+        "groupWidth": 0.76,
         "legend": {
           "calcs": [],
           "displayMode": "list",
@@ -2102,7 +2103,7 @@
         ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 13,
         "x": 0,
         "y": 27
@@ -2237,7 +2238,7 @@
         ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 11,
         "x": 13,
         "y": 27
@@ -2303,7 +2304,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 35
       },
       "id": 99,
       "options": {
@@ -2484,7 +2485,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 35
       },
       "id": 95,
       "options": {
@@ -2585,7 +2586,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 41
+        "y": 43
       },
       "id": 17,
       "options": {
@@ -2700,7 +2701,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 41
+        "y": 43
       },
       "id": 96,
       "options": {
@@ -2835,7 +2836,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 50
       },
       "id": 11,
       "options": {
@@ -2953,7 +2954,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 50
       },
       "id": 98,
       "options": {
@@ -3054,7 +3055,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 57
       },
       "id": 75,
       "options": {
@@ -3155,7 +3156,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 57
       },
       "id": 97,
       "options": {
@@ -3200,8 +3201,8 @@
     "list": [
       {
         "current": {
-          "text": "All",
-          "value": ["$__all"]
+          "text": ["tenant-0"],
+          "value": ["tenant-0"]
         },
         "datasource": {
           "type": "prometheus",
@@ -3223,8 +3224,8 @@
       {
         "allowCustomValue": false,
         "current": {
-          "text": ["bucket-1", "bucket-2"],
-          "value": ["bucket-1", "bucket-2"]
+          "text": ["All"],
+          "value": ["$__all"]
         },
         "definition": "label_values(bucket)",
         "includeAll": true,
@@ -3263,5 +3264,5 @@
   "timezone": "",
   "title": "MinIO Dashboard",
   "uid": "TgmJnqnnk",
-  "version": 8
+  "version": 9
 }

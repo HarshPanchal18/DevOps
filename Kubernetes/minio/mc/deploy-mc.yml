@@ -24,27 +24,28 @@ spec:
           command: [ "/bin/sh", "-c" ]
           args:
             - |
-              echo "MinIO is up. Creating alias..." &&
-              until mc alias set $MINIO_TENANT $MINIO_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY; do
-                echo "Failed to create alias. Retrying..."; sleep 2;
-              done &&
-              echo "Alias created. Pod is now sleeping..." &&
               sleep infinity # Sleeps forever so you can still exec into the pod
-          env:
-            - name: MINIO_TENANT
-              value: myminio
-            - name: MINIO_URL
-              value: https://minio.demo.svc.cluster.local # Replace with your MinIO service URL
-            - name: MINIO_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: test-tenant-user-0
-                  key: CONSOLE_ACCESS_KEY
-            - name: MINIO_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: test-tenant-user-0
-                  key: CONSOLE_SECRET_KEY
+          #     echo "MinIO is up. Creating alias..." &&
+          #     until mc alias set $MINIO_TENANT $MINIO_URL $MINIO_ACCESS_KEY $MINIO_SECRET_KEY; do
+          #       echo "Failed to create alias. Retrying..."; sleep 2;
+          #     done &&
+          #     echo "Alias created. Pod is now sleeping..." &&
+          #     sleep infinity # Sleeps forever so you can still exec into the pod
+          # env:
+          #   - name: MINIO_TENANT
+          #     value: myminio
+          #   - name: MINIO_URL
+          #     value: https://minio.demo.svc.cluster.local # Replace with your MinIO service URL
+          #   - name: MINIO_ACCESS_KEY
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: test-tenant-user-0
+          #         key: CONSOLE_ACCESS_KEY
+          #   - name: MINIO_SECRET_KEY
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: test-tenant-user-0
+          #         key: CONSOLE_SECRET_KEY
           resources:
             requests:
               memory: "64Mi"
