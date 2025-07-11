@@ -1117,7 +1117,7 @@
           "refId": "A"
         }
       ],
-      "title": "Number of Buckets",
+      "title": "Total Buckets in Tenant",
       "type": "stat"
     },
     {
@@ -1205,7 +1205,7 @@
           "refId": "A"
         }
       ],
-      "title": "Number of Objects",
+      "title": "Total Objects in Tenant",
       "type": "stat"
     },
     {
@@ -1252,7 +1252,7 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 3,
+        "w": 6,
         "x": 9,
         "y": 13
       },
@@ -1283,7 +1283,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(minio_bucket_usage_object_total{job=~\"$scrape_jobs\"}) by (job,bucket)",
+          "expr": "max(minio_bucket_usage_object_total{bucket=~\"$buckets\"}) by (job,bucket)",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -1346,8 +1346,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 12,
-        "x": 12,
+        "w": 9,
+        "x": 15,
         "y": 13
       },
       "id": 73,
@@ -3219,6 +3219,27 @@
         "refresh": 1,
         "regex": "",
         "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": ["bucket-1", "bucket-2"],
+          "value": ["bucket-1", "bucket-2"]
+        },
+        "definition": "label_values(bucket)",
+        "includeAll": true,
+        "multi": true,
+        "name": "buckets",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(bucket)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
       }
     ]
   },
@@ -3242,5 +3263,5 @@
   "timezone": "",
   "title": "MinIO Dashboard",
   "uid": "TgmJnqnnk",
-  "version": 6
+  "version": 8
 }
