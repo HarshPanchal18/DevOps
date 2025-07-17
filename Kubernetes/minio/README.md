@@ -203,81 +203,6 @@ If you provide your current tenant YAML, I can help you draft the exact pool add
 - [7] <https://www.adaltas.com/en/2022/07/09/s3-object-storage-minio/>
 - [8] <https://github.com/minio/operator>
 
-### How do I ensure data integrity when expanding storage after pool removal
-
-When expanding storage after pool removal, ensuring **data integrity** is critical to avoid data loss or corruption. Based on best practices from storage systems and data management, here are key guidelines to maintain data integrity during and after expansion:
-
-#### 1. Backup and Validate Existing Data Before Expansion
-
-- Always take a **full backup** of your data before starting pool removal or expansion.
-- Verify backup integrity using **checksum or hashing algorithms** (e.g., SHA-256) to ensure data consistency.
-- This protects you against accidental data loss during reconfiguration.
-
-#### 2. Use Erasure Coding or Redundancy Features
-
-- If your system supports **erasure coding** (like MinIO or StorageGRID), ensure it is enabled.
-- Erasure coding distributes data and parity fragments across multiple drives/pools, allowing reconstruction if fragments are lost or corrupted.
-- During expansion, the system can rebuild missing or corrupted fragments automatically, maintaining data integrity [3].
-
-#### 3. Follow Operator or System-Supported Expansion Procedures
-
-- Use your storage system’s **official expansion workflows** (e.g., MinIO Operator, StorageGRID, Windows Storage Spaces).
-- These tools handle data redistribution, metadata updates, and consistency checks automatically.
-- For example, MinIO Operator manages pool additions and rebalances data across new volumes without downtime.
-
-#### 4. Monitor Data Rebalancing and Health
-
-- After expansion, monitor the **data rebalance or migration process** closely.
-- Ensure the system reports the rebalance status as “Running” then “Stopped” (completed).
-- Check logs and health dashboards for errors or warnings about data corruption or incomplete migrations.
-
-#### 5. Run Regular Data Integrity Checks
-
-- Schedule **automated integrity checks** such as CRC or checksum verification to detect silent data corruption or bit rot.
-- Some systems perform background verification and auto-healing of corrupted data fragments.
-- Manual spot checks on critical data subsets can complement automated checks.
-
-#### 6. Maintain Consistent Configuration and Avoid Mid-Expansion Changes
-
-- Do not change critical pool parameters (like redundancy level or volumes per server) mid-expansion, as this can cause inconsistencies.
-- Ensure storage nodes and drives added meet the system’s requirements for capacity and redundancy.
-
-#### 7. Document and Log All Changes and Checks
-
-- Keep detailed records of expansion steps, configuration changes, and integrity check results.
-- This documentation helps in troubleshooting and auditing data integrity over time.
-
-#### Summary Table
-
-| Step                          | Description                                                                                      |
-|-------------------------------|-------------------------------------------------------------------------------------------------|
-| Backup and verify data         | Take backups and validate with checksums before expansion                                       |
-| Use erasure coding/redundancy  | Enable and rely on erasure coding or RAID-like features for data protection                      |
-| Follow official expansion tools| Use system/operator-supported expansion workflows to ensure safe data redistribution            |
-| Monitor rebalance and health   | Track rebalance progress and system health to detect issues early                               |
-| Run periodic integrity checks  | Schedule automated and manual data integrity verification (checksums, CRC, hashing)             |
-| Avoid mid-expansion config changes | Maintain consistent pool and redundancy settings during expansion                             |
-| Document changes and results   | Keep logs and records for auditing and troubleshooting                                          |
-
-#### Additional Resources
-
-- MinIO pool expansion and rebalancing: [MinIO Blog on Adding Pools](https://blog.min.io/add-pools-expand-capacity/)
-- NetBackup MSDP data integrity checking: automated CRC and garbage cleanup
-- StorageGRID erasure-coded object verification and auto-healing
-- Windows Storage Spaces optimization after pool expansion
-- Best practices for data integrity verification and backup
-
-By carefully planning your expansion, backing up data, using redundancy features, and monitoring the process, you can ensure data integrity even after pool removal and storage expansion.
-
-- [1] <https://support.microsoft.com/en-us/windows/storage-spaces-in-windows-b6c8b540-b8d8-fb8a-e7ab-4a75ba11f9f2>
-- [2] <https://www.veritas.com/support/en_US/doc/25074086-151874763-0/v62562350-151874763>
-- [3] <https://docs.netapp.com/us-en/storagegrid-116/monitor/verifying-object-integrity.html>
-- [4] <https://forum.proxmox.com/threads/storage-checking-data-integrity-bit-rot-protection.129536/>
-- [5] <https://docs.hitachivantara.com/r/en-us/virtual-storage-platform-one-sds-block/1.15.x/mk-24vsp1sds002/managing-drives/adding-drives/expanding-storage-pool>
-- [6] <https://community.connection.com/backup-and-recovery-best-practices-for-data-integrity-verification/>
-- [7] <https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1800-25.pdf>
-- [8] <https://www.acceldata.io/blog/how-to-ensure-data-integrity-strategies-tools-and-best-practices>
-
 ### Setting a MinIO alias with MinIO CLI
 
 - Create a secret containing the MinIO access key and secret key:
@@ -337,3 +262,49 @@ mc cp <local-file-path> myminio/<bucket-name>
 ```bash
 mc cp /mc-pod/path/to/local/file.txt myminio/bucket-0/
 ```
+
+### Decommissioning
+
+*[Reference](https://min.io/docs/minio/linux/operations/install-deploy-manage/decommission-server-pool.html)*
+
+Decommissioning is designed for removing an older server pool whose hardware is no longer sufficient or performant compared to the pools in the deployment. MinIO automatically migrates data from the decommissioned pools to the remaining pools in the deployment based on the ratio of `free space available` in each pool.
+
+During the decommissioning process, MinIO routes `read` operations (e.g. GET, LIST, HEAD) normally. MinIO routes `write` operations (e.g. PUT, versioned DELETE) to the remaining **“active”** pools in the deployment. Versioned objects maintain their ordering throughout the migration process.
+
+> Once MinIO begins decommissioning a pool, it marks that pool as permanently inactive (“draining”). Cancelling or otherwise interrupting the decommissioning procedure does not restore the pool to an active state.
+
+#### Back Up Cluster Settings First
+
+Use the `mc admin cluster bucket export` and `mc admin cluster iam export` commands to take a snapshot of the `bucket metadata` and `IAM configurations` respectively prior to starting decommissioning. You can use these snapshots to restore `bucket/IAM settings` to recover from user or process errors as necessary.
+
+1. Review the status
+
+    ```bash
+    mc admin decommission status myminio
+    ```
+
+2. Start decommissioning by selecting pool from the table.
+
+    ```bash
+    mc admin decommission start myminio /export{0..1}
+    ```
+
+3. Monitor the decommissioning status.
+
+    ```bash
+    mc admin decommission status myminio
+    ```
+
+    - Specify the pool for more description.
+
+    ```bash
+    mc admin decommission status myminio /export{0..1}
+    ```
+
+    `mc admin decommission status` marks the `Status` as `Complete` once decommissioning is completed.
+
+    If `Status` reads as `failed`, you can re-run the `mc admin decommission start` to resume the process.
+
+    For persistent failures, use `mc admin logs` or review the `systemd` logs (e.g. `journalctl -u minio`) to identify more specific errors.
+
+4. Remove the decommissioned pool from the configuration of tenant.
