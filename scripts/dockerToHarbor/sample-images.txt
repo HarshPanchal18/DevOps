@@ -1,0 +1,6 @@
+# Sample images for testing the transfer script
+hello-world:latest
+alpine:3.18
+nginx:1.24-alpine
+redis:7-alpine
+busybox:latest

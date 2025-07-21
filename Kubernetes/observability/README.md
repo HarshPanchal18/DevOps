@@ -80,17 +80,17 @@ cd kube-prometheus-stack
 * Update `values.yaml`
 
 ```yaml
-prometheus: # Line 3316
-  prometheusSpec: # Line 3831
-    scrapeInterval: "5s" # Line 3872
-    evaluationInterval: "5s" # Line 3890
-    additionalScrapeConfigs: # Line 4286
-      - job_name: flask-app # Append this elements
+prometheus:
+  prometheusSpec:
+    scrapeInterval: "5s"
+    evaluationInterval: "5s"
+    additionalScrapeConfigs:
+      - job_name: flask-ap
         static_configs:
           - targets:
               - <Your-Project-IP>:31111
-    storageSpec: # Line 4251
-      volumeClaimTemplate: # Append this values
+    storageSpec:
+      volumeClaimTemplate:
         spec:
           storageClassName: prometheus
           accessModes: ["ReadWriteOnce"]
@@ -98,8 +98,8 @@ prometheus: # Line 3316
             requests:
               storage: 50Gi
 
-grafana: # Line 1214
-  persistence: # Line 1291, append
+grafana:
+  persistence:
     enabled: true
     storageClassName: "prometheus"
     accessModes:
@@ -139,3 +139,62 @@ PodMonitor is similar to ServiceMonitor, but it is used to monitor individual po
 When a PodMonitor is created, the Prometheus Operator updates the Prometheus scrape configuration to include the PodMonitor configuration. Prometheus then begins scraping metrics from the endpoints defined in the PodMonitor.
 
 Any Pods in your cluster that match the labels located within the `PodMonitor selector` field will be monitored based on the `podMetricsEndpoints` specified on the PodMonitor.
+
+## Troubleshootings
+
+### Make alive dead service-monitors
+
+First refer to this links:
+
+* [Comment1](https://github.com/prometheus-operator/kube-prometheus/issues/1392#issuecomment-2082325391)
+* [Comment2](https://github.com/prometheus-operator/kube-prometheus/issues/1392#issuecomment-1411719953)
+
+If still issue persists, then follow below steps...
+
+* `servicemonitor/monitoring/prom-graf-kube-prometheus-kube-etcd`
+
+    Edit a `--listen-metrics-urls=http://127.0.0.1:2381` inside container arguments of `etcd` pod.
+
+    ```bash
+    sed -i 's|--listen-metrics-urls=http://127.0.0.1:2381|--listen-metrics-urls=http://0.0.0.0:2381|' /etc/kubernetes/manifests/etcd.yaml
+    ```
+
+* `servicemonitor/monitoring/prom-graf-kube-prometheus-kube-scheduler`
+
+    ```bash
+    sed -i 's|--bind-address=127.0.0.1|--bind-address=0.0.0.0|' /etc/kubernetes/manifests/kube-scheduler.yaml
+    ```
+
+* `servicemonitor/monitoring/prom-graf-kube-prometheus-kube-controller-manager`
+
+    ```bash
+    sed -i 's|--bind-address=127.0.0.1|--bind-address=0.0.0.0|' /etc/kubernetes/manifests/kube-controller-manager.yaml
+    ```
+
+* `servicemonitor/monitoring/prom-graf-kube-prometheus-kube-proxy`
+
+    ```bash
+    kubectl -n kube-system edit configmap kube-proxy
+    ```
+
+    You will see following key which is responsible for metrics.
+
+    ```yaml
+    metricsBindAddress: ""
+    # OR
+    metricsBindAddress: 127.0.0.1:10249
+    ```
+
+    change value to:
+
+    ```yaml
+    metricsBindAddress: 0.0.0.0:10249
+    ```
+
+  * Save and exit the editor.
+
+  * Restart kube-proxy pods to pick up new config.
+
+    ```bash
+    kubectl -n kube-system delete pod -l k8s-app=kube-proxy
+    ```
