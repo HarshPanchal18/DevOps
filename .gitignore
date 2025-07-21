@@ -1,4 +1,10 @@
 .obsidian
 *.env*
+*.json
 *.properties*
 *application-management*
+/harbor/templates
+/harbor/LICENSE
+/kafka/impl/practise/environment
+*key*
+*cred*
