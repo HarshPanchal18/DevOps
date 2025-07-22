@@ -1,4 +1,4 @@
 provider "aws" {
   alias = "east"
-  region = var.aws_region
+  region = "us-east-1" # Use the AWS provider for us-east-1
 }
