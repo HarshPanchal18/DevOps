@@ -560,3 +560,60 @@ ssh -R 8080:localhost:8080 user@ssh.example.com
 This will forward any traffic on `ssh.example.com`'s port 8080 to your local machine's port 8080, allowing you to expose your web server to the outside world.
 
 SSH tunnels can be a bit tricky to understand at first, but they're a powerful tool for securely accessing remote services and exposing local services to the outside world.
+
+## What's the difference between a StatefulSet and a Deployment in Kubernetes?
+
+### **StatefulSet vs Deployment in Kubernetes**
+
+| Feature          | Deployment                           | StatefulSet                        |
+|------------------|--------------------------------------|-----------------------------------|
+| Pod Identity      | Pods are interchangeable              | Pods have a unique identity       |
+| Storage           | Volumes are not persistent            | Volumes are persistent            |
+| Scaling           | Easy to scale up/down                | Scaling is more complex           |
+| Network Identity  | Pods get a random IP address         | Pods get a stable hostname        |
+| Use Cases         | Stateless applications               | Stateful applications              |
+| Updates           | Rolling updates are easy             | Rolling updates are more complex  |
+| Rollback          | Easy to rollback                     | Rollback is more complex          |
+| Pod Management    | Pods can be replaced at any time     | Pods are managed in a specific order |
+
+### **Key Differences**
+
+* **Pod Identity**: In a Deployment, pods are interchangeable and can be replaced at any time. In a StatefulSet, each pod has a unique identity and is managed in a specific order.
+* **Storage**: Deployments do not provide persistent storage, while StatefulSets provide persistent storage for each pod.
+* **Scaling**: Scaling a Deployment is straightforward, while scaling a StatefulSet is more complex due to the unique identity of each pod.
+* **Network Identity**: In a Deployment, pods get a random IP address, while in a StatefulSet, pods get a stable hostname that can be used to access them.
+* **Use Cases**: Deployments are typically used for stateless applications, while StatefulSets are used for stateful applications that require persistent storage and unique identities.
+* **Updates and Rollbacks**: Deployments support easy rolling updates and rollbacks, while StatefulSets have more complex update and rollback processes due to the unique identities of the pods.
+
+## What is the difference between a LoadBalancer and a Gateway in Kubernetes?
+
+### **LoadBalancer vs Gateway in Kubernetes**
+
+| Feature          | LoadBalancer                           | Gateway                             |
+|------------------|---------------------------------------|-------------------------------------|
+| Purpose          | Exposes a service to the internet     | Manages traffic between services    |
+| Layer            | Works at Layer 4 (Transport Layer)    | Works at Layer 7 (Application Layer)|
+| Configuration     | Simple configuration, just a service  | More complex, involves routing rules|
+| Use Cases        | External access to a service          | API Gateway, Ingress Controller     |
+| Protocols        | Supports TCP/UDP protocols            | Supports HTTP/HTTPS protocols       |
+| Load Balancing   | Provides load balancing for services  | Can provide advanced routing and load balancing |
+| Traffic Management | Limited traffic management capabilities | Advanced traffic management capabilities |
+| Security         | Basic security features               | Advanced security features          |
+| Monitoring       | Basic monitoring capabilities         | Advanced monitoring capabilities    |
+
+### **Key Differences**
+
+* **Purpose**: A LoadBalancer is primarily used to expose a service to the internet, while a Gateway is used to manage traffic between services within the cluster.
+* **Layer**: LoadBalancers operate at Layer 4 (Transport Layer), while Gateways operate at Layer 7 (Application Layer).
+* **Configuration**: LoadBalancers have a simpler configuration, typically just requiring a service definition, while Gateways involve more complex routing rules and configurations.
+* **Use Cases**: LoadBalancers are used for external access to services, while Gateways are used for API management, Ingress control, and advanced traffic routing.
+* **Protocols**: LoadBalancers support TCP/UDP protocols, while Gateways primarily support HTTP/HTTPS protocols.
+* **Load Balancing**: LoadBalancers provide basic load balancing for services, while Gateways can provide advanced routing and load balancing capabilities.
+* **Traffic Management**: LoadBalancers have limited traffic management capabilities, while Gateways offer advanced traffic management features such as request routing, rate limiting, and authentication.
+* **Security**: LoadBalancers provide basic security features, while Gateways offer advanced security features such as TLS termination, authentication, and authorization.
+* **Monitoring**: LoadBalancers have basic monitoring capabilities, while Gateways provide advanced monitoring features such as request tracing, metrics collection, and logging.
+
+### **Use Cases**
+
+* **LoadBalancer**: Use a LoadBalancer when you need to `expose a service to the internet` and require basic load balancing capabilities.
+* **Gateway**: Use a Gateway when you need `advanced traffic management`, `API management`, or `Ingress control` within your Kubernetes cluster.
