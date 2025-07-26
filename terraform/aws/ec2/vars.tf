@@ -13,3 +13,8 @@ variable "ami_id" {
 variable "volume_size" {
   default = 8
 }
+
+variable "key_name" {
+  default     = "user_key"
+  description = "Name of the SSH key pair to use for the instance"
+}
