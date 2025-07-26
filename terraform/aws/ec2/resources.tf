@@ -9,6 +9,8 @@ resource "aws_instance" "example" {
     volume_type = "gp2" # General Purpose SSD
   }
 
+  user_data = file("nginx-install.sh") # Script to install Nginx on the instance startup.
+
   tags = {
     Name = "ExampleInstance"
   }

@@ -7,7 +7,7 @@ variable "instance_type" {
 }
 
 variable "ami_id" {
-  default = "ami-0c02fb55956c7d316"
+  default = "ami-0b0ea68c435eb488d"
 }
 
 variable "volume_size" {
