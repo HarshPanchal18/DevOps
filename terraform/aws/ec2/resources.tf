@@ -2,8 +2,7 @@ resource "aws_instance" "example" {
   ami                    = var.ami_id
   instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.allow_ssh_http.id]
-  provider               = aws.east # Use the AWS provider for us-east-1
-  key_name = aws_key_pair.user_key.key_name
+  key_name               = aws_key_pair.user_key.key_name
 
   root_block_device {
     volume_size = var.volume_size
@@ -53,4 +52,7 @@ resource "aws_security_group" "allow_ssh_http" {
 resource "aws_key_pair" "user_key" {
   key_name   = var.key_name
   public_key = file("terraform-key-aws.pub")
+
+  # command to ssh into the instance
+  # ssh -i terraform-key-aws ec2-user@<public-ip|public-dns>
 }
