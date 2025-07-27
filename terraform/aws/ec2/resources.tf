@@ -1,19 +1,29 @@
 resource "aws_instance" "example" {
+
+  for_each = tomap({
+    example-micro  = "t2.micro"
+    example-small  = "t2.small"
+    example-medium = "t2.medium"
+  })
+
   ami                    = var.ami_id
-  count                  = 3 # Create 3 instances
-  instance_type          = var.instance_type
+  # count                  = 3 # Create 3 instances
+  instance_type          = each.value
   vpc_security_group_ids = [aws_security_group.allow_ssh_http.id]
   key_name               = aws_key_pair.user_key.key_name
 
+  depends_on = [ aws_security_group.allow_ssh_http, aws_key_pair.user_key ] # Ensure security group and key pair are created before the instance
+
   root_block_device {
-    volume_size = var.volume_size
+    volume_size = var.environment == "prod" ? 20 : var.default_volume_size # Use default volume size for dev, otherwise use 20 GB
+    delete_on_termination = true # Delete the volume when the instance is terminated
     volume_type = "gp2" # General Purpose SSD
   }
 
   user_data = file("nginx-install.sh") # Script to install Nginx on the instance startup.
 
   tags = {
-    Name = "ExampleInstance"
+    Name = each.key
   }
 
   lifecycle {
