@@ -1,5 +1,6 @@
 resource "aws_instance" "example" {
   ami                    = var.ami_id
+  count                  = 3 # Create 3 instances
   instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.allow_ssh_http.id]
   key_name               = aws_key_pair.user_key.key_name
