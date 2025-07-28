@@ -10,3 +10,7 @@
 *cred*
 *key*
 *token*
+*secret*
+*.terraform*
+*.tfstate*
+*LICENSE.txt*
