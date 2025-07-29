@@ -44,3 +44,29 @@ This tells Terraform:
     ```bash
     terraform plan
     ```
+
+## QnA
+
+### What is the primary purpose of HCL?
+
+> To define resources and configurations in a human readable format.
+
+### What does the `.terraform` directory contain?
+
+> Provider plugins and metadata.
+
+### What is the default file created by terraform the store the execution plan?
+
+> `plan.out`
+
+### What is the purpose of `root_block_device` block in a terrafrom resource definition?
+
+> To define the configuration of the root storage volume for an instance.
+
+### What is the correct way to import an existing S3 bucket into Terraform?
+
+> Use the `terraform import` command with the resource and bucket name.
+
+### What is the function of terraform `fmt`?
+
+> Reformats configuration files to canonical HCL style.
