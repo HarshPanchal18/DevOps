@@ -277,19 +277,37 @@ During the decommissioning process, MinIO routes `read` operations (e.g. GET, LI
 
 Use the `mc admin cluster bucket export` and `mc admin cluster iam export` commands to take a snapshot of the `bucket metadata` and `IAM configurations` respectively prior to starting decommissioning. You can use these snapshots to restore `bucket/IAM settings` to recover from user or process errors as necessary.
 
-1. Review the status
+1. From the console, create a new pool to where you need a transfer and make sure you had created PVs accordingly.
+
+2. Review the status of a tenant `myminio`.
 
     ```bash
     mc admin decommission status myminio
     ```
 
-2. Start decommissioning by selecting pool from the table.
+    - The output can be similar to this:
 
-    ```bash
-    mc admin decommission start myminio /export{0..1}
+    ```markdown
+    ┌─────┬─────────────────────────────────────────────────────────────────────────────┬────────────────────────┬────────┐
+    │ ID  │ Pools                                                                       │ Drives Usage           │ Status │
+    │ 1st │ https://tenant-0-pool-0-0.tenant-0-hl.demo2.svc.cluster.local/export{0...1} │ 66.5% (total: 103 GiB) │ Active │
+    │ 2nd │ https://tenant-0-pool-1-0.tenant-0-hl.demo2.svc.cluster.local/export{0...1} │ 66.5% (total: 103 GiB) │ Active │
+    └─────┴─────────────────────────────────────────────────────────────────────────────┴────────────────────────┴────────┘
     ```
 
-3. Monitor the decommissioning status.
+3. Start decommissioning by selecting pool from the table.
+
+    ```bash
+    mc admin decommission start myminio https://tenant-0-pool-0-0.tenant-0-hl.demo2.svc.cluster.local/export{0...1}
+    ```
+
+    You will get a message like below.
+
+    ```markdown
+    Decommission started successfully for `https://tenant-0-pool-0-0.tenant-0-hl.demo2.svc.cluster.local/export{0...1}`.
+    ```
+
+4. Monitor the decommissioning status.
 
     ```bash
     mc admin decommission status myminio
@@ -298,13 +316,21 @@ Use the `mc admin cluster bucket export` and `mc admin cluster iam export` comma
     - Specify the pool for more description.
 
     ```bash
-    mc admin decommission status myminio /export{0..1}
+    mc admin decommission status myminio https://tenant-0-pool-0-0.tenant-0-hl.demo2.svc.cluster.local/export{0...1}
     ```
 
     `mc admin decommission status` marks the `Status` as `Complete` once decommissioning is completed.
+
+    ```markdown
+    ┌─────┬─────────────────────────────────────────────────────────────────────────────┬────────────────────────┬──────────┐
+    │ ID  │ Pools                                                                       │ Drives Usage           │ Status   │
+    │ 1st │ https://tenant-0-pool-0-0.tenant-0-hl.demo2.svc.cluster.local/export{0...1} │ 66.5% (total: 103 GiB) │ Complete │
+    │ 2nd │ https://tenant-0-pool-1-0.tenant-0-hl.demo2.svc.cluster.local/export{0...1} │ 66.5% (total: 103 GiB) │ Active   │
+    └─────┴─────────────────────────────────────────────────────────────────────────────┴────────────────────────┴──────────┘
+    ```
 
     If `Status` reads as `failed`, you can re-run the `mc admin decommission start` to resume the process.
 
     For persistent failures, use `mc admin logs` or review the `systemd` logs (e.g. `journalctl -u minio`) to identify more specific errors.
 
-4. Remove the decommissioned pool from the configuration of tenant.
+5. Remove the decommissioned pool from the configuration of tenant.
