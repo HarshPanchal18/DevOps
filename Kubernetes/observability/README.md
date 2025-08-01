@@ -118,6 +118,22 @@ helm install prom-graf . -f values.yaml -n monitoring \
     --set prometheus-node-exporter.service.nodePort=30012 --set prometheus-node-exporter.service.type=NodePort
 ```
 
+## Making service type to nodeport with providing nodeport
+
+```bash
+kubectl patch svc -n monitoring prom-graf-grafana --type='json' -p='[
+  {"op": "replace", "path": "/spec/type", "value": "NodePort"},
+  {"op": "add", "path": "/spec/ports/0/nodePort", "value": 30006}
+]'
+```
+
+```bash
+kubectl patch svc -n monitoring prom-graf-kube-prometheus-prometheus --type='json' -p='[
+  {"op": "replace", "path": "/spec/type", "value": "NodePort"},
+  {"op": "add", "path": "/spec/ports/0/nodePort", "value": 30004}
+]'
+```
+
 ## ServiceMonitor and PodMonitor
 
 * **ServiceMonitor** and **PodMonitor** are custom resources provided by the Prometheus Operator to manage monitoring configurations for services and pods in Kubernetes.
@@ -198,3 +214,9 @@ If still issue persists, then follow below steps...
     ```bash
     kubectl -n kube-system delete pod -l k8s-app=kube-proxy
     ```
+
+## Sharding Prometheus
+
+![Video](https://www.youtube.com/watch?v=kEesp1tMRvM)
+
+[Repo](https://github.com/marcel-dempers/docker-development-youtube-series/tree/master/monitoring/prometheus)
