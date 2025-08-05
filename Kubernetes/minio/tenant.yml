@@ -1,0 +1,66 @@
+apiVersion: minio.min.io/v2
+kind: Tenant
+metadata:
+  annotations:
+    prometheus.io/path: /minio/v2/metrics/cluster
+    prometheus.io/port: '443, 9000'
+    prometheus.io/scrape: 'true'
+    sidecar.istio.io/inject: 'false'
+  name: new-tenant
+  namespace: demo
+scheduler:
+  name: ''
+spec:
+  configuration:
+    name: new-tenant-env-configuration
+  credsSecret:
+    name: new-tenant-secret
+  exposeServices:
+    console: true
+    minio: true
+  features: {}
+  image: quay.io/minio/minio:RELEASE.2025-03-12T18-04-18Z
+  imagePullSecret: {}
+  mountPath: /export
+  pools:
+  - containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      runAsGroup: 1000
+      runAsNonRoot: true
+      runAsUser: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    name: pool-0
+    annotations:
+      sidecar.istio.io/inject: "false"
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+    runtimeClassName: ""
+    securityContext:
+      fsGroup: 1000
+      fsGroupChangePolicy: OnRootMismatch
+      runAsGroup: 1000
+      runAsNonRoot: true
+      runAsUser: 1000
+    servers: 1
+    volumeClaimTemplate:
+      metadata:
+        creationTimestamp: null
+        name: data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: "5368709120"
+        storageClassName: sc-minio
+      status: {}
+    volumesPerServer: 2
+  requestAutoCert: true
+  users:
+  - name: new-tenant-user-0
