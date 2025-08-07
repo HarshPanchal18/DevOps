@@ -267,7 +267,7 @@ process_image() {
     fi
 
     # Clean up local images
-    # docker rmi "$source_image" "$target_image" > /dev/null 2>&1
+    docker rmi "$source_image" "$target_image" > /dev/null 2>&1
 
     return 0
 }

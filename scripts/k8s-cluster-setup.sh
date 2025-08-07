@@ -90,11 +90,13 @@ destroy_cluster() {
     sudo kubeadm reset -f
     sudo rm -rf $HOME/.kube
     sudo rm -rf /etc/cni/net.d
+    sudo rm -rf /etc/kubernetes
     sudo rm -rf /var/lib/etcd
+    sudo rm -rf /var/lib/cni/
     sudo rm -rf /var/lib/kubelet/*
     sudo systemctl restart containerd
     echo "Kubernetes cluster destroyed successfully!"
-
 }
+
 # Uncomment the following line to destroy the cluster
 # destroy_cluster
