@@ -53,11 +53,11 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
-          volumeMounts:
-            - name: minio-upload-data
-              mountPath: /data/minio-uploads  # Mount path inside the container
-      restartPolicy: Always
-      volumes:
-        - name: minio-upload-data
-          persistentVolumeClaim:
-            claimName: minio-upload-pvc
+      #     volumeMounts:
+      #       - name: minio-upload-data
+      #         mountPath: /data/minio-uploads  # Mount path inside the container
+      # restartPolicy: Always
+      # volumes:
+      #   - name: minio-upload-data
+      #     persistentVolumeClaim:
+      #       claimName: minio-upload-pvc

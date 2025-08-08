@@ -65,7 +65,7 @@ kubectl apply -f sa.yml -n minio-operator
 kubectl apply -f cr-crb.yml -n minio-operator
 kubectl apply -f svc.yml -n minio-operator
 kubectl apply -f sc-pv.yml -n minio-operator
-kubectl apply -f deployment.yml -n minio-operator
+kubectl apply -f deployment-operator.yml -n minio-operator
 kubectl apply -f console-ui.yml -n minio-operator
 ```
 
@@ -73,6 +73,15 @@ Get JWT token for the MinIO Console:
 
 ```bash
 kubectl -n minio-operator get secret console-sa-secret -o jsonpath="{.data.token}" | base64 --decode
+```
+
+Make console service NodePort to access on browser.
+
+```bash
+kubectl patch svc -n minio-operator --type='json' -p='[
+  {"op": "replace", "path": "/spec/type", "value": "NodePort"},
+  {"op": "add", "path": "/spec/ports/0/nodePort", "value": 30080}
+]'
 ```
 
 Get tenant management URL via viewing tenant's logs.
