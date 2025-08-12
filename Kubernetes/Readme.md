@@ -1,4 +1,4 @@
-# Notes
+# Notes on Kubernetes
 
 ## Index
 
@@ -17,6 +17,7 @@
 - [Useful Aliases & JSON Path Queries for Kubernetes](#useful-aliases--json-path-queries-for-kubernetes)
 - [What is File Descriptor?](#what-is-file-descriptor)
 - [Changing CIDR of the cluster via `podCIDR` of each node](#changing-cidr-of-the-cluster-via-podcidr-of-each-node)
+- [Dynamic provisioning of volumes in Kubernetes](#dynamic-provisioning-of-volumes-in-kubernetes-with-a-demo)
 
 ## What is Kubernetes?
 
@@ -463,7 +464,7 @@ kubectl get hpa
 
 Kubernetes provides a robust storage abstraction layer to manage storage resources independently from compute resources. Three key concepts form the foundation of this system: **StorageClass**, **Persistent Volume (PV)**, and **Persistent Volume Claim (PVC)**.
 
-![StorageClass in kubernetes](https://blog.mayadata.io/hubfs/Storageclass%20blog%20%281%29-1.png)
+![Relation Diagram](https://github.com/yansongwel/k8s_PaaS/raw/main/%E5%8E%9F%E7%90%86%E5%8F%8A%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/assets/1586620603868.png)
 
 ---
 
@@ -545,6 +546,7 @@ This abstraction enables Kubernetes to manage storage resources flexibly and eff
 - [23] <https://www.netapp.com/devops/what-is-kubernetes-persistent-volumes/>
 - [24] <https://www.loft.sh/blog/kubernetes-persistent-volume>
 - [25] <https://ranchermanager.docs.rancher.com/how-to-guides/new-user-guides/manage-clusters/create-kubernetes-persistent-storage/manage-persistent-storage/about-persistent-storage>
+- [26] <https://forum.huawei.com/enterprise/intl/en/thread/dynamic-provisioning-with-kubernetes-storage-classes-huawei-evs/694728783145353216?blogId=694728783145353216>
 
 ---
 
@@ -1309,47 +1311,26 @@ alias kdb='kubectl describe'
 alias kl='kubectl logs'
 alias ke='kubectl exec -it'
 
-# Get pods with wide output
-alias kgp='kubectl get pods -o wide'
+alias kgp='kubectl get pods -o wide' # Get pods with wide output
+alias kgpa='kubectl get pods --all-namespaces' # Get all pods in all namespaces
+alias kgs='kubectl get svc' # Get services
+alias kga='kubectl get all' # Get all resources
+alias kgn='kubectl get nodes -o wide' # Get nodes with more info
 
-# Get all resources
-alias kga='kubectl get all'
+alias kdp='kubectl describe pod' # Describe pod quickly
+alias klogs='kubectl logs -f' # Get pod logs
+alias kdelp='kubectl delete pod' # Delete pod by name
 
-# Describe pod quickly
-alias kdp='kubectl describe pod'
+alias kcf='kubectl create -f' # Create manifest
+alias kaf='kubectl apply -f' # Apply and show what changed
 
-# Get pod logs
-alias klogs='kubectl logs -f'
+alias kctx='kubectl config current-context' # Get current context
+alias ktop='kubectl top pods' # Top pods (resource usage)
 
-# Delete pod by name
-alias kdel='kubectl delete pod'
-
-# Get into pod shell
-kexec() { kubectl exec -it $1 -- /bin/bash; }
-
-# Port forward shortcut
-kpf() { kubectl port-forward $1 $2:$2; }
-
-# Get services
-alias kgs='kubectl get svc'
-
-# Apply and show what changed
-alias kapp='kubectl apply -f'
-
-# Get nodes with more info
-alias kgn='kubectl get nodes -o wide'
-
-# Switch namespace quickly
-kns() { kubectl config set-context --current --namespace=$1; }
-
-# Get current context
-alias kctx='kubectl config current-context'
-
-# Top pods (resource usage)
-alias ktop='kubectl top pods'
-
-# Get all pods in all namespaces
-alias kgpall='kubectl get pods --all-namespaces'
+kns() { kubectl config set-context --current --namespace=$1; } # Switch namespace quickly
+kbash() { kubectl exec -it $1 -n $2 -- /bin/bash; } # Get into pod shell of namespace
+kpf() { kubectl port-forward $1 $2:$2; } # Port forward shortcut
+decode() { echo $1 | base64 -d; } # Print decoded secret
 ```
 
 ### System aliases
@@ -1756,3 +1737,244 @@ kubectl apply -f calico.yaml
 - [Brightconfig](https://kb.brightcomputing.com/knowledge-base/managing-kubernetes-cluster-cidr/)
 - [GitHub issue](https://github.com/projectcalico/calico/issues/1378)
 - [Calico](https://docs.tigera.io/archive/v2.6/reference/node/configuration)
+
+## Dynamic provisioning of volumes in Kubernetes with a demo
+
+Dynamic provisioning in Kubernetes is an automated process that allows storage volumes to be created on-demand when a user requests them, instead of requiring cluster administrators to manually create and configure storage volumes beforehand. This is done using the Kubernetes StorageClass resource, which defines the type and parameters of storage to be provisioned automatically.
+
+### How Dynamic Provisioning Works
+
+1. **StorageClass Definition:**
+   A cluster administrator defines one or more StorageClass objects. Each StorageClass specifies a provisioner (a volume plugin) that knows how to create the underlying storage, along with any parameters needed by that provisioner (such as disk type, replication, or IOPS).
+
+2. **PersistentVolumeClaim (PVC) Request:**
+   When a user or application creates a PVC specifying a desired size, access mode, and a `storageClassName` (the name of a StorageClass), Kubernetes uses the associated StorageClass to dynamically provision a PersistentVolume (PV) that meets the claim’s requirements.
+
+3. **Automatic PV Creation and Binding:**
+   The provisioner creates the new PV, and Kubernetes automatically binds the PV to the PVC. The pod can then use the PVC to mount the storage volume without any manual intervention required to create the volume.
+
+4. **Volume Lifecycle:**
+   When the PVC is deleted, the PV can be automatically deleted or retained based on the reclaim policy defined in the StorageClass.
+
+#### Sample YAML Manifests for Dynamic Provisioning
+
+**StorageClass Example:**
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast
+provisioner: kubernetes.io/aws-ebs   # Example for AWS EBS
+parameters:
+  type: gp2
+reclaimPolicy: Delete
+```
+
+**PersistentVolumeClaim Example:**
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-dynamic-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+In this example, when you apply the PVC manifest, Kubernetes will see the `storageClassName: fast` and use the `fast` StorageClass to provision a 1Gi volume automatically. The PV is created and bound to the PVC, ready for use by pods.
+
+#### Using the PVC in a Pod
+
+You can then reference the PVC in a Pod manifest to use the dynamically provisioned volume:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: my-container
+    image: nginx
+    volumeMounts:
+    - mountPath: /usr/share/nginx/html
+      name: my-volume
+  volumes:
+  - name: my-volume
+    persistentVolumeClaim:
+      claimName: my-dynamic-pvc
+```
+
+This pod will mount the storage volume dynamically provisioned by the PVC at `/usr/share/nginx/html`.
+
+#### Summary
+
+- Dynamic provisioning eliminates the need for cluster admins to pre-provision storage volumes.
+- StorageClasses define how and what type of storage to provision.
+- PVCs request storage with a specific class, and Kubernetes creates PVs automatically.
+- This approach simplifies and scales storage management in Kubernetes environments.
+
+This dynamic capability is essential for cloud-native applications where storage needs are flexible and change over time, enabling seamless persistent storage management without manual intervention.
+
+If you'd like, I can provide a detailed step-by-step demo with commands for setting this up and verifying it in a Kubernetes cluster. Would you like that?
+
+- [1] <https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/>
+- [2] <https://www.geeksforgeeks.org/devops/kubernetes-volume-provisioning-dynamic-vs-static/>
+- [3] <https://www.groundcover.com/blog/kubernetes-pvc>
+- [4] <https://www.civo.com/academy/kubernetes-volumes/dynamic-volume-provisioning-demo>
+- [5] <https://www.codingshuttle.com/kubernetes-handbook/dynamic-provisioning-in-kubernetes>
+- [6] <https://cloud.google.com/kubernetes-engine/docs/concepts/persistent-volumes>
+- [7] <https://dev.to/monarene/dynamic-volume-provisioning-in-kubernetes-with-aws-and-terraform-3m6h>
+- [8] <https://spacelift.io/blog/kubernetes-persistent-volumes>
+- [9] <https://rafay.co/ai-and-cloud-native-blog/dynamically-provisioning-persistent-volumes-with-kubernetes/>
+- [10] <https://notes.kodekloud.com/docs/OpenShift-4/Storage-Templates-and-Catalog/Demo-Dynamic-Provisioning>
+- [11] <https://www.youtube.com/watch?v=eFpiRzdIFgc>
+- [12] <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>
+- [13] <https://aws.amazon.com/blogs/storage/persistent-storage-for-kubernetes/>
+
+### What happens automatically after a PVC triggers storage provisioning in Kubernetes
+
+After a PersistentVolumeClaim (PVC) triggers storage provisioning in Kubernetes, the following events happen automatically:
+
+1. **Provisioning of PersistentVolume (PV)**:
+   If no suitable pre-existing PV matches the PVC request, Kubernetes uses the storage class defined in the PVC to dynamically provision a new PersistentVolume. This volume is created according to the parameters set in the associated StorageClass, such as storage type, size, and other configurations.
+
+2. **Binding of PVC to PV**:
+   Once the PV is provisioned (or if a suitable PV already exists), Kubernetes automatically binds the PVC to the matching PV. This binding is exclusive, meaning that the PV is now claimed and unavailable for other PVCs.
+
+3. **Volume Availability for Pods**:
+   After binding, the PV becomes available to be mounted into pods that reference the PVC in their specification. Kubernetes manages the lifecycle and mounting of the volume into the pod.
+
+4. **Reclaim Policy Set for Lifecycle Management**:
+   The lifecycle of the PV after the PVC is deleted is controlled by the reclaim policy defined in the StorageClass or PV. This policy can dictate whether the PV is deleted, retained, or recycled automatically after the claim is released.
+
+In summary, Kubernetes automates the creation (provisioning), matching and binding of storage (PV) based on the user PVC request, enabling pods to use the storage without manual intervention. This process simplifies dynamic storage management in Kubernetes clusters, especially in cloud environments.
+
+- [1] <https://portworx.com/tutorial-kubernetes-persistent-volumes/>
+- [2] <https://www.groundcover.com/blog/kubernetes-pvc>
+- [3] <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>
+- [4] <https://www.plural.sh/blog/kubernetes-persistent-volume-guide/>
+- [5] <https://kubernetes.io/docs/concepts/storage/storage-classes/>
+- [6] <https://komodor.com/learn/kubernetes-pvc-guide-basic-tutorial-and-troubleshooting-tips/>
+- [7] <https://cloud.google.com/kubernetes-engine/docs/concepts/persistent-volumes>
+- [8] <https://blog.devops.dev/introduction-to-pv-and-pvc-in-kubernetes-98d48df8242a>
+- [9] <https://www.baeldung.com/ops/kubernetes-access-modes-persistent-volumes>
+
+### What provisioner(s) are available?
+
+In Kubernetes, several provisioners are available to automate dynamic provisioning of storage volumes. These provisioners correspond to volume plugins and can be either built-in (internal) or external. Here are some commonly used provisioners
+
+### Built-in/Internal Provisioners
+
+- **AWS Elastic Block Store (EBS):** `kubernetes.io/aws-ebs`
+- **Google Cloud Engine Persistent Disk (GCE PD):** `kubernetes.io/gce-pd`
+- **Azure Files:** `kubernetes.io/azure-file`
+- **Azure Disk:** `kubernetes.io/azure-disk`
+- **vSphere:** `kubernetes.io/vsphere-volume`
+- **Local volume:** `kubernetes.io/local`
+- **Portworx Volume:** `kubernetes.io/portworx-volume`
+
+### External Provisioners (typically require running an external controller)
+
+- **NFS:** External provisioner (e.g., `example.com/external-nfs`) as NFS does not have an internal provisioner.
+- **CephFS:** External provisioner
+- **FlexVolume:** External provisioner framework
+- **iSCSI:** External provisioner
+- **RBD (Ceph Block Device):** External provisioner
+
+### CSI (Container Storage Interface) Provisioners
+
+Modern Kubernetes clusters often use CSI drivers as provisioners. Examples include:
+
+- **vSphere CSI:** `csi.vsphere.vmware.com`
+- Many cloud providers and storage vendors provide CSI drivers for their storage solutions.
+
+### Summary Table of Some Common Provisioners
+
+| Volume Plugin            | Provisioner                      | Notes                                |
+|--------------------------|----------------------------------|--------------------------------------|
+| AWS Elastic Block Store  | `kubernetes.io/aws-ebs`          | Internal provisioner for AWS EBS     |
+| GCE Persistent Disk      | `kubernetes.io/gce-pd`           | Internal provisioner for GCP PD      |
+| Azure Files              | `kubernetes.io/azure-file`       | Internal provisioner for Azure Files |
+| Azure Disk               | `kubernetes.io/azure-disk`       | Internal provisioner for Azure Disk  |
+| vSphere (in-tree)        | `kubernetes.io/vsphere-volume`   | Internal provisioner for vSphere     |
+| vSphere CSI              | `csi.vsphere.vmware.com`         | CSI provisioner for vSphere          |
+| NFS                      | External provisioner required    | No internal provisioner              |
+| CephFS                   | External provisioner required    |                                      |
+| Local                    | `kubernetes.io/local`            | For local storage volumes            |
+| Portworx Volume          | `kubernetes.io/portworx-volume`  |                                      |
+
+You can choose the provisioner based on your environment (cloud provider or on-premises) and storage requirements. External provisioners are often provided by third-party vendors or open-source projects to support storage systems not natively supported by Kubernetes.
+
+If you want, I can provide YAML examples for specific provisioners or more details on CSI drivers for particular platforms.
+
+- [1] <https://www.apptio.com/topics/kubernetes/best-practices/storage-class/>
+- [2] <https://kubernetes.io/docs/concepts/storage/storage-classes/>
+- [3] <https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/>
+- [4] <https://www.kubermatic.com/blog/keeping-the-state-of-apps-5-introduction-to-storage-classes/>
+- [5] <https://kubeadm.org/kubernetes-storage-provisioning/>
+- [6] <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>
+- [7] <https://cloudian.com/guides/kubernetes-storage/kubernetes-storage-101-concepts-and-best-practices/>
+- [8] <https://learn.microsoft.com/en-us/azure/aks/concepts-storage>
+- [9] <https://docs.redhat.com/en/documentation/red_hat_enterprise_linux_atomic_host/7/html/getting_started_with_kubernetes/get_started_provisioning_storage_in_kubernetes>
+
+### Enable dynamic provisioning
+
+To enable and install a dynamic provisioner in your Kubernetes cluster, you need to:
+
+1. **Choose a suitable provisioner** based on your environment and storage backend (e.g., AWS EBS, GCE PD, Azure Disk, or for local/testing use local-path provisioner).
+
+2. **Deploy the provisioner in the cluster**. This typically involves applying YAML manifests or Helm charts that install the provisioner's components such as a dynamic provisioner controller that listens for PVCs.
+
+3. **Create a StorageClass resource** that references the provisioner name so Kubernetes knows how to dynamically provision volumes when PVCs specify that StorageClass.
+
+---
+
+### Example: Setting up Local Path Provisioner (common for local clusters)
+
+For local environments like Minikube or kind, you can use the local-path provisioner which provisions storage from local directories dynamically.
+
+Run this command to deploy it:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+```
+
+This will install the local-path provisioner as a deployment in your cluster along with the required `StorageClass` object named `local-path`.
+
+To verify:
+
+```bash
+kubectl get pods -n local-path-storage
+kubectl get storageclass
+```
+
+You should see a `local-path` StorageClass listed and the provisioner pod running.
+
+---
+
+### General Steps for Other Provisioners
+
+- **Find the official YAML or Helm chart** for your storage backend's provisioner (e.g., NFS external provisioner, cloud provider CSI drivers).
+- **Deploy those manifests into your cluster**.
+- **Create StorageClass object** pointing to that provisioner's name.
+- **Use PVCs referencing that StorageClass** to dynamically provision volumes.
+
+For example, for NFS dynamic provisioning, you usually deploy an external NFS provisioner controller pod and create an NFS StorageClass pointing to it.
+
+---
+
+- [1] <https://www.ibm.com/docs/en/software-hub/5.1.x?topic=storage-setting-up-dynamic-provisioning>
+- [2] <https://www.youtube.com/watch?v=DF3v2P8ENEg>
+- [3] <https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/>
+- [4] <http://kubernetes-tutorial.schoolofdevops.com/kubernetes-dynamic-storage-provisioning/>
+- [5] <https://www.civo.com/academy/kubernetes-volumes/dynamic-volume-provisioning-demo>
+- [6] <https://rafay.co/ai-and-cloud-native-blog/dynamically-provisioning-persistent-volumes-with-kubernetes/>
+- [7] <https://adex.ltd/dynamic-nfs-provisioning-for-persistence-storage-in-kubernetes>
+- [8] <https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner>
