@@ -1,0 +1,37 @@
+# Describe this policy after applying it in order to understand in more clear.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: test-network-policy
+  namespace: default
+spec:
+  podSelector: # Selects the grouping of pods to which the policy applies.
+    matchLabels: # Here, control network traffic to and from pods with the label role: db in the default namespace.
+      role: db
+  policyTypes: # Whether or not the given policy applies to ingress traffic to selected pod, egress traffic from selected pods, or both.
+  - Ingress # Default
+  - Egress
+  ingress: # Each rule allows traffic which matches both the `from` and `ports` sections.
+  - from: # Sources to match.
+    - ipBlock:
+        cidr: 172.17.0.0/16 # Allow traffic from all IPs in 172.17.0.0 to 172.17.255.255
+        except:
+        - 172.17.1.0/24 # Except those in 172.17.1.0 to 172.17.1.255
+    - namespaceSelector: # Pods are in namespaces labeled project: myproject
+        matchLabels:
+          project: myproject
+    - podSelector: # Pods labeled role: frontend in the local namespace
+        matchLabels:
+          role: frontend
+    ports:
+    - protocol: TCP
+      port: 6379
+
+  egress: # Outgoing traffic from role: db pods
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.0/24
+    ports:
+    - protocol: TCP
+      port: 5978

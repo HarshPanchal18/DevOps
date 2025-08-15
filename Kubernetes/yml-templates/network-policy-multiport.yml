@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+
+metadata:
+  name: multi-port-egress
+  namespace: default # For default namespace resources
+
+spec:
+
+  podSelector: # Match pods by role: db
+    matchLabels:
+      role: db
+
+  policyTypes:
+    - Egress
+
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/24
+      ports:
+        - protocol: TCP
+          port: 32000
+          endPort: 32768 # target a range of ports instead of a single port
+          # Must be >= port, can only be defined if port is also defined.
