@@ -18,6 +18,8 @@
 - [What is File Descriptor?](#what-is-file-descriptor)
 - [Changing CIDR of the cluster via `podCIDR` of each node](#changing-cidr-of-the-cluster-via-podcidr-of-each-node)
 - [Dynamic provisioning of volumes in Kubernetes](#dynamic-provisioning-of-volumes-in-kubernetes-with-a-demo)
+- [Install Metrics Server in cluster](#install-metrics-server-in-cluster)
+- [Join new Kubernetes Worker Node to an existing Cluster](#join-new-kubernetes-worker-node-to-an-existing-cluster)
 
 ## What is Kubernetes?
 
@@ -1957,6 +1959,86 @@ kubectl get storageclass
 
 You should see a `local-path` StorageClass listed and the provisioner pod running.
 
+Apply below statefulset manifest to simulate dynamic provisioning.
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: local-test
+spec:
+  selector:
+    matchLabels:
+      app: local-test
+  serviceName: "local-service"
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: local-test
+    spec:
+      containers:
+      - name: test-container
+        image: k8s.gcr.io/busybox
+        command:
+          - "/bin/sh"
+        args:
+          - "-c"
+          - "sleep 100000"
+        volumeMounts:
+        - name: local-vol
+          mountPath: /usr/test-pod
+  volumeClaimTemplates:
+  - metadata:
+      name: local-vol
+      annotations:
+        volume.beta.kubernetes.io/storage-class: "local-path"
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClass: "local-path"
+      resources:
+        requests:
+          storage: 1Gi
+```
+
+Verify Pods, PVs, PVCs:
+
+```bash
+kubectl get pod,pv,pvc
+```
+
+It will give similar to this:
+
+```text
+NAME               READY   STATUS    RESTARTS   AGE
+pod/local-test-0   1/1     Running   0          2m
+pod/local-test-1   1/1     Running   0          113s
+
+NAME                                                        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                            STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+persistentvolume/pvc-41b54529-7446-4758-a831-8fd8fed9034e   1Gi        RWO            Delete           Bound       default/local-vol-local-test-0   local-path     <unset>                          40m
+persistentvolume/pvc-d019df84-462d-4b66-b9cc-c4f735b3eed5   1Gi        RWO            Delete           Bound       default/local-vol-local-test-1   local-path     <unset>                          105s
+
+NAME                                           STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/local-vol-local-test-0   Bound    pvc-41b54529-7446-4758-a831-8fd8fed9034e   1Gi        RWO            local-path     <unset>                 40m
+persistentvolumeclaim/local-vol-local-test-1   Bound    pvc-d019df84-462d-4b66-b9cc-c4f735b3eed5   1Gi        RWO            local-path     <unset>                 113s
+```
+
+Hit into the pod to see if `/usr/test-pod` directory is created, and create a file there
+
+```bash
+kubectl exec -it local-test-0 -- sh
+cd /usr/test-pod
+touch test
+```
+
+Verify if file is created on the node.
+
+```bash
+ls opt/local-path-provisioner/pvc-d019df84-462d-4b66-b9cc-c4f735b3eed5_default_local-vol-local-test-1/
+```
+
+Scale down replica to 2 and delete the PVC of a deleted pod. You'll see that PV will be deleted after being `Released`.
+
 ---
 
 ### General Steps for Other Provisioners
@@ -1978,3 +2060,230 @@ For example, for NFS dynamic provisioning, you usually deploy an external NFS pr
 - [6] <https://rafay.co/ai-and-cloud-native-blog/dynamically-provisioning-persistent-volumes-with-kubernetes/>
 - [7] <https://adex.ltd/dynamic-nfs-provisioning-for-persistence-storage-in-kubernetes>
 - [8] <https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner>
+- [9] <https://www.youtube.com/watch?v=eFpiRzdIFgc>
+
+## Install Metrics Server in cluster
+
+Install Metrics server by running the following commands:
+
+```bash
+kubectl apply -f <https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml>
+```
+
+Check metrics server deployment in yaml output:
+
+```bash
+kubectl -n kube-system get deployment metrics-server -o yaml
+```
+
+Patch the deployment to have the following settings:
+
+- Add --kubelet-insecure-tls argument to containers args – used to skip verifying Kubelet CA certificates.
+- Change the container port from 10250 to port 4443
+- Add hostNetwork: true
+
+```bash
+kubectl patch deployment metrics-server -n kube-system --type='json' -p='[
+{"op": "add","path": "/spec/template/spec/hostNetwork","value": true},
+{"op": "replace","path": "/spec/template/spec/containers/0/args",
+  "value": [
+  "--cert-dir=/tmp",
+  "--secure-port=4443",
+  "--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname",
+  "--kubelet-use-node-status-port",
+  "--metric-resolution=15s",
+  "--kubelet-insecure-tls"
+  ]},
+{"op": "replace","path": "/spec/template/spec/containers/0/ports/0/containerPort","value": 4443}
+]'
+```
+
+After some seconds the pod status should be running and active:
+
+```bash
+kubectl -n kube-system get pods -l k8s-app=metrics-server
+```
+
+```text
+NAME                              READY   STATUS    RESTARTS   AGE
+metrics-server-58fb664478-n4rdj   1/1     Running   0          1m
+```
+
+Check the metrics API status:
+
+```bash
+kubectl get apiservices -l k8s-app=metrics-server
+```
+
+```text
+NAME                     SERVICE                      AVAILABLE   AGE
+v1beta1.metrics.k8s.io   kube-system/metrics-server   True        2m
+```
+
+Test if the metrics server is running by checking your kubernetes nodes utilization
+
+```bash
+kubectl top nodes
+```
+
+## Join new Kubernetes Worker Node to an existing Cluster
+
+After initial setup of a Kubernetes cluster, the most common day 2 operation is scaling your cluster up by adding more nodes that runs your workloads – containers and pods. The way you scale your cluster depends on the tools that were used initially during cluster bootstrapping.
+
+### Before you begin
+
+1. You need to have a working Kubernetes cluster – configured and working control plane node
+2. Container runtime (Docker,cri-o,containerd, e.t.c) and Kubernetes tools(`kubeadm` and `kubelet`) installed in your Worker node.
+3. If using Firewall such as firewalld, ports `10250`, `30000-32767` and ports required by your Pod network add-on should be opened in the firewall.
+4. SSH access to the machine to be added
+5. Configured `kubectl` for checking if the node is available in your cluster
+
+### Step 1: Get join Token
+
+A token is required when joining a new worker node to the Kubernetes cluster. When you bootstrap a cluster with kubeadm, a token is generated which expires after 24 hours.
+
+Check if you have a token – Run the command on Control node:
+
+```bash
+kubeadm token list
+```
+
+```text
+TOKEN                     TTL         EXPIRES                USAGES                   DESCRIPTION                                                EXTRA GROUPS
+nx1jjq.u42y27ip3bhmj8vj   21h         2020-01-10T20:33:08Z   authentication,signing   The default bootstrap token generated by 'kubeadm init' system:bootstrappers:kubeadm:default-node-token
+```
+
+If the token is expired, generate a new one with the command:
+
+```bash
+sudo kubeadm token create
+```
+
+Grab the token generated using:
+
+```bash
+kubeadm token list
+```
+
+You can also generate token and print the join command:
+
+```bash
+kubeadm token create --print-join-command
+```
+
+### Step 2: Get Discovery Token CA cert Hash
+
+For token-based discovery, the join command validates that the root CA public key by matching its hash with the one provided. Get the discovery token CA cert hash on the control node by running the command below.
+
+```bash
+openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+```
+
+### Step 3: Get API Server Advertise address
+
+Get API server endpoint with kubectl command:
+
+```bash
+kubectl cluster-info
+```
+
+```text
+Kubernetes master is running at <https://192.168.122.195:6443>
+KubeDNS is running at <https://192.168.122.195:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy>
+Metrics-server is running at <https://192.168.122.195:6443/api/v1/namespaces/kube-system/services/https:metrics-server:/proxy>
+```
+
+As shown in the output, API is on <https://192.168.122.195:6443>.
+
+### Step 4: Join new Kubernetes Worker Node a Cluster
+
+The kubeadm join command is used to bootstrap a Kubernetes worker node or an additional control plane node, and join it to the cluster. The command syntax for joining a worker node to cluster is:
+
+```bash
+kubeadm join [api-server-endpoint] [flags]
+```
+
+The common flags required are:
+
+- `--token string`: Token to use
+- `--discovery-token-ca-cert-hash: Has a format`: < hash-type >:< hash-value >
+
+So our complete join command will have the format:
+
+```bash
+kubeadm join \
+  <control-plane-host>:<control-plane-port> \
+  --token <token> \
+  --discovery-token-ca-cert-hash sha256:<hash>
+```
+
+Example:
+
+```bash
+sudo kubeadm join \
+  192.168.122.195:6443 \
+  --token nx1jjq.u42y27ip3bhmj8vj \
+  --discovery-token-ca-cert-hash sha256:c6de85f6c862c0d58cc3d10fd199064ff25c4021b6e88475822d6163a25b4a6c
+```
+
+Command output:
+
+```text
+[preflight] Running pre-flight checks
+[preflight] Reading configuration from the cluster...
+[preflight] FYI: You can look at this config file with 'kubectl -n kube-system get cm kubeadm-config -oyaml'
+[kubelet-start] Downloading configuration for the kubelet from the "kubelet-config-1.17" ConfigMap in the kube-system namespace
+[kubelet-start] Writing kubelet configuration to file "/var/lib/kubelet/config.yaml"
+[kubelet-start] Writing kubelet environment file with flags to file "/var/lib/kubelet/kubeadm-flags.env"
+[kubelet-start] Starting the kubelet
+[kubelet-start] Waiting for the kubelet to perform the TLS Bootstrap...
+
+This node has joined the cluster:
+- Certificate signing request was sent to apiserver and a response was received.
+- The Kubelet was informed of the new secure connection details.
+
+Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
+```
+
+Wait for the node to have status “Ready” – Check on control node
+
+```bash
+watch kubectl get nodes
+```
+
+The process may take few minutes as container images are pulled before services are configured and brought up.
+
+```bash
+sudo docker ps
+```
+
+```text
+CONTAINER ID        IMAGE                   COMMAND                  CREATED              STATUS              PORTS               NAMES
+491662a7affc        k8s.gcr.io/kube-proxy   "/usr/local/bin/kube…"   About a minute ago   Up About a minute                       k8s_kube-proxy_kube-proxy-zt8f9_kube-system_8f7f407c-d415-4ae0-8066-fbdf3dcb1570_0
+743e7239b295        k8s.gcr.io/pause:3.1    "/pause"                 2 minutes ago        Up 2 minutes                            k8s_POD_calico-node-rr666_kube-system_0c5a592c-08df-4303-a50d-0d93a2aec0ce_0
+a69aad86ba4a        k8s.gcr.io/pause:3.1    "/pause"
+```
+
+### Step 5: Removing a Worker Node from the Cluster
+
+To remove a Kubernetes worker node from the cluster, perform the following operations.
+
+Migrate pods from the node:
+
+```bash
+kubectl drain  <node-name> --delete-local-data --ignore-daemonsets
+```
+
+Prevent a node from scheduling new pods use – Mark node as unschedulable
+
+```bash
+kubectl cordon <node-name>
+```
+
+Revert changes made to the node by ‘kubeadm join‘ – Run on worker node to be removed
+
+```bash
+sudo kubeadm reset
+```
+
+You can then redo the same process of joining a new node to the cluster once the kubeadm reset command has been executed successfully.
