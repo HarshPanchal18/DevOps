@@ -20,6 +20,7 @@
 - [Dynamic provisioning of volumes in Kubernetes](#dynamic-provisioning-of-volumes-in-kubernetes-with-a-demo)
 - [Install Metrics Server in cluster](#install-metrics-server-in-cluster)
 - [Join new Kubernetes Worker Node to an existing Cluster](#join-new-kubernetes-worker-node-to-an-existing-cluster)
+- [What are finalizers?](#what-are-finalizers)
 
 ## What is Kubernetes?
 
@@ -2287,3 +2288,124 @@ sudo kubeadm reset
 ```
 
 You can then redo the same process of joining a new node to the cluster once the kubeadm reset command has been executed successfully.
+
+## What are finalizers?
+
+Finalizers in Kubernetes are basically **“pre-delete hooks”** that tell Kubernetes:
+
+> “Before you delete this object, I need to run some cleanup first.”
+
+---
+
+### **How they work**
+
+- A Kubernetes object (like a Pod, Namespace, APIService, PVC, etc.) can have a `metadata.finalizers` list.
+
+- When you run `kubectl delete <resource>`, Kubernetes:
+  1. Marks the object for deletion by setting a `deletionTimestamp`.
+  2. **Does NOT remove it** until all finalizers are removed.
+
+- The controller responsible for the finalizer runs cleanup logic (e.g., delete cloud resources, remove DNS entries, detach volumes).
+- Once cleanup is done, the controller **removes the finalizer** from the object.
+- Only then does Kubernetes actually delete the resource.
+
+---
+
+### **Example**
+
+A `PersistentVolumeClaim` might have:
+
+```yaml
+metadata:
+  finalizers:
+    - kubernetes.io/pvc-protection
+```
+
+This prevents the PVC from being deleted while it’s still bound to a PersistentVolume — avoiding accidental data loss.
+
+---
+
+### **Why they sometimes cause hangs**
+
+If the controller responsible for removing a finalizer:
+
+- Is **not running**
+- Or **can’t complete cleanup** (e.g., resource it’s waiting for is gone)
+- Or **points to a dead APIService**
+
+Then the object stays in “Terminating” forever.
+
+---
+
+### **In your APIService case**
+
+The `v1beta1.external.metrics.k8s.io` APIService had a finalizer via the API aggregation layer.
+When you deleted the namespace, Kubernetes tried to contact the missing service for cleanup, failed, and refused to remove the finalizer.
+By deleting the APIService, you removed that blocker — so the namespace could vanish.
+
+---
+
+### 🛠 How to manually remove finalizers from a stuck resource (“Kubernetes emergency lever.”)
+
+#### 1. Identify the stuck resource
+
+Example for a namespace:
+
+```bash
+kubectl get namespace my-namespace -o json | jq '.metadata.finalizers'
+```
+
+You’ll see something like:
+
+```json
+[
+  "kubernetes"
+]
+```
+
+If the resource is “Terminating” for a long time, one of these is the culprit.
+
+---
+
+#### 2. Edit the object to remove the finalizers
+
+**Danger zone:** This bypasses normal cleanup logic — use only when you’re sure the cleanup won’t cause issues.
+
+```bash
+kubectl get <resource-type> <name> -o json \
+  | jq 'del(.metadata.finalizers)' \
+  | kubectl replace --raw /api/v1/namespaces/<namespace>/<resource-endpoint>/<name> -f -
+```
+
+For a **namespace**:
+
+```bash
+kubectl get namespace my-namespace -o json \
+  | jq 'del(.spec.finalizers)' \
+  | kubectl replace --raw "/api/v1/namespaces/my-namespace/finalize" -f -
+```
+
+---
+
+#### 3. Verify deletion
+
+```bash
+kubectl get <resource-type> <name>
+```
+
+If successful, it should disappear.
+
+---
+
+#### ⚠️ Warnings
+
+- Removing finalizers **skips cleanup**. For example:
+
+  - PVCs might leave orphaned volumes in your cloud provider.
+  - Custom resources might leave dangling infrastructure.
+- Always check if the finalizer belongs to something important (like `"kubernetes.io/pvc-protection"`).
+- Ideally, fix the root cause (controller down, missing APIService, etc.) before yanking finalizers.
+
+---
+
+I can also give you a **quick script** that automatically finds and strips finalizers from all Terminating namespaces — useful when you’re doing cluster cleanup. Would you like me to prep that?
