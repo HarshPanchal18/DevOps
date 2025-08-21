@@ -23,6 +23,11 @@ spec:
 
   storageClassName: standard
 
+  claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: registry-pvc
+
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -63,6 +68,10 @@ spec:
     path: /home/harsh/volume/jobservice
 
   storageClassName: standard
+  claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: jobservice-pvc
 
   nodeAffinity:
     required:
@@ -104,6 +113,10 @@ spec:
     path: /home/harsh/volume/database
 
   storageClassName: standard
+  claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: database-pvc
 
   nodeAffinity:
     required:
@@ -145,6 +158,10 @@ spec:
     path: /home/harsh/volume/redis
 
   storageClassName: standard
+  claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: redis-pvc
 
   nodeAffinity:
     required:
@@ -186,6 +203,10 @@ spec:
     path: /home/harsh/volume/trivy
 
   storageClassName: standard
+  claimRef:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: trivy-pvc
 
   nodeAffinity:
     required:

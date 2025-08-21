@@ -3,7 +3,6 @@
 function check_helm_installed() {
     if command -v helm &> /dev/null; then
         echo "Helm is already installed of version: $(helm version)"
-        exit 0
     else
         echo "Helm is not installed. Proceeding with installation..."
         snap install helm --classic
@@ -28,5 +27,3 @@ function fetch_harbor() {
 
 check_helm_installed
 fetch_harbor
-
-cd harbor

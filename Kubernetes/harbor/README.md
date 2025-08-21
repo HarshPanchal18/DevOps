@@ -7,33 +7,28 @@
 > Service configuration
 
 ```yaml
-type: nodePort
-nodePort:
-  name: harbor
-  ports:
-    http:
-      port: 80
-      nodePort: 30002
-    https:
-      port: 443
-      nodePort: 30003
-  annotations: {}
-  labels: {}
-```
-
-> TLS configuration
-
-```yaml
 expose:
-  type: nodePort # -- ingress to nodePort
-  tls:
+  type: nodePort
+  tls: # TLS configuration
     enabled: false
+  nodePort:
+    name: harbor
+    ports:
+      http:
+        port: 80
+        nodePort: 30002
+      https:
+        port: 443
+        nodePort: 30003
+    annotations: {}
+    labels: {}
 ```
 
 > External URL
 
 ```yaml
-externalURL: http://harbor.harshpanchal.com:30002
+# externalURL: http://harbor.harshpanchal.com:30002 # Might need an entry inside /etc/hosts
+externalURL: http://NodeIp:30002
 ```
 
 > PVC configuration
@@ -295,39 +290,6 @@ spec:
 helm install harbor -n harbor . -f values.yaml
 ```
 
-* Check entries inside `/etc/hosts`.
-
-```text
-HOST-IP URL-W/O-PORT
-```
-
-* Setup insecure registries inside `/etc/docker/daemon.json` and restart `docker` service.
-
-```json
-{
-  "insecure-registries": ["harbor.harshpanchal.com:30002"]
-}
-```
-
-```bash
-systemctl restart docker
-```
-
-* For ContainerD, edit `/etc/containerd/config.toml` and apply the following changes.
-
-```toml
-[plugins."io.containerd.grpc.v1.cri".registry.mirrors]
-    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."harbor.harsh.com:30002"]
-        endpoint = ["http://harbor.harsh.com:30002"]
-```
-
-* Restart `ContainerD` service and Reload Daemon.
-
-```bash
-service containerd restart
-systemctl daemon-reload
-```
-
 * Verify installation
 
 ```bash
@@ -337,17 +299,6 @@ kubectl get svc -n harbor
 
 * Access dashboard via `host-ip:30002` cause `externalURL` is for internal communications.
 
-## To remove Kubernetes completely
-
-```bash
-kubeadm reset -f
-rm -rf ~/.kube
-rm -rf /etc/cni/net.d
-rm -rf /var/lib/cni/
-rm -rf /var/lib/kubelet/*
-rm -rf /etc/kubernetes/
-```
-
 ## Pushing image on harbor
 
 * Create a new project on Harbor.
@@ -355,6 +306,10 @@ rm -rf /etc/kubernetes/
 * Create a new `robot account` for login inside runner.
 
 * Get an image.
+
+```bash
+docker pull nginx
+```
 
 * Tag it with `externalURL:port/project-name/imageName[:version]`.
 
@@ -377,3 +332,32 @@ HOST-IP EXTERNAL-URL
 ```
 
 * **E.x.** `34.68.30.199 harbor.harsh.com`
+
+### Error response from daemon: Get "<https://172.20.0.3:30002/v2/>": http: server gave HTTP response to HTTPS client
+
+* Setup insecure registries inside `/etc/docker/daemon.json` and restart `docker` service.
+
+```json
+{
+  "insecure-registries": ["172.20.0.3:30002"]
+}
+```
+
+```bash
+systemctl restart docker
+```
+
+* For ContainerD, edit `/etc/containerd/config.toml` and apply the following changes.
+
+```toml
+[plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."harbor.harsh.com:30002"]
+        endpoint = ["http://harbor.harsh.com:30002"]
+```
+
+* Restart `ContainerD` service and Reload Daemon.
+
+```bash
+service containerd restart
+systemctl daemon-reload
+```
