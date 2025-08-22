@@ -1,113 +1,112 @@
-## Day-02
+# Linux
 
-### What is linux?
+## What is linux?
 
 - The Linux Operating System is a type of operating system that is similar to Unix, and it is built upon the Linux Kernel.
 
-### What is operating system ?
+## What is operating system ?
 
 - **Operating System** a type of system software. It basically manages all the resources of the computer. An operating system acts as an interface between the software and different parts of the computer or the computer hardware.
 
-### What is Shell?
+## What is Shell?
 
 - The shell is a program that takes commands from the keyboard and gives to the OS to perform.
-    
-- On most Linux system, BASH(Bourne Again SHell) act as the shell program.
-    
-- **Bash (Bourne-Again SHell)**: The most common default shell in Linux distributions. It’s an enhancement of the original Bourne shell (`sh`), incorporating features from other shells like `ksh` and `csh`.
-    
-- **sh (Bourne Shell)**: The original shell that was used on UNIX. It is simple and fast but lacks many features of more modern shells.
-    
-- **Ksh (Korn Shell)**: Offers many features, combining elements of both the Bourne shell and C shell. It provides powerful programming features as well as interactive use.
-    
-- **Csh (C Shell)** and **Tcsh (TENEX C Shell)**: `Csh` offers a syntax that is quite similar to the C programming language, from which it derives its name. `Tcsh` is an improved version of `csh` that includes command line editing and completion.
-    
-- **Zsh (Z Shell)**: Combines many of the useful features of Bash, ksh, and tcsh. It is known for its interactive use enhancements and extensive customization capabilities.
-    
-- **Fish (Friendly Interactive SHell)**: Known for its user-friendly and interactive features, like syntax highlighting, autosuggestions, and tab completions.
-    
-- `uname` - name of kernel
-    
-    - `uname -r` - kernel release
-    - `uname -v` - kernel version
-    - `uname -m` - print kernel bit system
-    - `uname -o` - print which OS
-    - `uname -a` - all details print
-    - `uname -n` - print network node hostname
-- `whoami` - current username
-    
-- `sudo -i` - login as root
-    
-- `man` - manual of any command
-    
-- `tty`(TeleTypeWriter) - Prints the filename of the terminal that is currently connected to STDIN(standard input).
-    
-    - A way to get access to the computer to fix things, without actually logging into a desktop.
-    - The `tty` command is useful to determine which terminal session you're in, especially when working with multiple terminals or remote sessions.
-- `hostname` - Get/Set hostname or DNS domain name.
-    
 
-### what is command line interface ?
+- On most Linux system, BASH(Bourne Again SHell) act as the shell program.
+
+- **Bash (Bourne-Again SHell)**: The most common default shell in Linux distributions. It’s an enhancement of the original Bourne shell (`sh`), incorporating features from other shells like `ksh` and `csh`.
+
+- **sh (Bourne Shell)**: The original shell that was used on UNIX. It is simple and fast but lacks many features of more modern shells.
+
+- **Ksh (Korn Shell)**: Offers many features, combining elements of both the Bourne shell and C shell. It provides powerful programming features as well as interactive use.
+
+- **Csh (C Shell)** and **Tcsh (TENEX C Shell)**: `Csh` offers a syntax that is quite similar to the C programming language, from which it derives its name. `Tcsh` is an improved version of `csh` that includes command line editing and completion.
+
+- **Zsh (Z Shell)**: Combines many of the useful features of Bash, ksh, and tcsh. It is known for its interactive use enhancements and extensive customization capabilities.
+
+- **Fish (Friendly Interactive SHell)**: Known for its user-friendly and interactive features, like syntax highlighting, autosuggestions, and tab completions.
+
+- `uname` - name of kernel
+  - `uname -r` - kernel release
+  - `uname -v` - kernel version
+  - `uname -m` - print kernel bit system
+  - `uname -o` - print which OS
+  - `uname -a` - all details print
+  - `uname -n` - print network node hostname
+
+- `whoami` - current username
+
+- `sudo -i` - login as root
+
+- `man` - manual of any command
+
+- `tty`(TeleTypeWriter) - Prints the filename of the terminal that is currently connected to STDIN(standard input).
+  - A way to get access to the computer to fix things, without actually logging into a desktop.
+  - The `tty` command is useful to determine which terminal session you're in, especially when working with multiple terminals or remote sessions.
+
+- `hostname` - Get/Set hostname or DNS domain name.
+
+## what is command line interface ?
 
 - **A text-based way to interact with a computer's operating system by typing commands into a terminal.**
 
-### what is graphical user interface ?
+## what is graphical user interface ?
 
 - **A digital interface that allows users to interact with a computer or device using visual elements like icons, buttons, and menus.**
-    
-- `id` - give all info id of current user
-    - `-u` - print id of user
-    - `-g` - print groupid
-    - `G` - print all group id connected with users
-    
-- `groups` - prints names of groups connected with user
-    
-- `su` - switch user
-    
-- `exit` - exit from current user
-    
-- `usermod` - usermod -a -G sudo test2
-    
-- `addgroup` - create a group
-    
-- `delgroup` - delete the group
-    
-- `useradd` - Create a new user in Linux
-    - -m - create the user’s home dir.
-    - -M - do not create.
-    - —uid UID - UID of the new account.
-    - -U - create a group with the same name as the username.
-    - -r - Create system account.
-    
-- `passwd` - Set/Change password for the user accounts.
-    
-- `usermod` - Modify user attributes(username, home directory, uid, gid, etc.)
-    - —lock/unlock - Lock/Unlock the user account.
-    - —password PASSWORD - new user password.
-    - —home - Set home directory.
-    - --expiredate EXPIRYDATE - Set user expiration date. YYYY-MM-DD
-    - --inactive INACTIVE - The number of days after a password expires until account is permanently disabled.
-    
-- `userdel` - To delete a user account.
-    - -r - Delete the user’s home directories and files.
-    - -f - Force the deletion of the user's account, even if processes are still running.
-    
-- `su` - Switch current user.
-	- -c - Specify a command to be executed with the new user.
-    - -s - Shell to be used for the command.
-    
-- To logout user,
-    - `logout`
-    - `exit`
-    - `Ctrl + D`
-    
-- `chmod` - Change the permission of a file/directory.
-    
-- `chown` - Transfer the ownership to a different user or group.
-    
-- `chgrp` - Change the group ownership of a file/dir.    
 
-### Difference between useradd and adduser
+- `id` - give all info id of current user
+  - `-u` - print id of user
+  - `-g` - print groupid
+  - `G` - print all group id connected with users
+
+- `groups` - prints names of groups connected with user
+
+- `su` - switch user
+
+- `exit` - exit from current user
+
+- `usermod` - usermod -a -G sudo test2
+
+- `addgroup` - create a group
+
+- `delgroup` - delete the group
+
+- `useradd` - Create a new user in Linux
+  - -m - create the user’s home dir.
+  - -M - do not create.
+  - —uid UID - UID of the new account.
+  - -U - create a group with the same name as the username.
+  - -r - Create system account.
+
+- `passwd` - Set/Change password for the user accounts.
+
+- `usermod` - Modify user attributes(username, home directory, uid, gid, etc.)
+  - —lock/unlock - Lock/Unlock the user account.
+  - —password PASSWORD - new user password.
+  - —home - Set home directory.
+  - --expiredate EXPIRYDATE - Set user expiration date. YYYY-MM-DD
+  - --inactive INACTIVE - The number of days after a password expires until account is permanently disabled.
+
+- `userdel` - To delete a user account.
+  - -r - Delete the user’s home directories and files.
+  - -f - Force the deletion of the user's account, even if processes are still running.
+
+- `su` - Switch current user.
+  - -c - Specify a command to be executed with the new user.
+  - -s - Shell to be used for the command.
+
+- To logout user,
+  - `logout`
+  - `exit`
+  - `Ctrl + D`
+
+- `chmod` - Change the permission of a file/directory.
+
+- `chown` - Transfer the ownership to a different user or group.
+
+- `chgrp` - Change the group ownership of a file/dir.
+
+## Difference between useradd and adduser
 
 - `useradd` is a portable command that requires additional parameters to set up a user account. `adduser` is a script that uses an interactive prompt to create a user.
 - `adduser` is more user-friendly and interactive than `useradd`.
@@ -115,13 +114,13 @@
 - By default, `adduser` creates a home directory, while `useradd` requires a `-m` option.
 - `useradd` do not require password on user creation.
 
-### Difference between groupadd and addgroup
+## Difference between groupadd and addgroup
 
 - `addgroup` is a perl script that prompts for various options (interactively) before invoking the `groupadd` command.
 
-### [Linux Boot Process](https://www.freecodecamp.org/news/the-linux-booting-process-6-steps-described-in-detail/)
+## [Linux Boot Process](https://www.freecodecamp.org/news/the-linux-booting-process-6-steps-described-in-detail/)
 
-* An operating system (OS) is the low-level software that manages resources, controls peripherals, and provides basic services to other software. In Linux, there are 6 distinct stages in the typical booting process.
+- An operating system (OS) is the low-level software that manages resources, controls peripherals, and provides basic services to other software. In Linux, there are 6 distinct stages in the typical booting process.
 
 ![[StartupFlow.png]]
 
@@ -137,7 +136,7 @@ Then, the BIOS searches for, loads, and executes the boot loader program, which 
 
 ### **2. MBR**
 
-MBR stands for __Master Boot Record__, and is responsible for loading and executing the GRUB boot loader.
+MBR stands for **Master Boot Record**, and is responsible for loading and executing the GRUB boot loader.
 
 The MBR is located in the 1st sector of the bootable disk, which is typically `/dev/hda`, or `/dev/sda`, depending on your hardware. The MBR also contains information about GRUB, or LILO in very old systems.
 
@@ -178,15 +177,15 @@ At this point, your system executes runlevel programs. At one point it would loo
 Modern Linux systems use systemd to choose a run level instead. According to [TecMint](https://www.tecmint.com/change-runlevels-targets-in-systemd/), these are the available run levels:
 
 > **Run level 0** is matched by **poweroff.target** (and **runlevel0.target** is a symbolic link to **poweroff.target**).
-> 
+>
 > **Run level 1** is matched by **rescue.target** (and **runlevel1.target** is a symbolic link to **rescue.target**).
-> 
+>
 > **Run level** 3 is emulated by **multi-user.target** (and **runlevel3.target** is a symbolic link to **multi-user.target**).
-> 
+>
 > **Run level 5** is emulated by **graphical.target** (and **runlevel5.target** is a symbolic link to **graphical.target**).
-> 
+>
 > **Run level 6** is emulated by **reboot.target** (and **runlevel6.target** is a symbolic link to **reboot.target**).
-> 
+>
 > **Emergency** is matched by **emergency.target**.
 
 `systemd` will then begin executing runlevel programs.
@@ -209,3 +208,137 @@ Note that the exact location of these directories varies from distribution to di
 
 If you look in the different run level directories, you'll find programs that start with either an "S" or "K" for startup and kill, respectively. Startup programs are executed during system startup, and kill programs during shutdown.
 
+## Level up your systemd management skills
+
+1. Mask a Service (Prevent It from Starting at All)
+
+    ```bash
+    sudo systemctl mask nginx
+    ```
+
+    - Completely disables the service by linking it to /dev/null.
+    - Useful for stopping problematic or deprecated services from ever starting, even manually.
+
+    To reverse:
+
+    ```bash
+    sudo systemctl unmask nginx
+    ```
+
+2. Analyze Boot Performance
+
+    ```bash
+    systemd-analyze blame
+    ```
+
+    - Shows which services slowed down your system’s boot.
+    - Helps identify bottlenecks or unoptimized services.
+    If you want a full breakdown:
+
+    ```bash
+    systemd-analyze critical-chain
+    ```
+
+    It’s useful to know that blame doesn't include parallelization effects, while critical-chain does.
+
+3. Create and Edit Custom Unit Files Safely
+
+    ```bash
+    sudo systemctl edit nginx
+    ```
+
+    - Opens a drop-in override file in /etc/systemd/system/nginx.service.d/override.conf.
+    - Great for making safe, update-resistant changes without editing the original unit.
+    - After editing, reload systemd:
+    sudo systemctl daemon-reload
+
+4. Set Service Resource Limits (CPU, Memory, I/O)
+
+    ```bash
+    [Service]
+    MemoryMax=500M
+    CPUQuota=50%
+    ```
+
+    - Add to the override file or unit file to constrain services.
+    - There are other options like IOWeight=, TasksMax=, etc.
+    - Note that CPUQuota=50% = 50% of a single CPU core.
+    - Apply and reload:
+    sudo systemctl daemon-reload
+
+5. Start Services Conditionally (On Demand)
+
+    ```bash
+    sudo systemctl start nginx.path
+    ```
+
+    - Use .path and .socket units to start services when a file is created or a socket is triggered.
+    - Great for performance, only run the services when needed.
+
+6. Monitor Service Restarts Automatically
+
+    ```bash
+    systemctl show nginx | grep -i restart
+    ```
+
+    - See current restart behavior (Restart=, RestartSec=).
+    - For auto-restart on failure:
+
+    ```bash
+    [Service]
+    Restart=on-failure
+    RestartSec=5
+    ```
+
+7. Check If a Service Is Enabled for a Target (Boot Level)
+
+    ```bash
+    systemctl list-dependencies multi-user.target
+    ```
+
+    - See what services are enabled under different targets (graphical.target, multi-user.target, etc.).
+    - Useful for boot analysis or troubleshooting non-starting services.
+    - You could use systemctl is-enabled <service> as a simpler check.
+
+8. Isolate to a Target (Single User Mode, etc.)
+
+    ```bash
+    sudo systemctl isolate rescue.target
+    ```
+
+    - Switch the system to a new target (runlevel) immediately.
+    - Use rescue.target for maintenance mode, graphical.target for full GUI.
+    - Note that this stops all other services not part of the target.
+
+9. Trigger a Reboot with Reason Logging
+
+    ```bash
+    sudo systemctl reboot --message="Kernel upgrade complete"
+    ```
+
+    - Tags the shutdown with a custom reason.
+    - Useful for postmortem logs and audits
+    - The message is available in:
+
+    ```bash
+    journalctl -b -1
+    ```
+
+10. Simulate Commands with “--dry-run”
+
+    ```bash
+    systemctl start nginx --dry-run
+    ```
+
+    - Predicts what would happen without making changes.
+    - Great for scripting and cautious automation.
+    - But keep in mind that not all systemctl subcommands support --dry-run equally.
+
+11. Alias Your Most Used Commands
+
+    ```bash
+    alias srs="sudo systemctl restart"
+    alias slg="journalctl -u"
+    ```
+
+Save them in your `~/.bashrc` or `~/.zshrc` to save time and reduce typos. And make sure to always test changes safely.
