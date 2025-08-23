@@ -11,6 +11,13 @@
 *key*
 *token*
 *secret*
+*backup*
 *.terraform*
 *.tfstate*
 *LICENSE.txt*
+
+# Python env
+/kafka/impl/another-python/env/bin
+/kafka/impl/another-python/env/include
+/kafka/impl/another-python/env/lib
+/kafka/impl/another-python/env/lib64
