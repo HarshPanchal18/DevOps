@@ -17,7 +17,7 @@ spec:
         - image: hashicorp/http-echo
           name: myapp-container
           args:
-            - "-text='<h1>Chutiyaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</h1>'"
+            - "-text='<h1>Pods are flooding...</h1>'"
             - "-listen=:8080"
 
 ---
