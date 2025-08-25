@@ -164,3 +164,43 @@ gpg --export-ssh-key ABC123456789DEF0
 ```
 
 - This will output your GPG key in a format that can be used with SSH, allowing you to use GPG keys for SSH authentication as well.
+
+## Squashing commits
+
+- If you want to write the new commit message from scratch,
+
+    ```bash
+    git reset --soft HEAD~3
+    git commit
+    ```
+
+- If you want to start editing the new commit message with a concatenation of the existing commit messages (i.e. similar to what a pick/squash/squash/…/squash `git rebase -i` instruction list would start you with), then you need to extract those messages and pass them to git commit:
+
+    ```bash
+    git reset --soft HEAD~3 &&
+    git commit --edit -m"$(git log --format=%B --reverse HEAD..HEAD@{1})" # --reverse appends commit message in sorted order. Remove it for timeline-based sorted.
+    ```
+
+- You can use `git merge --squash` for this, which is slightly more elegant than `git rebase -i`. Suppose you're on master and you want to squash the last 3 commits into one.
+
+    > WARNING: First make sure you commit your work—check that git status is clean (since `git reset --hard` will throw away staged and unstaged changes)
+
+    ```bash
+    # Reset the current branch to the commit just before the last 3.
+    git reset --hard HEAD~3
+
+    # HEAD@{1} is where the branch was just before the previous command.
+    # This command sets the state of the index to be as it would just after a merge from that commit
+    git merge --squash HEAD@{1}
+
+    # Commit those squashed changes. The commit message will be helpfully prepopulated with the commit messages of all the squashed commits.
+    git commit
+    ```
+
+- Solution without rebase :
+
+    ```bash
+    git reset --soft HEAD~3 # The last 3 commits will be squashed.
+    git commit -m "new commit message"
+    git push -f
+    ```
