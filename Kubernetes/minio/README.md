@@ -343,3 +343,15 @@ Use the `mc admin cluster bucket export` and `mc admin cluster iam export` comma
     For persistent failures, use `mc admin logs` or review the `systemd` logs (e.g. `journalctl -u minio`) to identify more specific errors.
 
 5. Remove the decommissioned pool from the configuration of tenant.
+
+### Enable compression for new objects of bucket
+
+```bash
+mc admin config set <tenant-name> compression enable=on
+```
+
+Specify extensions for compression.
+
+```bash
+mc admin config set <tenant-name> compression extensions="*" # default: '.txt,.log,.csv,.json,.tar,.xml,.bin'
+```
