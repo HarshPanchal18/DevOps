@@ -587,21 +587,19 @@ SSH tunnels can be a bit tricky to understand at first, but they're a powerful t
 
 ## What is the difference between a LoadBalancer and a Gateway in Kubernetes?
 
-### **LoadBalancer vs Gateway in Kubernetes**
+| Feature            | LoadBalancer                            | Gateway                                         |
+|--------------------|-----------------------------------------|-------------------------------------------------|
+| Purpose            | Exposes a service to the internet       | Manages traffic between services                |
+| Layer              | Works at Layer 4 (Transport Layer)      | Works at Layer 7 (Application Layer)            |
+| Configuration      | Simple configuration, just a service    | More complex, involves routing rules            |
+| Use Cases          | External access to a service            | API Gateway, Ingress Controller                 |
+| Protocols          | Supports TCP/UDP protocols              | Supports HTTP/HTTPS protocols                   |
+| Load Balancing     | Provides load balancing for services    | Can provide advanced routing and load balancing |
+| Traffic Management | Limited traffic management capabilities | Advanced traffic management capabilities        |
+| Security           | Basic security features                 | Advanced security features                      |
+| Monitoring         | Basic monitoring capabilities           | Advanced monitoring capabilities                |
 
-| Feature          | LoadBalancer                           | Gateway                             |
-|------------------|---------------------------------------|-------------------------------------|
-| Purpose          | Exposes a service to the internet     | Manages traffic between services    |
-| Layer            | Works at Layer 4 (Transport Layer)    | Works at Layer 7 (Application Layer)|
-| Configuration     | Simple configuration, just a service  | More complex, involves routing rules|
-| Use Cases        | External access to a service          | API Gateway, Ingress Controller     |
-| Protocols        | Supports TCP/UDP protocols            | Supports HTTP/HTTPS protocols       |
-| Load Balancing   | Provides load balancing for services  | Can provide advanced routing and load balancing |
-| Traffic Management | Limited traffic management capabilities | Advanced traffic management capabilities |
-| Security         | Basic security features               | Advanced security features          |
-| Monitoring       | Basic monitoring capabilities         | Advanced monitoring capabilities    |
-
-### **Key Differences**
+### **Key Points**
 
 * **Purpose**: A LoadBalancer is primarily used to expose a service to the internet, while a Gateway is used to manage traffic between services within the cluster.
 * **Layer**: LoadBalancers operate at Layer 4 (Transport Layer), while Gateways operate at Layer 7 (Application Layer).
@@ -617,3 +615,160 @@ SSH tunnels can be a bit tricky to understand at first, but they're a powerful t
 
 * **LoadBalancer**: Use a LoadBalancer when you need to `expose a service to the internet` and require basic load balancing capabilities.
 * **Gateway**: Use a Gateway when you need `advanced traffic management`, `API management`, or `Ingress control` within your Kubernetes cluster.
+
+## How to reclaim the PV after the pod is deleted?
+
+To reclaim a Persistent Volume (PV) after its associated Pod is deleted, you typically need to focus on how the Persistent Volume Claim (PVC) and the PV reclaim policy are managed:
+
+* **Deletion of Pod does not remove PVC or PV** by default. The PVC remains bound to the PV, preserving the data unless the PVC itself is deleted. Thus, deleting a pod that uses a PVC will normally allow the PVC and PV to remain available, so the data is retained for reuse by a new pod.
+
+* **Reclaim Policy Matters:** The PV has a `persistentVolumeReclaimPolicy` which controls what happens when the PVC is deleted:
+  * If the reclaim policy is **Delete**, then deleting the PVC will delete the PV and its underlying storage.
+  * If the reclaim policy is **Retain**, the PV is not deleted when the PVC is deleted. Instead, the PV enters a "Released" state, where the data is preserved but the volume is not yet available for reuse.
+
+* **Steps to reclaim a PV after Pod deletion (when PVC is deleted or needs to be reused):**
+
+  1. **If PVC still exists:** Simply recreate or restart the pod with the same PVC. The PV is normally automatically mounted again.
+
+  2. **If PVC was deleted but PV is in Released state (Retain policy):**
+     * Manually remove the `claimRef` from the PV specification (edit the PV resource), making the PV’s status "Available".
+     * Create a new PVC that matches the PV's specifications.
+     * The new PVC will bind to the PV, allowing a new pod to use the reclaimed volume and access existing data.
+
+  3. **If reclaim policy is Delete:** Data and PV are removed once PVC is deleted. You cannot reclaim data in this case unless you restore from backup.
+
+* **Example of manual reclaim steps for Retain policy:**
+
+   ```bash
+   kubectl edit pv
+   ```
+
+   Remove the `claimRef` section, save the PV, which changes its status to Available. Then recreate a PVC with matching specifications, which will bind to that PV again.
+
+This manual process is essential if the PVC was deleted accidentally but you want to reuse the underlying PV and keep your data intact.
+
+In summary: If you only deleted the pod, normally no extra step is needed because PVC and PV remain bound and data intact. If PVC is deleted with Retain policy on PV, manual editing of the PV claim reference allows reclaiming it. If the reclaim policy is Delete, the PV and data are removed when PVC is deleted, so reclamation is not possible without backup.
+
+[1] <https://github.com/kubernetes/kubernetes/issues/96859>
+[2] <https://www.linode.com/community/questions/20215/how-to-re-attach-persistent-volume-to-pod-when-claim-is-deleted>
+[3] <https://stackoverflow.com/questions/58418093/state-of-pv-pvc-after-pod-is-deleted-in-kubernetes>
+[4] <https://access.redhat.com/solutions/7039096>
+[5] <https://portworx.com/tutorial-kubernetes-persistent-volumes/>
+[6] <https://www.reddit.com/r/kubernetes/comments/1if48li/accidently_deleted_pvs_now_in_terminating_state/>
+[7] <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>
+[8] <https://docs.oracle.com/en/engineered-systems/private-cloud-appliance/3.0-latest/oke/oke-pv-del-ret.html>
+[9] <https://kubernetes.io/docs/tasks/administer-cluster/change-pv-reclaim-policy/>
+[10] <https://platform9.com/kb/kubernetes/recover-persistent-volumes-from--terminating--state>
+
+### What steps are needed to manually reattach a PV to a new PVC?
+
+To manually reattach a Persistent Volume (PV) to a new Persistent Volume Claim (PVC), follow these key steps:
+
+1. **Check PV Status**: Ensure the PV is in the "Released" status, meaning its previous claim was deleted but data still exists, and the reclaim policy is "Retain".
+
+2. **Remove the `claimRef` from the PV**:
+   * Edit the PV resource using:
+
+     ```bash
+     kubectl edit pv
+     ```
+
+   * In the PV spec, delete the `claimRef` section. This releases the PV so it becomes available for binding again. Save and exit.
+
+3. **Create a new PVC**:
+   * Define a new PVC YAML that matches the storage class, access modes, and capacity of the PV you want to reclaim.
+   * Apply the new PVC:
+
+     ```bash
+     kubectl apply -f
+     ```
+
+4. **Verify Binding**:
+   * Check that the new PVC is bound to the existing PV by:
+
+     ```bash
+     kubectl get pvc
+     kubectl get pv
+     ```
+
+   The PV should now show status "Bound" to your new PVC.
+
+5. **Optional - Edit PV to Bind to New PVC (Less common)**:
+    * If automatic binding does not occur, you can manually assign the PVC by editing the PV:
+
+      ```bash
+      kubectl edit pv
+      ```
+
+    * Add a `claimRef` section pointing to your new PVC's name and namespace, including the PVC’s UID (obtained by `kubectl get pvc  -o yaml | grep uid`).
+    * Save the PV. This manually links the PV to your new PVC.
+
+6. **Use PVC in a Pod**:
+   * Reference the new PVC in your Pod spec's volumes to access the reclaimed PV.
+
+This manual process releases the PV from its old claim and allows it to be claimed by a new PVC so that existing data can be preserved and reused.
+
+References with detailed examples and steps confirm this approach:
+
+* Remove `claimRef` to make PV Available, then create matching PVC to bind.
+* Optionally manually edit PV's `claimRef` to point to new PVC with matching UID.
+* Verify reclaim policy is "Retain" to avoid automatic deletion on claim removal.
+
+This is a common Kubernetes administrative task to recover PVs after accidental PVC deletion or Pod removal.
+
+[1] <https://www.linode.com/community/questions/20215/how-to-re-attach-persistent-volume-to-pod-when-claim-is-deleted>
+[2] <https://portworx.com/tutorial-kubernetes-persistent-volumes/>
+[3] <https://access.redhat.com/solutions/4651451>
+[4] <https://www.groundcover.com/blog/kubernetes-pvc>
+[5] <https://stackoverflow.com/questions/56368453/how-to-reattach-released-persistentvolume-in-kubernetes>
+[6] <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>
+[7] <https://komodor.com/learn/kubernetes-pvc-guide-basic-tutorial-and-troubleshooting-tips/>
+
+## How to Clean Up Old Containers and Images in Your Kubernetes Cluster
+
+### Container Images
+
+Kubernetes has a built-in garabage collection system that can clean up unused images. It's managed by Kubelet, the Kubernetes worker process that runs on each node.
+
+Kubelet automatically monitors unused images and will remove them [periodically](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#containers-images). Deletion decisions are made by assessing the image's disk usage and the time at which it was last used. A large image that has been unused for a week will usually be cleaned up before a small one that was used yesterday.
+
+You can customise when garbage collection runs by specifying high and low thresholds for disk usage. Disk usage above the "high" threshold will trigger garbage collection. The procedure will try to reduce disk usage down to the "low" threshold.
+
+The thresholds are defined using two Kubelet flags:
+
+* `image-gc-high-threshold` - Sets the high threshold; defaults to 85%.
+* `image-gc-low-threshold` - Sets the low threshold; defaults to 80%.
+
+These settings should already be active in your cluster. Kubelet will try to bring disk usage down to 80% after it becomes 85% full.
+
+You can set Kubectl flags in file `kubeadm-flags.env`.
+
+```text
+/var/lib/kubelet/kubeadm-flags.env
+```
+
+```conf
+KUBELET_KUBEADM_ARGS="--image-gc-high-threshold=60 --image-gc-low-threshold=50"
+```
+
+After editing the file, restart Kubectl:
+
+```bash
+systemctl daemon-reload
+systemctl restart kubelet
+```
+
+### Clearing old containers
+
+Kubelet also handles clean up of redundant containers. Any containers which are stopped or unidentified will be candidates for removal.
+
+You can grant old containers a grace period before deletion by defining a minimum container age. Additional flags let you control the total number of dead containers allowed to exist in a single pod and on the node:
+
+* `maximum-dead-containers` - Maximum number of old containers to retain. When set to -1 (the default), no limit applies.
+* `maximum-dead-containers-per-container` - Set the number of older instances to be retained on a per-container basis. If a container is replaced with a newer instance, this many older versions will be allowed to remain.
+* `minimum-container-ttl-duration` - Garbage collection grace period for dead containers. Once a container is this many minutes old, it becomes eligible for garbage collection. The default value of 0 means no grace period applies.
+
+You can configure these settings with Kubelet flags using the same procedure as described above.
+
+> [!CAUTION]
+> Kubernetes warns against performing external garbage collection. Don't manually delete resources, either using cluster management APIs or third-party tools. This risks creating an inconsistent state which could impact Kubelet's operation.
