@@ -772,3 +772,121 @@ You can configure these settings with Kubelet flags using the same procedure as 
 
 > [!CAUTION]
 > Kubernetes warns against performing external garbage collection. Don't manually delete resources, either using cluster management APIs or third-party tools. This risks creating an inconsistent state which could impact Kubelet's operation.
+
+## How Kubernetes Calculates Access Permissions Using RBAC Rules
+
+RBAC, or Role Based Access Control, is a critical concept every DevOps and Cloud Engineer must understand. It defines who can perform what actions on which resources.
+
+Whether managing Kubernetes, cloud accounts, or CI/CD pipelines, it brings structure to access control, makes permissions predictable, and helps teams manage security at scale.
+
+When a user, service account, or process tries to perform an action (verb) on a resource (like deployments) in a namespace, Kubernetes uses the following flow to determine if the action is allowed:
+
+![RBAC Workflow](/Kubernetes/assets/rbac-workflow.jpg)
+
+1. API Server Receives the Request
+    The request could be: GET /apis/apps/v1/namespaces/dev/deployments/nginx-deploy
+
+    It includes:
+
+    * Verb: get
+    * Resource: deployments
+    * Namespace: dev
+    * User identity
+
+2. Authentication
+    The API server authenticates the request using one of the supported methods:
+
+    * Client certificate authentication from the kube-apiserver configuration
+    * Bearer tokens (including service account tokens)
+    * OIDC tokens configured with an identity provider
+
+    For this example, the identity resolved is:
+    `User = <harsh@example.com>`
+
+3. Authorization
+    The RBAC authorizer processes the authenticated identity and evaluates it against:
+
+    RoleBindings and ClusterRoleBindings present in etcd.
+
+    Corresponding Roles or ClusterRoles defined in the cluster.
+
+    ```yaml
+    # Role allowing get on deployments in namespace dev
+
+    kind: Role
+    metadata:
+    namespace: dev
+    name: view-deployments
+    rules:
+    - apiGroups: ["apps"]
+      resources: ["deployments"]
+      verbs: ["get", "list"]
+    ```
+
+    ```yaml
+    # RoleBinding assigning above role to user from techopsexamples
+
+    kind: RoleBinding
+    metadata:
+    name: deployment-reader
+    namespace: dev
+    subjects:
+    - kind: User
+      name: <govardhana.mk@techopsexamples.com>
+    roleRef:
+      kind: Role
+      name: view-deployments
+      apiGroup: rbac.authorization.k8s.io
+    ```
+
+4. Match Rules
+    The RBAC authorizer iterates through all applicable rules in the matched Roles or ClusterRoles. Checks whether any rule allows the verb on the resource in the given namespace
+
+    Each rule contains:
+
+    * verbs (e.g., get, list)
+    * resources (e.g., deployments)
+    * apiGroups (e.g., apps)
+    * resourceNames (optional, e.g., only certain deployments)
+
+5. Decision
+    If any rule matches, the RBAC authorizer grants access
+
+    If no rule matches, the API server returns 403 Forbidden
+
+    Test the calculation:
+
+    ```bash
+    kubectl auth can-i get deployments --as <govardhana.mk@techopsexamples.com> --namespace dev
+    ```
+
+## How To Run Kubernetes in Air Gapped Networks
+
+For someone who is new to air gap environments, it is a security measure where a network or system is physically isolated from other networks, including the internet, to prevent unauthorized access.
+
+In air gapped environments, you cannot pull container images on demand or reach public Helm repositories. Every artifact must be explicitly packaged, shipped, and verified. The best combination for this is Talos OS and Zarf.
+
+* Talos OS is a minimal, immutable OS for Kubernetes with no shell or SSH.
+* Zarf packages container images, charts, and files into air gap-ready bundles.
+
+Implementation Architecture
+
+1. Package Creation:
+
+    In a network connected setting, 𝘻𝘢𝘳𝘧 𝘱𝘢𝘤𝘬𝘢𝘨𝘦 𝘤𝘳𝘦𝘢𝘵𝘦 is used to assemble Zarf packages, bundling all essential deployment artifacts.
+
+2. Secure Transfer:
+
+    These Zarf packages (.tar.zst) are then securely conveyed to the air gapped zone utilizing secure transfer methods, ensuring the environment where Talos operates is safeguarded.
+
+3. Deployment by Talos:
+
+    Use zarf package deploy from a Talos compatible host.
+
+    Talos API unpacks the package, loads images via containerd, and starts kubelet to create pods.
+
+### Why This Works?
+
+* Talos ensures immutable, locked down nodes.
+* Zarf solves dependency and packaging challenges.
+* No internet needed at runtime.
