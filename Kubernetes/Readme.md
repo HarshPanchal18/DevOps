@@ -84,6 +84,71 @@
 
 - `[ Kubectl ]` - The command-line interface to interact with Kubernetes clusters.
 
+### etcd in Kubernetes
+
+In Kubernetes, etcd is a distributed, consistent key value store that holds the entire state of the cluster. Every component in Kubernetes relies on etcd through the API server to know what should be running and what is actually running.
+
+What etcd Stores:
+
+- Pod specifications, Deployments, Services, ConfigMaps, Secrets, and other Kubernetes resources.
+- Status information such as pod conditions, node health, and workloads running state.
+- Policies and cluster wide metadata including RBAC roles, quotas, and namespaces.
+
+![etcd flow](/Kubernetes/assets/etcd.jpg)
+
+When you create a Pod using `kubectl`, the API server validates the request and writes the Pod specification into `etcd`. The `scheduler` then assigns a node and updates `etcd` with this decision.
+
+The `kubelet` on the chosen node reads the assigned Pod and reports its status back through the `API server`, which again updates `etcd`.
+
+This loop of **desired** state and **observed** state is always reconciled against the data in `etcd`.
+
+> Every change in the cluster is written to etcd through the API server. Controllers and kubelets do not talk to each other directly. They interact only with the API server.
+
+#### High Availability and etcd
+
+In production, etcd is run as a cluster to ensure fault tolerance. There are two common setups:
+
+**Stacked etcd cluster** - etcd instances run on the same nodes as the Kubernetes control plane components. This setup is simple but offers less resilience in the event of node failures.
+
+This is generally suitable for smaller environments or development clusters where ease of setup and management is prioritized over high availability.
+
+**External etcd cluster** - etcd runs on dedicated nodes separate from the control plane, offering enhanced resilience and fault tolerance.
+
+This setup enhances resilience and fault tolerance, as failures in the control plane do not directly impact etcd, and vice versa.
+
+It provides a higher level of availability, making it the preferred choice for production environments where maintaining cluster stability is crucial.
+
+#### Why etcd is Critical?
+
+If etcd is lost, the cluster loses its memory. Control plane components cannot function without it. This is why backups of etcd are essential for disaster recovery.
+
+Kubernetes provides tools like `etcdctl` snapshot save to back up and restore etcd data.
+
+### Ports in Kubernetes
+
+1. **etcd**:
+   - Port 2379/TCP: Used by kube-apiserver to connect to etcd.
+   - Port 2380/TCP: Used for peer communication between multiple etcd instances.
+   - Port 2381/TCP: Used for etcd metrics (listens on localhost).
+
+2. **kube-apiserver**:
+   - Port 6443/TCP: The main port for kube-apiserver, which allows access to various API endpoints.
+
+3. **kube-controller-manager**:
+   - Port 10257/TCP: Serves up configuration and debugging information (listens on localhost).
+
+4. **kube-scheduler**:
+   - Port 10259/TCP: Serves up metrics and configuration information (listens on localhost).
+
+5. **kube-proxy**:
+   - Port 10249/TCP: Serves up metrics and configuration information (listens on all interfaces).
+   - Port 10256/TCP: Serves the `/healthz` endpoint (listens on all interfaces).
+
+6. **kubelet**:
+   - Port 10250/TCP: Provides various endpoints used by the API server (listens on all interfaces).
+
+The text emphasizes that the kube-apiserver, etcd, and kubelet are the most critical components to secure, as they expose the most functionality to remote hosts.
+
 ## Kubernetes Service vs Deployment - What's the difference between a Service and a Deployment in Kubernetes?
 
 - > A deployment is responsible for keeping a set of pods running.
