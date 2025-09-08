@@ -21,6 +21,8 @@
 - [Install Metrics Server in cluster](#install-metrics-server-in-cluster)
 - [Join new Kubernetes Worker Node to an existing Cluster](#join-new-kubernetes-worker-node-to-an-existing-cluster)
 - [What are finalizers?](#what-are-finalizers)
+- [CRI, CNI, CSI in Kubernetes](#cri-cni-csi-in-kubernetes)
+- [Kubernetes Networking Bottlenecks](#kubernetes-networking-bottlenecks)
 
 ## What is Kubernetes?
 
@@ -2474,3 +2476,183 @@ If successful, it should disappear.
 ---
 
 I can also give you a **quick script** that automatically finds and strips finalizers from all Terminating namespaces — useful when you’re doing cluster cleanup. Would you like me to prep that?
+
+## CRI, CNI, CSI in Kubernetes
+
+In Kubernetes, CRI, CNI, and CSI are interfaces or plugins that enable Kubernetes to **interact with underlying container runtimes, networking, and storage systems.**
+
+### Kubernetes Architecture
+
+```markdown
++--------------------------------------------------------+
+|                       Kubernetes                       |
++--------------------------------------------------------+
+|                       API Server                       |
++--------------------------------------------------------+
+|                        Kubelet                         |
++--------------------------------------------------------+
+|       CRI         |       CNI         |       CSI      |
++--------------------------------------------------------+
+| Container Runtime | Networking Plugin | Storage Driver |
++--------------------------------------------------------+
+```
+
+```markdown
+# What does Kubernetes do...
+- Without CRI - Kubelet can't run containers.
+- Without CNI - Pods won't get networking.
+- Without CSI - No storage provisioning.
+```
+
+Kubernetes itself does not directly manage containers, networks, or storage — it relies on these interfaces.
+
+### CRI — Container Runtime Interface
+
+Purpose: CRI defines how Kubernetes talks to the container runtime engine (like containerd, CRI-O, Docker).
+
+- Think of CRI as a translator between the kubelet (Kubernetes node agent) and the container runtime engine.
+
+**`Why CRI?`**
+
+Earlier Kubernetes only supported Docker directly. But later many container runtimes started emerging (containerd, CRI-O, etc). Kubernetes started growing and so, it has to introduce CRI so that kubelet can talk to any runtime supporting CRI — without hardcoding runtime-specific logic.
+
+CRI-based Runtimes:
+
+- Containerd — Lightweight runtime
+- CRI-O — Optimized for Kubernetes
+- Docker Shim — Deprecated in latest Kubernetes
+
+Architecture:
+
+  ```markdown
+  Kubelet
+    |
+    ├── CRI API (gRPC based)
+    |
+  containerd / CRI-O
+    |
+    └── Runs containers (using runc or other low-level tools)
+  ```
+
+### CNI — Container Network Interface
+
+Purpose: CNI is a standard interface for configuring network resources for containers (IP addresses, routing, DNS).
+
+Kubernetes uses CNI plugins to provide networking to Pods.
+
+**`Why CNI?`**
+
+Kubernetes networking is complex — every Pod needs:
+
+- Its own unique IP address.
+- Communication between Pods.
+- Integration with external networks.
+
+Instead of hardcoding networking, Kubernetes uses CNI plugins.
+
+CNI Plugins:
+
+- Calico — Network + Network Policies
+- Flannel — Simple overlay network
+- Weave Net — Container networking
+- Cilium — Advanced networking + security with eBPF
+
+Architecture:
+
+  ```markdown
+  Kubelet
+    |
+    ├── CNI Plugin Executed (binary)
+    |
+  Network Setup (IP address allocation, routes, firewall rules)
+  ```
+
+### CSI — Container Storage Interface
+
+Purpose: CSI allows Kubernetes to interact with different storage systems (block storage, file storage, cloud storage).
+
+Kubernetes uses CSI drivers to dynamically provision, attach, mount, and detach storage volumes to Pods.
+
+**`Why CSI?`**
+
+Storage systems vary across:
+
+- Cloud Providers (AWS EBS, GCP PD)
+- On-prem (NFS, iSCSI)
+- Distributed Storage (Ceph, GlusterFS)
+
+CSI allows Kubernetes to work with any storage backend via a common API.
+
+Examples of CSI Drivers:
+
+- AWS EBS CSI — AWS Block Storage
+- GCP PD CSI — Google Cloud Persistent Disk
+- NFS CSI — Network File System
+- CephCSI — Ceph Distributed Storage
+
+Architecture:
+
+  ```markdown
+  Kubelet
+    |
+    ├── CSI API (gRPC based)
+    |
+  CSI Driver
+    |
+    └── Interacts with Storage Backend
+  ```
+
+## Kubernetes Networking Bottlenecks
+
+A networking bottleneck due to a CNI (Container Network Interface) plugin can occur when the chosen plugin doesn’t scale efficiently or when the network infrastructure itself is not optimized.
+
+This can lead to issues like high latency, bandwidth saturation, and inefficient routing, impacting overall cluster performance.
+The CNI plugin used in a Kubernetes cluster is crucial for establishing network connectivity between pods and services. Different plugins have varying performance characteristics, and an unsuitable choice can create bottlenecks.
+
+Some plugins might not scale well with increasing pod density, leading to IP address shortages or network congestion.
+
+### Possible Causes
+
+- CNI Plugin Performance Limits: Some CNIs (like Flannel, Calico, Weave) are not designed for very high throughput. They might hit bandwidth limits as your cluster scales.
+- CPU/Memory Bottleneck on Nodes: CNIs operate in userspace or kernelspace. If CPU is throttled, packet processing slows down.
+- Packet Processing Overhead: Some CNIs add extra overhead (like encryption, VXLAN encapsulation), increasing packet handling time.
+- MTU (Maximum Transmission Unit) Mismatch: Wrong MTU settings cause fragmentation, reducing speed. Especially with overlay networks (e.g., Calico with IPIP or VXLAN).
+- IPTables / IPVS Rules Overload: CNIs often program firewall/NAT rules. If there are thousands of rules (large Services, NetworkPolicies), it slows down network traffic.
+- Kernel Settings or Outdated OS: Improper Linux kernel tuning or outdated kernels can cause poor network performance.
+- Bandwidth Limitation on Underlay NetworkSometimes the underlying physical network (AWS VPC, bare-metal infra) itself is bottlenecked.
+
+### Troubleshoot and Resolve
+
+- Check Pod-to-Pod Network Speed: Use iperf or netperf between two pods to measure actual throughput.
+- Monitor CNI Plugin Logs: Look inside CNI plugin pods (kubectl logs) for errors, latency, packet drops.
+- Check Node Resource Usage: Ensure enough CPU & memory. CNI processes must not get throttled.
+- Review CNI Plugin Config: Optimize settings: turn off encryption if not needed, adjust MTU, choose faster modes (like Calico using BGP instead of VXLAN).
+- Kernel and sysctl Tuning: Tweak sysctl settings like net.core.rmem_max, net.core.wmem_max, net.ipv4.tcp_rmem, etc.
+- Use Performance-Optimized CNIsIf needed, switch to faster CNIs like Cilium, Calico eBPF mode, or AWS VPC CNI (on EKS).
+- Upgrade CNI Versions: Newer versions often have performance improvements. Upgrade your CNI plugin to the latest stable version.
+- Reduce Overlay Networking: If possible, prefer direct routing over overlays. Overlays like VXLAN introduce 30–40% more overhead.
+
+### Helpful commands
+
+```bash
+# Check node CPU and memory
+kubectl top node
+
+# Check pod CPU and memory
+kubectl top pod -A
+
+# Check CNI plugin pods (i.e. calico-node)
+kubectl logs -n kube-system calico-node-xyz
+
+# Run network speed test
+kubectl run perf-server --image=networkstatic/iperf3 --port=5201 --command — /bin/sh -c “iperf3 -s”
+kubectl run perf-client --image=networkstatic/iperf3 --command -- /bin/sh -c “iperf3 -c perf-server”
+```
+
+### Avoid Networking Bottlenecks
+
+- Always benchmark CNI performance before cluster scaling.
+- Set correct MTU values across nodes and CNIs.
+- Use eBPF-based CNIs (e.g., Cilium) for high-speed networking.
+- Optimize Linux network stack with proper sysctl tunings.
+- Regularly monitor network throughput and packet drops.
