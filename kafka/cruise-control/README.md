@@ -139,3 +139,101 @@ Even though Strimzi shields you from it:
 - If you bypass Strimzi, you could directly use `curl` to hit Cruise Control REST endpoints.
 
 ##### How can I manually hit the GET url to view proposals, for example `/proposals`?
+
+## Activate Cruise Control in Kafka cluster
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+
+metadata:
+    name: my-cluster
+
+spec:
+    kafka: {}
+    cruiseControl: {}
+```
+
+## Rebalance Workflow states
+
+| Phase           | Meaning                                   |
+| --------------- | ----------------------------------------- |
+| `New`           | Created — operator is evaluating it       |
+| `ProposalReady` | Cruise Control prepared optimization plan |
+| `Ready`         | Ready to execute rebalance                |
+| `Rebalancing`   | Rebalance in progress                     |
+| `Stopped`       | Completed or stopped                      |
+| `NotReady`      | There is an error detected while evaluating. Describe KafkaRebalance to know more|
+
+## Rebalancing happens when
+
+- a consumer is down and doesn’t send heartbeats to the coordinator
+- a consumer is idle, so it’s considered as “failed” by the coordinator
+- a new consumer joins the group
+- a failed consumer rejoins the group
+- number of partitions in the topic is changed
+
+## Rebalance procedures
+
+### 1. Create/Apply a rebalance plan
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+  name: my-rebalance
+  namespace: kafka-namespace # replace with your namespace
+spec:
+  goals:
+    - RackAwareGoal
+    - DiskCapacityGoal
+    - NetworkInboundCapacityGoal
+    - NetworkOutboundCapacityGoal
+    - CpuCapacityGoal
+    - ReplicaCapacityGoal
+    - PotentialNwOutGoal
+  skipHardGoalCheck: true
+```
+
+### 2. Apply the rebalance once the `my-rebalance` is in `ProposalReady` state
+
+```bash
+kubectl annotate kafkarebalance my-rebalance strimzi.io/rebalance=approve -n myproject
+```
+
+This will cause the operator to move the Kafka Rebalance into `Rebalancing` state.
+
+### 3. Monitoring progress
+
+```bash
+kubectl get kafkarebalance my-rebalance -n myproject -o yaml
+```
+
+Look under:
+
+```yaml
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+```
+
+Once `Ready` is true — rebalance is complete.
+
+## Limitations of using Cruise Control
+
+In the context of Apache Kafka, there are a few potential limitations to the Cruise Control feature:
+
+1. **Complexity**: Cruise Control is a relatively complex feature in Kafka, with many configuration options and parameters to manage. This complexity can make it challenging for some users to set up and optimize Cruise Control for their specific use case.
+
+2. **Resource Utilization**: Cruise Control requires additional computational resources to continuously monitor the Kafka cluster and make optimization decisions. This can add overhead to the overall Kafka deployment, especially in clusters with limited resources.
+
+3. **Responsiveness**: Cruise Control operates on a periodic schedule, which means that it may not be able to respond to immediate changes or issues in the Kafka cluster. This can be a limitation in scenarios where rapid adjustments are required.
+
+4. **Compatibility**: Cruise Control is tightly integrated with the Kafka ecosystem, and its functionality may be limited when used in conjunction with other third-party tools or custom Kafka configurations.
+
+5. **Automation Limitations**: While Cruise Control aims to automate many cluster management tasks, it may not be able to handle all possible scenarios or edge cases. Operators may still need to intervene manually in some situations.
+
+6. **Monitoring and Alerting**: Cruise Control provides some monitoring and alerting capabilities, but these may not be as comprehensive or customizable as those provided by dedicated monitoring solutions. This can make it more challenging to integrate Cruise Control with existing monitoring and alerting infrastructure.
+
+7. **Learning Curve**: Effectively using Cruise Control requires a certain level of understanding of Kafka internals and optimization strategies. This learning curve can be a barrier for some users, especially those new to Kafka.
