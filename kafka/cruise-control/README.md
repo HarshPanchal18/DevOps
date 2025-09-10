@@ -237,3 +237,128 @@ In the context of Apache Kafka, there are a few potential limitations to the Cru
 6. **Monitoring and Alerting**: Cruise Control provides some monitoring and alerting capabilities, but these may not be as comprehensive or customizable as those provided by dedicated monitoring solutions. This can make it more challenging to integrate Cruise Control with existing monitoring and alerting infrastructure.
 
 7. **Learning Curve**: Effectively using Cruise Control requires a certain level of understanding of Kafka internals and optimization strategies. This learning curve can be a barrier for some users, especially those new to Kafka.
+
+## Metrics before-after Rebalancing
+
+When a Kafka rebalance proposal reaches the ProposalReady state (on prepared optimization plan), Strimzi creates a ConfigMap (named after the KafkaRebalance custom resource) containing a JSON string of broker metrics generated from Cruise Control.
+
+Each broker has a set of key metrics represented by three values:
+
+- The current metric value before the optimization proposal is applied
+- The expected metric value after applying the proposal
+- The difference between the two values (after minus before)
+
+This ConfigMap remains accessible even after the rebalance completes.
+
+```bash
+kubectl get configmap -n myproject kafka-data-rebalance -oyaml
+```
+
+### Properties captured in the configmap
+
+- **leaders** - The number of replicas on this broker that are partition leaders.
+- **replicas** - The number of replicas on this broker.
+- **cpuPercentage** - The CPU utilization as a percentage of the defined capacity.
+- **diskUsedPercentage** - The disk utilization as a percentage of the defined capacity.
+- **diskUsedMB** - The absolute disk usage in MB.
+- **networkOutRate** - The total network output rate for the broker.
+- **leaderNetworkInRate** - The network input rate for all partition leader replicas on this broker.
+- **followerNetworkInRate** - The network input rate for all follower replicas on this broker.
+- **potentialMaxNetworkOutRate** - The hypothetical maximum network output rate that would be realized if this broker became the leader of all the replicas it currently hosts."
+
+## Useful Goals in High to Low priority
+
+- **RackAwareGoal** - No more than one replica of each partition resides in the same rack.
+- **MinTopicLeadersPerBrokerGoal** - Ensure that each alive broker has at least a certain number of leader replica of each topic
+- **ReplicaCapacityGoal** - Ensure that the max number of replicas per broker is under the specified maximum limit.
+- **DiskCapacityGoal** - Ensure Disk space usage of each broker is below a given threshold.
+- **NetworkInboundCapacityGoal** - Ensure Inbound network utilization of each broker is below a given threshold.
+- **NetworkOutboundCapacityGoal** - Ensure Outbound network utilization of each broker is below a given threshold.
+- **CpuCapacityGoal** - Ensure CPU utilization of each broker is below a given threshold.
+- **ReplicaDistributionGoal** - Make all the brokers in a cluster have a similar number of replicas.
+- **DiskUsageDistributionGoal** - Keep the Disk space usage variance among brokers within a certain range relative to the average Disk utilization.
+- **CpuUsageDistributionGoal** - Keep the CPU usage variance among brokers within a certain range relative to the average CPU utilization.
+- **LeaderReplicaDistributionGoal** - Make all the brokers in a cluster have a similar number of leader replicas.
+- **TopicReplicaDistributionGoal** - Maintain an even distribution of any topic's partitions across the entire cluster.
+
+## Some of the Configuration
+
+### Goals in config
+
+- goals: (Define scope of Goals) The master goals list.
+To limit the optimization goals that cluster's Cruise Control server can use.
+
+- hard.goals: (Goals required to validate) List of goals will define which goals in the master goals list are considered hard and cannot be violated in any of the optimization functions of Cruise Control.
+Try to make it as short as possible.
+
+- deafult.goals: (For proposal generation) By default, every 15 mins, Cruise Control will use the current state of your Kafka cluster to generate a cached optimization proposal using the configured default.goals list.
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+    name: my-cluster
+spec:
+    kafka: {}
+    cruiseControl:
+        config:
+            # Note that `goals` must be a superset of `default.goals` and `hard.goals`
+            goals: >
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.MinTopicLeadersPerBrokerGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.ReplicaCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkInboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkOutboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.CpuCapacityGoal,
+            default.goals: >
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.MinTopicLeadersPerBrokerGoal,
+            hard.goals: >
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.ReplicaCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkInboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkOutboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.CpuCapacityGoal
+            cpu.balance.threshold: 1.1
+            metadata.max.age.ms: 300000
+            send.buffer.bytes: 131072
+            self.healing.enabled: true
+            anomaly.notifier.class: com.linkedin.kafka.cruisecontrol.detector.notifier.SelfHealingNotifier
+            webserver.http.cors.enabled: true
+            webserver.http.cors.origin: "*"
+            webserver.http.cors.exposeheaders: "User-Task-ID,Content-Type"
+        # ...
+```
+
+### `skipHardGoalCheck: true`
+
+Whether to allow the hard goals specified in the Kafka CR to be skipped in optimization proposal generation.
+
+Useful when some of those hard goals are preventing a balance solution being found. Default is false.
+
+While describing KafkaRebalance:
+
+```yaml
+Status:
+Conditions:
+Last Transition Time:  2025-09-04T06:21:21.058931949Z
+"Message:               Server returned: Error processing POST request '/rebalance' due to: 'com.linkedin.kafka.cruisecontrol.exception.KafkaCruiseControlException: java.lang.IllegalArgumentException: Missing hard goals [NetworkInboundCapacityGoal, DiskCapacityGoal, RackAwareGoal, NetworkOutboundCapacityGoal, CpuCapacityGoal, ReplicaCapacityGoal] in the provided goals: [CpuCapacityGoal, DiskCapacityGoal, RackAwareGoal, MinTopicLeadersPerBrokerGoal, ReplicaCapacityGoal]. Add `skip_hard_goal_check=true` parameter to ignore this sanity check.'."
+Reason:                CruiseControlRestException
+Status:                True
+Type:                  NotReady
+```
+
+- [Reference](https://strimzi.io/blog/2020/06/15/cruise-control/)
+- [Reference](https://github.com/strimzi/strimzi-kafka-operator/blob/0.45.0/documentation/modules/cruise-control/con-cruise-control-overview.adoc#skipping-hard-goal-checks)
+
+## Troubleshootings
+
+>2025-09-11 05:38:18 WARN  KafkaClusterCreator:201 - Reconciliation #53(timer) Kafka(myproject/kafka-data): Cannot scale down brokers [2] because [2] have assigned partition-replicas
+>2025-09-11 05:38:18 WARN  KafkaClusterCreator:238 - Reconciliation #53(timer) Kafka(myproject/kafka-data): Reverting scale-down of Kafka kafka-data by changing number of replicas to 3
+
+```bash
+kubectl annotate Kafka -n myproject kafka-data strimzi.io/skip-broker-scaledown-check="true"
+```
+
+- [Reference](https://strimzi.io/blog/2024/01/03/prevent-broker-scale-down-if-containing-paritition-replicas/)
