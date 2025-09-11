@@ -1,0 +1,13 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+    name: my-cluster
+spec:
+    kafka: {}
+    cruiseControl:
+      metricsConfig:
+        type: jmxPrometheusExporter
+        valueFrom:
+          configMapKeyRef:
+            key: metrics-config.yml
+            name: cruise-control-metrics # Apply cm-metrics-cruise-control.yml first.
