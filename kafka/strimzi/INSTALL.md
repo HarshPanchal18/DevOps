@@ -1,6 +1,6 @@
 # Installation [Reference](https://github.com/strimzi/strimzi-kafka-operator)
 
-## Zookeeper (<=0.45.0)
+## Kafka & Zookeeper (<=0.45.0)
 
 1. Create namespace `myproject`.
 
@@ -8,7 +8,7 @@
     kubectl create namespace myproject
     ```
 
-2. Apply all the YAMLs from install/cluster-operator directorty of version `0.45.0`.
+2. Apply all the YAMLs from install/cluster-operator directorty of version `0.45.0` to deploy `Strimzi Operator`.
 
     ```bash
     kubectl apply -n myproject \
@@ -42,7 +42,7 @@
         -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.45.0/install/cluster-operator/060-Deployment-strimzi-cluster-operator.yaml
     ```
 
-3. Check logs of strimzi operator.
+3. **[DEBUG]:** Check logs of strimzi operator.
 
     ```bash
     kubectl logs -n myproject kafka strimzi-cluster-operator
@@ -111,6 +111,7 @@
 
     - Wait for pod start creating.
     - If zookeeper and kafka pods doesn't start creating,
+
     Describe Kafka CRD using
 
     ```bash
