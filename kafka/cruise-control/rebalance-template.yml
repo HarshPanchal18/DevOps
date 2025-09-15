@@ -1,0 +1,33 @@
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: add-brokers-rebalancing-template
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+    mode: add-brokers
+    goals:
+      - RackAwareGoal
+      - DiskCapacityGoal
+      - NetworkInboundCapacityGoal
+      - NetworkOutboundCapacityGoal
+      - CpuCapacityGoal
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: remove-brokers-rebalancing-template
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+    mode: remove-brokers
+    goals:
+      - RackAwareGoal
+      - DiskCapacityGoal
+      - NetworkInboundCapacityGoal
+      - NetworkOutboundCapacityGoal
+      - CpuCapacityGoal
