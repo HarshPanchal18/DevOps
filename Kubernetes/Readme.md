@@ -857,6 +857,469 @@ This ensures that the Pod retains its state and any data it was processing befor
 
 However, it's worth noting that the StatefulSet controller will only attempt to restore the state of a Pod if it has a matching Persistent Volume Claim (PVC) associated with it. If the PVC is deleted or not properly configured, the Pod will not retain its state across restarts.
 
+## Configuration Management in Kubernetes
+
+Configuration management is a critical aspect of deploying applications in Kubernetes. This module focuses on two key Kubernetes objects that help manage configuration data:
+
+- `ConfigMaps`: For storing non-sensitive configuration data
+- `Secrets`: For storing sensitive information like credentials and certificates
+
+Both objects help to decouple configuration from your application code and container images, making your applications more portable and easier to manage across different environments.
+
+### What are ConfigMaps(cm)?
+
+A ConfigMap is a Kubernetes API object used to store non-sensitive configuration data in key-value pairs. ConfigMaps serve a critical purpose: **they decouple configuration from application code and container images.**
+
+This separation enables you to:
+
+- Keep your container images generic and reusable
+- Change configuration without rebuilding images
+- Use the same application across different environments (development, testing, production)
+- Follow container best practices by maintaining immutable application images
+
+![ConfigMap](https://eadn-wc03-4064062.nxedge.io/cdn/wp-content/uploads/2021/04/configmap-1.png)
+
+ConfigMaps can store:
+
+- Individual key-value pairs
+- Entire configuration files
+- JSON/YAML formatted data
+- Plain text strings
+
+#### Creating Configmaps
+
+##### 1. Imperative approach
+
+The imperative approach is faster for quick operations and is often useful during development or for the CKAD exam.
+
+###### From Literal Values
+
+```bash
+# Basic syntax
+kubectl create configmap <name> --from-literal=<key>=<value>
+
+# With a single key-value pair
+kubectl create configmap app-config --from-literal=app.environment=production
+
+# With multiple key-value pairs
+kubectl create configmap app-config \
+    --from-literal=app.environment=production \
+    --from-literal=app.log-level=info \
+    --from-literal=app.max-connections=100
+```
+
+Note: Key names can only contain alphanumeric characters, dashes (-), underscores (_), and dots (.).
+
+###### From Files
+
+To create a ConfigMap from a file’s contents:
+
+```bash
+# Basic syntax
+kubectl create configmap <name> --from-file=<key>=<file-path>
+
+# Examples
+kubectl create configmap nginx-config --from-file=nginx.conf=/path/to/nginx.conf
+
+# Using the filename as the key (omitting the key= part)
+kubectl create configmap nginx-config --from-file=/path/to/nginx.conf
+```
+
+###### From Directories
+
+You can create a ConfigMap from all files in a directory:
+
+```bash
+kubectl create configmap app-config --from-file=/path/to/config/dir/
+```
+
+When creating from a directory:
+
+- Each file becomes a separate entry in the ConfigMap
+- The filename becomes the key
+- The file content becomes the value
+- Subdirectories, symbolic links, devices, and pipes are ignored
+- Files with names that aren’t valid ConfigMap keys are skipped
+
+###### From Environment Files
+
+You can create ConfigMaps from files containing key-value pairs (like .env files):
+
+```bash
+# env-file example
+# KEY1=VALUE1
+# KEY2=VALUE2
+
+kubectl create configmap app-env --from-env-file=/path/to/.env
+```
+
+##### 2. Declarative Approach (Using YAML Manifests)
+
+The declarative approach involves creating a YAML manifest file and applying it with kubectl. This method is preferred for production environments and version-controlled configurations.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  # Simple key-value pairs
+  app.environment: production
+  app.log-level: info
+  app.max-connections: "100"
+
+  # Configuration file as a multi-line string
+  app.properties: |
+    server.port=8080
+    spring.application.name=myapp
+    management.endpoints.web.exposure.include=health,info,metrics
+
+  # JSON configuration
+  config.json: |
+    {
+      "environment": "production",
+      "features": {
+        "authentication": true,
+        "authorization": true,
+        "rateLimit": {
+          "enabled": true,
+          "limit": 100
+        }
+      }
+    }
+```
+
+#### ConfigMap Limitations and Best Practices
+
+##### Limitations
+
+- ConfigMaps are limited to `1MB` in size
+- Key names must be valid DNS subdomain names
+- ConfigMaps are not suitable for sensitive data (use Secrets instead)
+- ConfigMaps are stored in plaintext in etcd
+
+##### Best Practices
+
+- **Group Related Data**: Organize related configuration data in a single ConfigMap rather than creating many small ConfigMaps.
+- **Use Meaningful Names**: Name ConfigMaps descriptively to indicate their purpose and content.
+- **Version Control**: Keep ConfigMap definitions in version control, especially for declarative management.
+- **Namespace Scope**: Remember that ConfigMaps are namespace-scoped resources. They must be in the same namespace as the Pods that use them.
+- **Avoid Sensitive Data**: Never store sensitive information like passwords, tokens, or keys in ConfigMaps. Use Secrets for that purpose.
+- **Documentation**: Document the purpose of each key in your ConfigMaps, especially for complex configurations.
+
+#### Using ConfigMaps as Environment Variables
+
+Environment variables are a common way for applications to read configuration. Kubernetes provides two approaches to inject ConfigMap data as environment variables:
+
+1. Individual Environment Variables
+    You can set specific environment variables in a container by referencing individual ConfigMap entries:
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: app-pod
+    spec:
+      containers:
+
+    - name: app-container
+        image: nginx:1.19
+        env:
+        - name: ENV_NAME                      # Name of environment variable
+          valueFrom:
+            configMapKeyRef:
+              name: app-config                # Name of the ConfigMap
+              key: app.environment            # Key within the ConfigMap
+              optional: true                  # Container starts even if ConfigMap/key is missing
+    ```
+
+    In this example:
+    The environment variable ENV_NAME inside the container will have the value from the `app.environment` key in the `app-config` ConfigMap.
+    The `optional: true` field means the container will start even if the ConfigMap or key doesn't exist.
+
+2. All ConfigMap Entries (envFrom)
+    To inject all key-value pairs from a ConfigMap as environment variables:
+
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: app-pod
+    spec:
+      containers:
+
+    - name: app-container
+      image: nginx:1.19
+      envFrom:
+        - configMapRef:
+          name: app-config                  # Name of the ConfigMap
+          optional: true                    # Pod starts even if ConfigMap is missing
+    ```
+
+    With `envFrom`:
+
+    - Each key in the ConfigMap becomes an environment variable name
+    - Each value becomes the corresponding environment variable value
+    - If a key in the ConfigMap is not a valid environment variable name (contains invalid characters), it will be skipped
+    - You can prefix all environment variables using the prefix field
+
+    ```yaml
+    envFrom:
+    - configMapRef:
+        name: app-config
+        prefix: CONFIG_   # Adds CONFIG_ prefix to all env vars
+    ```
+
+#### Environment Variable Precedence
+
+If you use both `env` and `envFrom` and have conflicts:
+
+- Variables defined in `env` take precedence over those from `envFrom`
+- If multiple ConfigMaps in `envFrom` have the same key, the last ConfigMap in the array wins
+
+#### Using ConfigMaps as Volumes
+
+For configuration files or larger blocks of data, mounting ConfigMaps as volumes is often more appropriate:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod
+spec:
+  volumes:
+    - name: config-volume                    # Define volume name
+      configMap:
+        name: app-config                     # Reference to the ConfigMap
+  containers:
+    - name: app-container
+      image: nginx:1.19
+      volumeMounts:
+      - name: config-volume                  # Mount the defined volume
+        mountPath: /etc/config               # on Path inside the container
+```
+
+With this configuration, each key in the ConfigMap **becomes a file** in the `/etc/config` directory
+
+- The filename is the key name
+- The file content is the value
+
+##### Mounting Specific Items
+
+You can selectively mount only specific items from a ConfigMap:
+
+```yaml
+volumes:
+- name: config-volume
+  configMap:
+    name: app-config
+    items:                                 # Select specific items
+    - key: app.properties                  # Key in the ConfigMap
+      path: application.properties         # Filename in the volume
+    - key: logging.conf
+      path: log4j.properties
+```
+
+In this example, only two files will be created in the mount directory:
+
+- /etc/config/application.properties (from the `app.properties` key)
+- /etc/config/log4j.properties (from the `logging.conf` key)
+
+##### Setting File Permissions
+
+You can set permissions for all files in the volume:
+
+```yaml
+volumes:
+- name: config-volume
+  configMap:
+    name: app-config
+    defaultMode: 0600                      # Read/write for owner only
+```
+
+Or for individual files:
+
+```yaml
+volumes:
+- name: config-volume
+  configMap:
+    name: app-config
+    items:
+  - key: app.properties
+      path: application.properties
+      mode: 0400                           # Read-only for owner
+```
+
+##### Mounting at a Specific Path
+
+You can mount a ConfigMap at a specific subpath within the container:
+
+```yaml
+volumeMounts:
+- name: config-volume
+  mountPath: /etc/nginx/nginx.conf         # Specific file path
+  subPath: nginx.conf                      # Key in the ConfigMap
+```
+
+**Important**: Using `subPath` prevents automatic updates when the ConfigMap changes.
+
+##### How ConfigMap Volume Updates Work
+
+Kubernetes updates mounted ConfigMaps automatically when the ConfigMap is modified:
+
+1. When a ConfigMap volume is mounted, Kubernetes creates symbolic links in the volume
+2. Each symbolic link points to a file in a hidden directory
+3. The special `.data` symlink points to the currently active directory
+4. When you update the ConfigMap, Kubernetes:
+    - Creates a new timestamped directory
+    - Writes the updated files to this directory
+    - Atomically updates the `.data` symlink to point to the new directory
+
+This ensures applications see a consistent view of the configuration.
+
+The update process is:
+    - Completely atomic (no partial updates)
+    - Eventually consistent (may take up to a minute to propagate)
+    - Not applied when using `subPath` in your `volumeMount`
+
+#### Using ConfigMaps for Command-line Arguments
+
+You can use ConfigMap data to define container command arguments:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod
+spec:
+  containers:
+  - name: app-container
+      image: myapp:1.5
+      command: ["./app"]
+      args: ["--config-path", "$(CONFIG_PATH)"]
+      env:
+      - name: CONFIG_PATH
+        valueFrom:
+          configMapKeyRef:
+            name: app-config
+            key: config-path
+```
+
+In this example, the application runs with a command-line argument that comes from the ConfigMap value.
+
+#### Common Use Cases and Patterns
+
+1. Application Configuration Files
+    Mount configuration files directly for applications like nginx, MySQL, or Spring Boot:
+
+    ```yaml
+    # First, create the ConfigMap with the config file
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: nginx-conf
+    data:
+      nginx.conf: |
+        server {
+          listen 80;
+          server_name example.com;
+
+          location / {
+            root /usr/share/nginx/html;
+            index index.html;
+          }
+        }
+
+    ---
+    # Then mount it in the Pod
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: nginx-pod
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.19
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: nginx.conf
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-conf
+    ```
+
+2. Environment-Specific Configuration
+    Use different ConfigMaps for different environments:
+
+    ```yaml
+    # Development ConfigMap
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: app-config
+      namespace: development
+    data:
+      app.environment: "development"
+      log.level: "debug"
+      api.url: "http://dev-api:8080"
+
+    ---
+    # Production ConfigMap (same name, different namespace)
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: app-config
+      namespace: production
+    data:
+      app.environment: "production"
+      log.level: "info"
+      api.url: "http://prod-api:8080"
+    ```
+
+    Your Pod definition can stay the same across environments, referencing the same ConfigMap name.
+
+3. Feature Flags
+    Toggle features by changing ConfigMap values:
+
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: feature-flags
+    data:
+      feature.new-ui: "true"
+      feature.beta-api: "false"
+      feature.metrics: "true"
+    ```
+
+#### Best Practices for Using ConfigMaps
+
+- **Appropriate Usage**: Use environment variables for simple configuration and volume mounts for complex configuration files.
+- **Restart Awareness**: Be aware that changes to environment variables from ConfigMaps **require Pod restarts to take effect**. Only volume mounts update automatically.
+- **Application Compatibility**: Make sure your application can handle dynamic configuration updates if you’re relying on automatic ConfigMap volume updates.
+- **Avoid subPath for Dynamic Updates**: If you need automatic updates, avoid using subPath in your volume mounts.
+- **Validation**: Validate your configuration data before creating ConfigMaps to avoid application failures due to misconfiguration.
+- **ReadOnly Mounts**: When possible, mount configuration volumes as read-only to follow the principle of least privilege.
+- **Health Checks**: Configure appropriate health checks that verify your application can read its configuration correctly.
+
+```yaml
+volumeMounts:
+- name: config-volume
+  mountPath: /etc/config
+  readOnly: true
+```
+
+#### Troubleshooting ConfigMap Issues
+
+Common issues when working with ConfigMaps include:
+
+- **Missing or Invalid Keys**: If a required key is missing or invalid, container startup can fail. Use the `optional: true` flag for keys that aren't strictly required.
+- **ConfigMap Size Limitations**: ConfigMaps are limited to `1MB` in size. For larger configurations, consider breaking them into multiple ConfigMaps or using alternative solutions.
+- **Update Propagation Delay**: Changes to ConfigMaps mounted as volumes may take some time to propagate (up to a minute). Account for this in your deployment strategy.
+- **Permissions Issues**: Ensure the file permissions set with `defaultMode` or individual item mode are appropriate for your application.
+
 ## What are headless services in Kubernetes?
 
 Headless services in Kubernetes are a special type of service that **do not have a cluster IP assigned**. This means that they do not load balance traffic to a set of Pods, but instead **allow direct access** to the individual Pods backing the service.
@@ -1243,6 +1706,33 @@ If necessary, existing pods can be safely evicted from the node.
 ```bash
 # Drain pods from the node (respecting PodDisruptionBudgets)
 kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+```
+
+You will see similar output:
+
+```bash
+harshm@inventyv:~_ kubectl cordon kind-kube-worker2
+node/kind-kube-worker2 cordoned
+
+harsh@linux:~_ kubectl drain kind-kube-worker2 --ignore-daemonsets
+node/kind-kube-worker2 already cordoned
+error: unable to drain node "kind-kube-worker2" due to error: cannot delete Pods with local storage (use --delete-emptydir-data to override): minio-operator/console-5b4c745849-gpd2h, monitoring/prometheus-prom-graf-kube-prometheus-prometheus-0, continuing command...
+There are pending nodes to be drained:
+ kind-kube-worker2
+cannot delete Pods with local storage (use --delete-emptydir-data to override): minio-operator/console-5b4c745849-gpd2h, monitoring/prometheus-prom-graf-kube-prometheus-prometheus-0
+
+harsh@linux:~_ kubectl drain kind-kube-worker2 --ignore-daemonsets --delete-emptydir-data
+node/kind-kube-worker2 already cordoned
+Warning: ignoring DaemonSet-managed Pods: kube-system/calico-node-wjxlb, kube-system/kube-proxy-ngp5s, monitoring/prom-graf-prometheus-node-exporter-k6262
+evicting pod monitoring/prometheus-prom-graf-kube-prometheus-prometheus-0
+evicting pod monitoring/prom-graf-kube-prometheus-operator-558895b59d-srf5l
+evicting pod monitoring/prom-graf-kube-state-metrics-78cdf7f846-2vpv2
+evicting pod minio-operator/console-5b4c745849-gpd2h
+pod/prom-graf-kube-prometheus-operator-558895b59d-srf5l evicted
+pod/prom-graf-kube-state-metrics-78cdf7f846-2vpv2 evicted
+pod/console-5b4c745849-gpd2h evicted
+pod/prometheus-prom-graf-kube-prometheus-prometheus-0 evicted
+node/kind-kube-worker2 drained
 ```
 
 ### Updating Nodes
@@ -2135,7 +2625,7 @@ For example, for NFS dynamic provisioning, you usually deploy an external NFS pr
 Install Metrics server by running the following commands:
 
 ```bash
-kubectl apply -f <https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml>
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
 
 Check metrics server deployment in yaml output:
