@@ -1,0 +1,51 @@
+# https://github.com/strimzi/strimzi-kafka-operator/blob/0.45.0/examples/cruise-control/kafka-cruise-control-auto-rebalancing.yaml
+# To add Rebalancing in Cruise Control, you can add the `autoRebalance` field under the `cruiseControl` section:
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+    name: my-cluster
+
+spec:
+    kafka: {}
+
+    cruiseControl:
+        autoRebalance: # https://strimzi.io/blog/2024/11/25/autorebalancing-on-scaling/
+          - mode: add-brokers
+            template:
+                name: add-brokers-rebalancing
+          - mode: remove-brokers
+            template:
+                name: remove-brokers-rebalancing
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: add-brokers-rebalancing
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+    goals:
+      - RackAwareGoal
+      - DiskCapacityGoal
+      - NetworkInboundCapacityGoal
+      - NetworkOutboundCapacityGoal
+      - CpuCapacityGoal
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: remove-brokers-rebalancing
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+    goals:
+      - RackAwareGoal
+      - DiskCapacityGoal
+      - NetworkInboundCapacityGoal
+      - NetworkOutboundCapacityGoal
+      - CpuCapacityGoal

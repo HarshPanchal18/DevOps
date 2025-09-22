@@ -4,7 +4,6 @@
 
 - A running Kubernetes cluster.
 - `kubectl` command-line tool configured to access your cluster.
-- `helm` command-line tool installed.
 - The Strimzi Kafka Operator installed in your cluster.
 - The Prometheus Operator installed in your cluster.
 
@@ -24,39 +23,22 @@
 
 3. Make sure your deployed `kafka-data` CRD looks similar to `kafka-data.yml` of current directory.
 
-4. Create a secret through `prometheus-additional.yaml` to add additional properties to the Prometheus configuration.
-
-    ```bash
-    kubectl apply -n monitoring -f prometheus-additional.yaml
-    ```
-
-5. Deploy Pod monitors to monitor Kafka pods. This will create a `PodMonitor` resource that instructs Prometheus to scrape metrics from Kafka pods.
+4. Deploy Pod monitors to monitor Kafka pods. This will create `PodMonitor`(s) resource that instructs Prometheus to scrape metrics from Kafka pods.
 
     ```bash
     kubectl apply -n monitoring -f pod-monitor.yaml
     ```
 
-6. Make sure your deployed `Prometheus Server` CRD looks similar to `prometheus-crd.yml` of current directory. Verify that the `selectors` are correctly set to match your Kafka pods.
+5. Check the Prometheus UI to ensure that Kafka metrics are being collected. You can access the Prometheus UI by port-forwarding:
 
     ```bash
-    kubectl get Prometheus -n monitoring
-    ```
-
-7. Verify that the Prometheus Operator and the Pod Monitor are running correctly.
-
-    ```bash
-    kubectl get pods -n monitoring
-    ```
-
-8. Check the Prometheus UI to ensure that Kafka metrics are being collected. You can access the Prometheus UI by port-forwarding:
-
-    ```bash
-    kubectl port-forward -n monitoring svc/prometheus-operated 9090:9090
+    kubectl port-forward -n monitoring svc/prom-graf-kube-prometheus-prometheus 9090:9090
     ```
 
     Then, open your web browser and go to `http://localhost:9090`.
 
-9. In the Prometheus UI, you can query Kafka metrics using the following queries:
+6. In the Prometheus UI, Go to `Status -> Target Health` to see if above deployed `Pod Monitors` are in `UP` state. Or you can query Kafka metrics using the following queries:
+
     - To see the number of messages produced per second:
 
       ```text
@@ -105,4 +87,4 @@
       kafka_broker_topic_metrics_messages_in_total
       ```
 
-10. Import Grafana dashboards as needed from [Grafana Dashboards](https://github.com/strimzi/strimzi-kafka-operator/tree/0.45.0/examples/metrics/grafana-dashboards) to visualize the metrics. Visit [grafana dashboards](https://grafana.com/grafana/dashboards/?search=kafka) for more dashboards.
+7. Import Grafana dashboards as needed from [Grafana Dashboards](https://github.com/strimzi/strimzi-kafka-operator/tree/0.45.0/examples/metrics/grafana-dashboards) to visualize the metrics. Visit [grafana dashboards](https://grafana.com/grafana/dashboards/?search=kafka) for more dashboards.

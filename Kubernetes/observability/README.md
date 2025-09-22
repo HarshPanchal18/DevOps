@@ -1,4 +1,4 @@
-# Grafana
+# Prometheus & Grafana
 
 * **Grafana enables you to query, visualize, alert on, and explore your metrics, logs, and traces wherever they’re stored.**
 
@@ -220,3 +220,19 @@ If still issue persists, then follow below steps...
 ![Video](https://www.youtube.com/watch?v=kEesp1tMRvM)
 
 [Repo](https://github.com/marcel-dempers/docker-development-youtube-series/tree/master/monitoring/prometheus)
+
+## Teardown
+
+Uninstall Helm release.
+
+```bash
+helm uninstall -n monitoring prom-graf
+```
+
+Get remaining resources from the namespace.
+
+```bash
+kubectl api-resources --verbs=list --namespaced -o name | xargs -n 1 kubectl get --show-kind --ignore-not-found -n monitoring
+```
+
+Delete each one by one to clear out namespace.

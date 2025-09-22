@@ -1,0 +1,18 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+
+metadata:
+  name: add-brokers-rebalance
+  namespace: myproject
+  labels:
+    strimzi.io/cluster: kafka-data
+
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+  mode: add-brokers
+  brokers: [3]
+
+# This YAML file defines a Kafka Rebalance resource using the Strimzi Kafka Operator.
+#    - `mode: add-brokers`: specifies that the rebalance operation is to add new brokers to the Kafka cluster.
+#    - `brokers: [3, 4]`: lists the broker IDs (3 and 4) that should be added to the cluster during the rebalance.
+# In summary, this YAML file instructs the Strimzi Kafka Operator to perform a Kafka cluster rebalance operation, adding brokers 3 and 4 to the `kafka-data-connect-cluster` Kafka cluster.

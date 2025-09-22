@@ -1,0 +1,12 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+  name: remove-disk-rebalance
+  labels:
+    strimzi.io/cluster: kafka-data-connect-cluster
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+  mode: remove-disks # Can be 'remove-disks', 'add-brokers', 'remove-brokers'
+  moveReplicasOffVolumes:
+    - brokerId: 0
+      volumeIds: [1]

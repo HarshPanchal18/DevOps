@@ -1,0 +1,42 @@
+# https://github.com/strimzi/strimzi-kafka-operator/blob/0.45.0/examples/cruise-control/kafka-cruise-control-with-goals.yaml
+# To add goals in Cruise Control, you can add the `goals` field under the `cruiseControl` section:
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+    name: my-cluster
+spec:
+    kafka: {}
+
+    cruiseControl:
+        config:
+            # Note that `goals` must be a superset of `default.goals` and `hard.goals`
+            goals: >
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.MinTopicLeadersPerBrokerGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.ReplicaCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkInboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkOutboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.CpuCapacityGoal,
+
+            default.goals: >
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.MinTopicLeadersPerBrokerGoal,
+
+            hard.goals: >
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.ReplicaCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkInboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.NetworkOutboundCapacityGoal,
+                com.linkedin.kafka.cruisecontrol.analyzer.goals.CpuCapacityGoal
+
+            cpu.balance.threshold: 1.1
+            metadata.max.age.ms: 300000
+            send.buffer.bytes: 131072
+            self.healing.enabled: true
+            anomaly.notifier.class: com.linkedin.kafka.cruisecontrol.detector.notifier.SelfHealingNotifier
+            webserver.http.cors.enabled: true
+            webserver.http.cors.origin: "*"
+            webserver.http.cors.exposeheaders: "User-Task-ID,Content-Type"
+        # ...

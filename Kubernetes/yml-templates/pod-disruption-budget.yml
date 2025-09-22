@@ -1,0 +1,24 @@
+# https://www.baeldung.com/ops/kubernetes-pod-disruption-budget
+# kubectl get pdb
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web-app-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: web-app
+
+---
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: complex-app-pdb
+spec:
+  maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: complex-app

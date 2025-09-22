@@ -1,0 +1,14 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+
+metadata:
+  name: remove-brokers-rebalance
+  namespace: myproject
+  labels:
+    strimzi.io/cluster: kafka-data
+
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+  mode: remove-brokers
+  brokers: [3]
+  skipHardGoalCheck: true

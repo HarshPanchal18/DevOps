@@ -4,7 +4,8 @@ kind: PodMonitor
 metadata:
   labels:
     app: strimzi
-    release: prometheus
+    # release: prometheus
+    release: prom-graf
   name: cluster-operator-metrics
 spec:
   namespaceSelector:
@@ -23,7 +24,8 @@ kind: PodMonitor
 metadata:
   labels:
     app: strimzi
-    release: prometheus
+    # release: prometheus
+    release: prom-graf
   name: entity-operator-metrics
 spec:
   namespaceSelector:
@@ -42,7 +44,8 @@ kind: PodMonitor
 metadata:
   labels:
     app: strimzi
-    release: prometheus
+    # release: prometheus
+    release: prom-graf
   name: bridge-metrics
 spec:
   namespaceSelector:
@@ -61,7 +64,8 @@ kind: PodMonitor
 metadata:
   labels:
     app: strimzi
-    release: prometheus
+    # release: prometheus
+    release: prom-graf
   name: kafka-resources-metrics
 spec:
   namespaceSelector:

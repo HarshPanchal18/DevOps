@@ -1,0 +1,48 @@
+# Individual Environment Variables (env)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod
+spec:
+  containers:
+  - name: app-container
+    image: nginx:1.19
+    env:
+    - name: ENV_NAME                      # Name of environment variable
+      valueFrom:
+        configMapKeyRef:
+          name: app-config                # Name of the ConfigMap
+          key: app.environment            # Key within the ConfigMap
+          optional: true                  # Container starts even if ConfigMap/key is missing
+---
+# All ConfigMap Entries (envFrom)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod
+spec:
+  containers:
+  - name: app-container
+    image: nginx:1.19
+    envFrom:
+      - configMapRef:
+        name: app-config                  # Name of the ConfigMap
+        optional: true                    # Pod starts even if ConfigMap is missing
+        prefix: CONFIG_                   # Adds CONFIG_ prefix to all env vars
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod
+spec:
+  volumes:
+    - name: config-volume                    # Define volume name
+      configMap:
+        name: app-config                     # Reference to the ConfigMap
+        defaultMode: 420                     # File permissions (optional)
+  containers:
+    - name: app-container
+      image: nginx:1.19
+      volumeMounts:
+      - name: config-volume                  # Mount the defined volume
+        mountPath: /etc/config               # on Path inside the container
