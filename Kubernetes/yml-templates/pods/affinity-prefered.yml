@@ -6,14 +6,23 @@ spec:
   containers:
     - image: nginx
       name: my-container
-  preferredDuringSchedulingIgnoredDuringExecution:
-    - preference:
-        matchExpressions:
-          - key: topology.kubernetes.io/zone
-            operator: In
-            values:
-              - antarctica-east1
-      weight: 1
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - preference:
+          matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values:
+                - antarctica-east1
+        weight: 1
 
 # Operator      Behavior
 # In            The label value is present in the supplied set of strings

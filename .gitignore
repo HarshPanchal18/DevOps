@@ -15,9 +15,11 @@
 *.terraform*
 *.tfstate*
 *LICENSE.txt*
+*tyv*
 
 # Python env
 /kafka/impl/another-python/env/bin
 /kafka/impl/another-python/env/include
 /kafka/impl/another-python/env/lib
 /kafka/impl/another-python/env/lib64
+*pycache*
