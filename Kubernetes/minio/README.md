@@ -65,7 +65,7 @@ kubectl apply -f sa.yml -n minio-operator
 kubectl apply -f cr-crb.yml -n minio-operator
 kubectl apply -f svc.yml -n minio-operator
 kubectl apply -f sc-pv.yml -n minio-operator
-kubectl apply -f deployment-operator.yml -n minio-operator
+kubectl apply -f deploy-operator.yml -n minio-operator
 kubectl apply -f console-ui.yml -n minio-operator
 ```
 
@@ -78,7 +78,7 @@ kubectl -n minio-operator get secret console-sa-secret -o jsonpath="{.data.token
 Make console service NodePort to access on browser.
 
 ```bash
-kubectl patch svc -n minio-operator --type='json' -p='[
+kubectl patch svc -n minio-operator console --type='json' -p='[
   {"op": "replace", "path": "/spec/type", "value": "NodePort"},
   {"op": "add", "path": "/spec/ports/0/nodePort", "value": 30080}
 ]'
@@ -354,4 +354,100 @@ Specify extensions for compression.
 
 ```bash
 mc admin config set <tenant-name> compression extensions="*" # default: '.txt,.log,.csv,.json,.tar,.xml,.bin'
+```
+
+## EC (Erasure Coding) Calculation
+
+### Case 1: EC3 scheme
+
+```math
+\begin{aligned}
+Servers             & = 7 \\
+Drive capacity      & = 2.91 \ (TiB) \\
+Parity Shards       & = 3 \\
+Data Shards         & = 7 - 3 = 4 \\
+Drives Per Server   & = 1 \\
+
+\\ % Blank line
+
+Tenant Raw Capacity & = Server * Drive Capacity * Drives Per Server \\
+                    & = 7 * 2.91 \\
+                    & = 20.37\ TiB \\
+
+\\ % Blank line
+
+% Logical
+Data Shard Capacity & = Tenant Capacity * (\frac{Data Shards}{Servers}) \\
+                    & = 20.37 * (\frac{4}{7}) \\
+                    & = 11.57\ TiB \\
+
+\\ % Blank line
+
+Data Storage Efficiency & = (\frac{11.57}{20.37}) * 100 \\
+                        & = 57\% \\
+
+\\ % Blank line
+
+% Logical
+Parity Shard Capacity & = Tenant Capacity * (\frac{Parity Shards}{Servers}) \\
+                      & = 20.37 * (\frac{3}{7}) \\
+                      & = 8.8\ TiB \\
+
+\\ % Blank line
+
+Current Data Usage & = 2.56\ TiB \ / \ 11.57\ TiB \\
+
+\\ % Blank line
+
+Raw Data  & = CurrentDataUsage * (\frac{Servers}{Data Nodes}) \\
+          & = 2.56 * (\frac{7}{4}) \\
+          & = 4.48\ TiB
+\end{aligned}
+```
+
+### Case 2: EC2 scheme
+
+```math
+\begin{aligned}
+Servers           & = 7 \\
+Drive Capacity    & = 2.91 \ TiB \\
+Parity Shards     & = 2 \\
+Data Shards       & = 7 - 2 = 5 \\
+Drives Per Server & = 1 \\
+
+\\ % Blank line
+
+Tenant Raw Capacity & = Server * Drive Capacity * Drives Per Server \\
+                    & = 7 * 2.91 * 1 \\
+                    & = 20.37\ TiB \\
+
+\\ % Blank line
+
+% Logical
+Data Shard Capacity & = Tenant Capacity * (\frac{Data Shards}{Servers}) \\
+                    & = 20.37 * (\frac{5}{7}) \\
+                    & = 14.55\ TiB \\
+
+\\ % Blank line
+
+Data Storage Efficiency & = (\frac{14.55}{20.37}) * 100 \\
+                        & = 71.42\% \\
+
+\\ % Blank line
+
+% Logical
+Parity Shard Capacity & = Tenant Capacity * (\frac{Parity Shards}{Servers}) \\
+                      & = 20.37 * (\frac{2}{7}) \\
+                      & = 5.99\ TiB \\
+
+\\ % Blank line
+
+Current Data Usage & = 2.56\ TiB / 14.55\ TiB \\
+
+\\ % Blank line
+
+Raw Data  & = CurrentDataUsage * (\frac{Servers}{Data Shards}) \\
+          & = 2.56 * (\frac{7}{5}) \\
+          & = 3.58\ TiB
+\end{aligned}
 ```
