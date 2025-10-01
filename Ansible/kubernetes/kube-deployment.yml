@@ -1,0 +1,151 @@
+# ansible_playbook kube-deployment.yml
+
+---
+# Install docker
+
+- name: Update repositories cache and install "docker.io" package
+  apt:
+    name: docker.io
+    update_cache: yes
+
+- name: Ensure Docker is enabled and running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+---
+# Install Kubernetes
+
+- name: Download Kubernetes GPG key
+  ansible.builtin.get_url:
+    url: https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key
+    dest: /tmp/kubernetes-release.key
+    mode: '0644'
+
+- name: Convert GPG key to dearmored format
+  ansible.builtin.command: >
+    gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes APT repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /"
+    state: present
+    update_cache: yes
+
+- name: Install Kubernetes tools
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+
+- name: Prevent Kubernetes tools from being upgraded
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+---
+# Deploy Kubernetes
+
+- name: Disable Swap
+  shell: |
+    swapoff -a
+    sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab #sed -i '/swap/d' /etc/fstab
+
+- name: Insert containerd modules
+  blockinfile:
+    path: /etc/modules-load.d/containerd.conf
+    create: yes
+    block: |
+      overlay
+      br_netfilter
+
+- name: Add the Kernel modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Configure Kubernetes Networking
+  blockinfile:
+    path: /etc/sysctl.d/kubernetes.conf
+    create: yes
+    block: |
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.bridge.bridge-nf-call-iptables = 1
+      net.ipv4.ip_forward = 1
+
+- name: Reload Configuration
+  shell: |
+    sudo sysctl --system
+
+- name: Read the hostname
+  setup:
+    filter: ansible_hostname
+
+- name: Configure kublet
+  blockinfile:
+    path: /etc/default/kublet
+    create: yes
+    block: |
+      KUBELET_EXTRA_ARGS="--cgroup-driver=cgroupfs"
+
+- name: Reload systemd and restart kubelet
+  systemd:
+    name: kubelet
+    state: restarted
+    daemon_reload: yes
+
+- name: Configure Docker
+  copy:
+    src: daemon.json
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart Docker
+
+- name: Initalize Kubernetes Control Plane
+  become: yes
+  command: >
+    kubeadm init \
+    --control-plane-endpoint={{ ansible_hostname }} \
+    --upload-certs \
+    --pod-network-cidr=10.200.0.0/16 \
+
+- name: Ensure .kube directory exists with correct permissions
+  file:
+    path: /home/ubuntu/.kube
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0700'
+
+- name: Copy admin.conf to user's kube config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/ubuntu/.kube/config
+    owner: ubuntu
+    group: ubuntu
+    mode: '0600'
+    remote_src: yes
+  become: yes
+
+
+- name: verify the installation
+  command: kubectl --kubeconfig=/home/ubuntu/.kube/config -n kube-system get pods
+  register: kube_status
+
+- name: Debug the status
+  debug:
+    msg: "{{ kube_status.stdout }}"
