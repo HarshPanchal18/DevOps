@@ -257,3 +257,139 @@ This structure ensures that Kafka can handle failures and scale efficiently, dis
 - [8] <https://docs.confluent.io/kafka/introduction.html>
 - [9] <https://kafka.apache.org/intro>
 - [10] <https://kafka.apache.org/documentation/>
+
+## So what Kafka Cruise Control does in following case of rebalance?
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+    name: my-cluster
+
+spec:
+    kafka: {}
+
+    cruiseControl:
+        autoRebalance:
+          - mode: add-brokers
+            template:
+                name: my-add-brokers-rebalancing-template
+          - mode: remove-brokers
+            template:
+                name: my-remove-brokers-rebalancing-template
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: my-add-brokers-rebalancing-template
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec: {}
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: my-remove-brokers-rebalancing-template
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec: {}
+```
+
+In this configuration, you have enabled **auto-rebalancing** in Strimzi’s Cruise Control by specifying the `autoRebalance` field under the `cruiseControl` section of your Kafka custom resource. You have also defined two rebalance templates: one for when brokers are **added** and one for when brokers are **removed**.
+
+### What happens?
+
+- **When you add a broker** to the Kafka cluster, Cruise Control will automatically trigger a rebalance using the `my-add-brokers-rebalancing-template`.
+- **When you remove a broker**, Cruise Control will automatically trigger a rebalance using the `my-remove-brokers-rebalancing-template`.
+
+### What does Cruise Control do during these rebalances?
+
+- **It redistributes partitions and leaders** across the brokers to ensure an even and optimal distribution, according to its default goals and thresholds (since you did not specify custom goals in the templates).
+- The rebalance is performed **automatically**—you do not need to manually create a `KafkaRebalance` resource each time you scale brokers up or down.
+- The templates you referenced are marked with `strimzi.io/rebalance-template: "true"`, so they act as reusable blueprints for the rebalance operation.
+
+### What goals are used?
+
+- Since the `spec` in your templates is empty, **Cruise Control uses its default goals** as defined in its configuration (e.g., balancing CPU, disk, network, rack-awareness, etc.).
+
+---
+
+**Summary:**
+When you add or remove brokers, Strimzi Cruise Control automatically triggers a rebalance using the specified templates, redistributing partitions and leaders to maintain cluster balance according to default optimization goals. No manual intervention is needed for each scaling event.
+
+## For following YAML, what are values for goals? For instance of CpuCapacityGoal, what is threshold value? On what value rebalance should occur?
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+
+metadata:
+  name: kafka-data-rebalance
+  labels:
+    strimzi.io/cluster: kafka-data-connect-cluster
+
+spec:
+  goals:
+    - CpuCapacityGoal
+    - NetworkInboundCapacityGoal
+    - DiskCapacityGoal
+    - RackAwareGoal
+    - MinTopicLeadersPerBrokerGoal
+    - NetworkOutboundCapacityGoal
+    - ReplicaCapacityGoal
+```
+
+In your `KafkaRebalance` YAML, the `goals` list specifies the **optimization goals** that Cruise Control should try to achieve during a rebalance. These are **not threshold values** themselves, but rather the **types of optimizations** (such as balancing CPU, disk, network, etc.) that Cruise Control will consider.
+
+### What are the values for `goals`?
+
+- The values under `goals` (like `CpuCapacityGoal`, `DiskCapacityGoal`, etc.) are the **names of built-in Cruise Control goals**.
+- Each goal represents a specific balancing objective (e.g., balance CPU usage, disk usage, network traffic, etc.).
+
+### What is the threshold for `CpuCapacityGoal` or others?
+
+- **Thresholds and limits are not set in this YAML.**
+- The thresholds for each goal (e.g., what is considered "imbalanced" for CPU, disk, etc.) are defined in the **Cruise Control server configuration**, not in the `KafkaRebalance` resource.
+- For example, `CpuCapacityGoal` uses the `cpu.balance.threshold` and `cpu.capacity.threshold` properties in Cruise Control’s config (typically in `cruisecontrol.properties`).
+
+#### Example (from Cruise Control config)
+
+```properties
+cpu.balance.threshold=1.10
+cpu.capacity.threshold=0.80
+```
+
+- These mean: rebalance if a broker’s CPU utilization is more than 10% above the average, or if a broker’s CPU utilization exceeds 80% of its capacity.
+
+### On what value does rebalance occur?
+
+- **Rebalance occurs when the current cluster state violates one or more of the specified goals, according to the thresholds set in Cruise Control’s configuration.**
+- The `KafkaRebalance` resource tells Strimzi/Cruise Control which goals to optimize for, but not the exact numeric thresholds.
+
+---
+
+**Summary Table:**
+
+| Goal Name                    | What it Balances           | Threshold Location                |
+|------------------------------|----------------------------|-----------------------------------|
+| CpuCapacityGoal              | CPU usage                  | Cruise Control config             |
+| DiskCapacityGoal             | Disk usage                 | Cruise Control config             |
+| NetworkInboundCapacityGoal   | Inbound network traffic    | Cruise Control config             |
+| NetworkOutboundCapacityGoal  | Outbound network traffic   | Cruise Control config             |
+| RackAwareGoal                | Replica distribution       | Cruise Control config             |
+| MinTopicLeadersPerBrokerGoal | Topic leader distribution  | Cruise Control config             |
+| ReplicaCapacityGoal          | Number of replicas         | Cruise Control config             |
+
+---
+
+**If you want to change the thresholds** (e.g., when Cruise Control should consider a rebalance for CPU), you must edit the Cruise Control configuration (not the Strimzi `KafkaRebalance` YAML).
+
+**References:**
+
+- [Strimzi KafkaRebalance docs](https://strimzi.io/docs/operators/latest/using.html#type-KafkaRebalance-reference)
+- [Cruise Control Goals](https://github.com/linkedin/cruise-control/wiki/Goals)
+- [Cruise Control Configuration](https://github.com/linkedin/cruise-control/wiki/Configurations)
