@@ -1,0 +1,19 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaBridge
+
+metadata:
+  name: kafka-bridge
+  namespace: myproject
+
+spec:
+  replicas: 1
+  bootstrapServers: kafka-data-kafka-bootstrap:9092
+  http:
+    port: 8080
+  producer:
+    config:
+      acks: all
+  enableMetrics: true
+
+# In Strimzi, a KafkaBridge is a component that allows HTTP-based clients to produce and consume messages via a REST API.
+# It runs in its own pod with a name typically like: `kafka-data-bridge-xxxx`
