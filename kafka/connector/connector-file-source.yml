@@ -1,0 +1,16 @@
+# https://github.com/strimzi/strimzi-kafka-operator/blob/0.45.0/examples/connect/source-connector.yaml
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: kafka-data-file-source-connector
+  labels:
+    # The strimzi.io/cluster label identifies the KafkaConnect instance in which to create this connector.
+    # That KafkaConnect instance must have the strimzi.io/use-connector-resources annotation set to true.
+    strimzi.io/cluster: kafka-data-connect-cluster
+spec:
+  class: org.apache.kafka.connect.file.FileStreamSourceConnector
+  tasksMax: 2
+  config:
+    file: "/tmp/test.txt" # Path to the file to read
+    topic: mytopic # The topic to which the data from the file will be written.
