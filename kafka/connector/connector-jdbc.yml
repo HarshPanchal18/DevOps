@@ -1,0 +1,22 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: kafka-data-jdbcsrc-connector
+  labels:
+    strimzi.io/cluster: kafka-data-connect-cluster  # Must match your KafkaConnect cluster name
+spec:
+  class: io.confluent.connect.jdbc.JdbcSourceConnector  # JDBC source connector
+  tasksMax: 2
+  config:
+    connection.url: "jdbc:postgresql://postgres:5432/mydb"
+    connection.user: "user"
+    connection.password: "password"
+    table.whitelist: "users"
+    topic.prefix: "jdbc-"
+    mode: "incrementing"
+    incrementing.column.name: "id"
+    plugin.path: "/usr/share/java/kafka-connect-jdbc"               # Path to JDBC connector plugin
+    poll.interval.ms: 10000                                         # Polling interval for new data (10s)
+    validate.non.null: "true"                                       # Validate non-null values
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"    # Converter class for key serialization
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"  # Converter class for value serialization
