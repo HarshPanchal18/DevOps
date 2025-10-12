@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ambassador-pattern-example
+  labels:
+    app: ambassador-pattern
+spec:
+  containers:
+    - name: ambassador
+      image: nginx:latest
+      ports:
+        - containerPort: 80
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    - name: backend
+      image: hashicorp/http-echo:latest
+      args:
+        - "-text=Hello from the backend service"
+      ports:
+        - containerPort: 5678
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+  restartPolicy: Always
