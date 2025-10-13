@@ -1,0 +1,63 @@
+# kubectl apply -f topic-metric.yml
+# This file defines Kafka topics for Connect cluster metrics, offsets, status, and configs.
+# Only apply this if auto topic creation is disabled in your Kafka cluster configuration. (spec.kafka.config.auto.create.topics.enable: false)
+# If auto topic creation is enabled, these topics will be created automatically by Kafka.
+# These topics are used by Kafka Connect to store and manage the state of connectors and tasks.
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: connect-cluster-offsets
+  labels:
+    strimzi.io/cluster: kafka-data-cluster
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    cleanup.policy: compact      # <-- Can be "delete"
+    min.insync.replicas: 2
+    segment.bytes: 1073741824    # 1 GiB segments (optional, common default)
+    retention.ms: 604800000  # 7 days (optional, common default)
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: connect-cluster-status
+  labels:
+    strimzi.io/cluster: kafka-data-cluster
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    cleanup.policy: compact
+    min.insync.replicas: 2
+    segment.bytes: 1073741824
+    retention.ms: 604800000
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: connect-cluster-configs
+  labels:
+    strimzi.io/cluster: kafka-data-cluster
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    cleanup.policy: compact
+    min.insync.replicas: 2
+    segment.bytes: 1073741824
+    retention.ms: 604800000
+
+#
+#```bash
+#kubectl -n myproject run kafka-topic-create -ti --image=quay.io/strimzi/kafka:0.46.0-kafka-4.0.0 --rm=true --restart=Never -- bin/kafka-topics.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --create --topic connect-cluster-configs --partitions 1 --replication-factor 1
+#```
+#
+#```bash
+#kubectl -n myproject run kafka-topic-create -ti --image=quay.io/strimzi/kafka:0.46.0-kafka-4.0.0 --rm=true --restart=Never -- bin/kafka-configs.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --alter --entity-type topics --entity-name connect-cluster-offsets --add-config cleanup.policy=compact
+#kubectl -n myproject run kafka-topic-create -ti --image=quay.io/strimzi/kafka:0.46.0-kafka-4.0.0 --rm=true --restart=Never -- bin/kafka-configs.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --alter --entity-type topics --entity-name connect-cluster-status --add-config cleanup.policy=compact
+#kubectl -n myproject run kafka-topic-create -ti --image=quay.io/strimzi/kafka:0.46.0-kafka-4.0.0 --rm=true --restart=Never -- bin/kafka-configs.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --alter --entity-type topics --entity-name connect-cluster-configs --add-config cleanup.policy=compact
+#```
