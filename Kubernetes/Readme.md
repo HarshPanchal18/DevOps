@@ -3,6 +3,7 @@
 ## Index
 
 - [What is Kubernetes?](#what-is-kubernetes)
+- [Pod lifecycle](#pod-lifecycle)
 - [Kubernetes Service vs Deployment - What's the difference between a Service and a Deployment in Kubernetes?](#kubernetes-service-vs-deployment---whats-the-difference-between-a-service-and-a-deployment-in-kubernetes)
 - [What does ClusterIP, NodePort, and LoadBalancer mean?](#what-does-clusterip-nodeport-and-loadbalancer-mean)
 - [Daemonsets in Kubernetes](#daemonsets-in-kubernetes)
@@ -23,6 +24,7 @@
 - [What are finalizers?](#what-are-finalizers)
 - [CRI, CNI, CSI in Kubernetes](#cri-cni-csi-in-kubernetes)
 - [Kubernetes Networking Bottlenecks](#kubernetes-networking-bottlenecks)
+- [What is a KubeConfig file?](#what-is-a-kubeconfig-file)
 
 ## What is Kubernetes?
 
@@ -150,6 +152,84 @@ Kubernetes provides tools like `etcdctl` snapshot save to back up and restore et
    - Port 10250/TCP: Provides various endpoints used by the API server (listens on all interfaces).
 
 The text emphasizes that the kube-apiserver, etcd, and kubelet are the most critical components to secure, as they expose the most functionality to remote hosts.
+
+## Pod lifecycle
+
+A Pod is an atomic unit or smallest “unit of work” of Kubernetes. It is basic building block of any application deployed on Kubernetes world.
+
+The lifecycle of Pod is very vulnerable and Pods are designed to be ephemeral and are frequently created and destroyed as part of Kubernetes’ self-healing and scaling mechanisms.
+
+### Lifecycle
+
+The pod lifetime in Kubernetes refers to the stages that a pod goes through between creation and termination. Understanding the pod lifecycle is important for managing and troubleshooting pods effectively.
+
+![Pod states](https://o3-sg-apig.shixizhi.huawei.com/enbpitservicegateway/sxzservicecommunity/web/attachment/down-attachment?attachmentId=202411041633071043_image.png)
+
+#### Pending
+
+A pod enters the Pending state upon creation. During this phase, the task of allocating the pod to an appropriate node in the cluster falls under the responsibility of the Kubernetes scheduler. When determining this assignment, the scheduler takes into account various factors including the availability of resources, the affinity of nodes, and the anti-affinity of pods.
+
+**Troubleshooting Guidelines**:
+
+- If you are Pod remains in Pending status, please check resource constraints, node availability, and scheduler errors.
+- Use `kubectl get pods -o wide` to check resource requests/limits and node availability.
+- Review scheduler logs for errors using `kubectl logs kube-scheduler`.
+
+```bash
+controlplane $ kubectl describe pod pod-pending | grep cpu
+cpu:     5030m
+cpu:     2530m
+Warning  FailedScheduling  80s  default-scheduler  0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+```
+
+#### Failed
+
+A pod enters the Failed state when it encounters an error or its containers fail to launch or operate. This suggests an issue with the execution of the module. Although the pod will not be resumed automatically, it is possible to resolve the error by manually deleting or recreating it. It could be due to application errors, resource limitations, or external factors.
+
+**Troubleshooting Guidelines**:
+
+- We need to analyze container logs, event logs, and restart policies.
+- Analyze container logs for error messages. Check event logs for related events with kubectl get events.
+- Review liveness/readiness probe details and configure restart policies appropriately.
+
+#### Unknown
+
+When communication issues arise between the Kubernetes control plane and the pod's node, rendering the pod's status undeterminable, the pod enters the Unknown state. In the event that the node loses connectivity or becomes unresponsive, this may transpire.
+
+**Troubleshooting Guidelines**:
+
+- Pod status cannot be determined due to communication issues with the node. Investigate network connectivity and node health.
+- Verify node connectivity with `kubectl get nodes and ping <node IP>`.
+- Investigate network issues affecting communication with the node.
+
+#### Succeeded
+
+When a pod successfully concludes its primary mission and exits, it transitions into the Succeeded state. This occurs frequently with batch jobs, Cron jobs and one-time activities. After entering the Succeeded state, the pod remains in this condition unless it is deleted explicitly.
+
+The resources occupied by the pod can be reclaimed by the system.
+Troubleshooting Guidelines:
+Verify the expected outcome and cleanup resources if needed.
+
+#### Running
+
+After being allocated to a specific node, a pod enters the Running state. During this phase, the containers of the pod are generated and initiated, and they commence executing on the designated node. Nevertheless, while the containers are undergoing initialization or startup, the pod might not be completely prepared to receive traffic.
+
+Output of Logs of a running Nginx container in a Pod
+
+```bash
+controlplane $ kubectl logs pod-runing
+/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+10-listen-on-ipv6-by-default.sh: info: Getting the checksum of /etc/nginx/conf.d/default.conf
+```
+
+### Verification
+
+- Monitor container logs and resource usage for anomalies. Use liveness and readiness probes to identify issues.
+- Monitor container logs with `kubectl logs <pod name> -c <container name>`.
+- Check resource utilization with `kubectl top pods`.
+- Use liveness and readiness probes to identify unhealthy containers.
 
 ## Kubernetes Service vs Deployment - What's the difference between a Service and a Deployment in Kubernetes?
 
@@ -3146,3 +3226,100 @@ kubectl run perf-client --image=networkstatic/iperf3 --command -- /bin/sh -c “
 - Use eBPF-based CNIs (e.g., Cilium) for high-speed networking.
 - Optimize Linux network stack with proper sysctl tunings.
 - Regularly monitor network throughput and packet drops.
+
+## What is a **KubeConfig** file?
+
+A KubeConfig file holds information about `clusters`, `users`, and `contexts`, allowing Kubernetes to manage connections and enable easy interaction across environments.
+
+### Config Breakdown
+
+**`Clusters`**: Contains the details of Kubernetes clusters, such as the API server endpoint and the cluster's Certificate Authority(CA).
+
+```yaml
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://127.0.0.1:40433
+  name: kind-kind-kube
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://127.0.0.1:43397
+  name: kind-kube-cluster
+```
+
+**`Users`**: Stores credentials (token or certificates) for authenticating the clusters.
+
+```yaml
+users:
+- name: kind-kube-cluster
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: kind-kind-kube
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+```
+
+**`Contexts`**: Links a user to a specific cluster, helping you switch between environments.
+
+```yaml
+contexts:
+- context:
+    cluster: kind-kube-cluster
+    user: kind-kube-cluster
+  name: kind-kube-cluster
+- context:
+    cluster: kind-kind-kube
+    user: kind-kind-kube
+  name: kind-kind-kube
+current-context: kind-kind-kube # which user-cluster combination is currently active.
+```
+
+### Managing the Kubeconfig File with `kubectl`
+
+- View the KubeConfig:
+
+```bash
+kubectl config view
+```
+
+- Switch to a different context:
+
+```bash
+kubectl config use-context kind-kube-cluster
+```
+
+- Add a new cluster:
+
+```bash
+kubectl config set-cluster kind-kube-cluster --server=https://127.0.0.1:43397
+```
+
+- Add a new user:
+
+```bash
+kubectl config set-credentials sys-admin --token=qwerty1234
+```
+
+### KubeConfig Bloat Problem
+
+Creating many short-lived clusters bloats your KubeConfig file with old data.
+
+References to deleted clusters, unused users, and irrelevant contexts remain, making it harder to manage necessary configurations.
+
+#### Existing Solutions
+
+There are a few ways to keep your `KubeConfig` file tidy, but they have limitations:
+
+- **Manual Edits**: You can remove entries, but it's slow and error-prone.
+- **Splitting Files**: Organizes configurations but complicates switching between them.
+- **Custom Scripts**: Automates cleanup, but requires regular updates and may not adapt to changing setups.
+
+#### Better Solution
+
+[KubeTidy](https://kubetidy.io/docs/), a tool built to automatically remove outdated clusters, users, and contexts from your KubeConfig file.
+
+KubeTidy keeps only relevant entries, simplifying management, and backs up your file automatically.
+
+It works on PowerShell (Windows/Linux/macOS) or as a krew plugin with Krew (Linux/macOS).

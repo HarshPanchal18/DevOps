@@ -11,6 +11,8 @@
 - [How to Expand a Kafka Cluster?](#how-to-expand-a-kafka-cluster)
 - [How MirrorMaker2 Connectors Handle Topic Filtering and Renaming](#how-mirrormaker-2-connectors-handle-topic-filtering-and-renaming)
 - [How are internal topics used to manage and track filtered or renamed topics](#how-are-internal-topics-used-to-manage-and-track-filtered-or-renamed-topics)
+- [Partition reassignment in Kafka](#partition-reassignment-in-kafka)
+- [How to attach multiple disk to the kafka broker?](#how-to-attach-multiple-disk-to-the-kafka-broker)
 
 ## How to set up Kafka with Docker
 
@@ -674,3 +676,147 @@ kubectl exec -n myproject kafka-data-kafka-0 -it -- bin/kafka-topics.sh --bootst
 ```bash
 kubectl exec -n myproject kafka-data-kafka-0 -it -- bin/kafka-topics.sh --bootstrap-server kafka-data-kafka-bootstrap:9092 --topic broker-topic --describe
 ```
+
+## How to attach multiple disk to the kafka broker?
+
+With Strimzi, you can attach multiple disks to a Kafka broker by using **JBOD storage** in your `Kafka` custom resource (CR).
+
+### Example: Kafka broker with multiple disks
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: kafka-data
+  namespace: myproject
+spec:
+  kafka:
+    replicas: 3
+    storage:
+      type: jbod
+      volumes:
+        - id: 0 # must be unique per volume. Kafka will mount these under `/var/lib/kafka/data-<id>`.
+          type: persistent-claim
+          size: 100Gi
+          class: fast-disks # ex. SSD
+          deleteClaim: false
+        - id: 1
+          type: persistent-claim
+          size: 200Gi
+          class: bulk-disks # ex. HDD
+          deleteClaim: false
+```
+
+- You can’t change storage type from `jbod` → `ephemeral` or `persistent-claim` later without data loss (you’d need to migrate data).
+- If you add new volumes later, brokers will use them for new partitions, but existing partitions won’t move automatically — you’d need Cruise Control to rebalance data.
+- Each JBOD volume is **per broker** → if you have 3 brokers with 2 volumes each, you’ll get 6 PVCs total.
+
+## How to perform Rebalance in Kafka strimzi using cruise control?
+
+In Strimzi, **Cruise Control** is deployed as an additional component alongside your Kafka cluster and is used for workload rebalancing, partition movement, and optimization. Rebalancing in Strimzi with Cruise Control is usually done via **KafkaRebalance** custom resources (CRs).
+
+Here’s the flow:
+
+### 1. Enable Cruise Control
+
+Make sure your Kafka cluster is deployed with Cruise Control enabled in the `Kafka` CR:
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: my-cluster
+spec:
+  kafka:
+    # ...
+    cruiseControl: {}
+```
+
+This will deploy Cruise Control as part of your Kafka cluster.
+
+---
+
+### 2. Create a KafkaRebalance CR
+
+To trigger a rebalance, you create a `KafkaRebalance` resource in the same namespace as your cluster:
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+  name: rebalance-1
+  labels:
+    strimzi.io/cluster: my-cluster
+spec: {}
+```
+
+- The label `strimzi.io/cluster` must match your Kafka cluster name.
+- Initially, the spec can be empty; you can pass options like `goals` or `skipHardGoalCheck` if you want custom behavior.
+
+---
+
+### 3. Proposal Phase (Pending Proposal → ProposalReady)
+
+After applying the CR, the operator will move it to `PendingProposal` and then to `ProposalReady`.
+At this point, Cruise Control has generated a rebalance plan, but it **won’t apply it yet**.
+
+You can check with:
+
+```bash
+kubectl get kafkarebalance rebalance-1 -o yaml
+```
+
+Look at `.status.conditions` to see if it’s `ProposalReady`.
+
+---
+
+### 4. Approve the Rebalance
+
+Once in `ProposalReady`, you must approve it manually (unless you enable auto-approval):
+
+```bash
+kubectl annotate kafkarebalance rebalance-1 strimzi.io/rebalance=approve
+```
+
+This tells the operator to instruct Cruise Control to execute the plan.
+
+---
+
+### 5. Execution Phase
+
+- Status transitions to `Rebalancing`.
+- Cruise Control moves partitions and adjusts replicas according to its goals.
+
+You can monitor with:
+
+```bash
+kubectl describe kafkarebalance rebalance-1
+```
+
+---
+
+### 6. Completion
+
+When finished, the status moves to `Ready`. At this point, the rebalance is done and you can delete the `KafkaRebalance` CR if not needed anymore.
+
+---
+
+### 7. Optional: Auto-Approval
+
+If you don’t want to approve manually every time, you can configure the `KafkaRebalance` like:
+
+```yaml
+spec:
+  autoApproval:
+    enabled: true
+```
+
+---
+
+**Summary:**
+
+- Enable `cruiseControl` in your `Kafka` CR.
+- Create a `KafkaRebalance` CR.
+- Wait for `ProposalReady`.
+- Annotate with `strimzi.io/rebalance=approve`.
+- Wait for rebalance to finish.

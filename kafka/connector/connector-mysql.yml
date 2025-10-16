@@ -1,0 +1,24 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+
+metadata:
+  name: mysql-connector
+  labels:
+    strimzi.io/cluster: kafka-data-connect-cluster
+
+spec:
+  class: io.debezium.connector.mysql.MySqlConnector
+  tasksMax: 1
+  config:
+    database.history.kafka.bootstrap.servers: lab:9092
+    database.history.kafka.topic: sql-topic
+    database.hostname: 1.1.1.1
+    database.include.list: dbname
+    database.user: xyzname
+    database.password: xyz
+    database.port: 3000
+    database.server.id: 1333
+    database.server.name: dbznm
+    include.schema.changes: true
+    table.include.list: table1
+    topic.creation.enable: true

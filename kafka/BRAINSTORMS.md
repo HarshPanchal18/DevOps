@@ -257,3 +257,269 @@ This structure ensures that Kafka can handle failures and scale efficiently, dis
 - [8] <https://docs.confluent.io/kafka/introduction.html>
 - [9] <https://kafka.apache.org/intro>
 - [10] <https://kafka.apache.org/documentation/>
+
+## So what Kafka Cruise Control does in following case of rebalance?
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+    name: my-cluster
+
+spec:
+    kafka: {}
+
+    cruiseControl:
+        autoRebalance:
+          - mode: add-brokers
+            template:
+                name: my-add-brokers-rebalancing-template
+          - mode: remove-brokers
+            template:
+                name: my-remove-brokers-rebalancing-template
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: my-add-brokers-rebalancing-template
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec: {}
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+    name: my-remove-brokers-rebalancing-template
+    annotations:
+        strimzi.io/rebalance-template: "true"
+# no goals specified, using the default goals from the Cruise Control configuration
+spec: {}
+```
+
+In this configuration, you have enabled **auto-rebalancing** in Strimzi’s Cruise Control by specifying the `autoRebalance` field under the `cruiseControl` section of your Kafka custom resource. You have also defined two rebalance templates: one for when brokers are **added** and one for when brokers are **removed**.
+
+### What happens?
+
+- **When you add a broker** to the Kafka cluster, Cruise Control will automatically trigger a rebalance using the `my-add-brokers-rebalancing-template`.
+- **When you remove a broker**, Cruise Control will automatically trigger a rebalance using the `my-remove-brokers-rebalancing-template`.
+
+### What does Cruise Control do during these rebalances?
+
+- **It redistributes partitions and leaders** across the brokers to ensure an even and optimal distribution, according to its default goals and thresholds (since you did not specify custom goals in the templates).
+- The rebalance is performed **automatically**—you do not need to manually create a `KafkaRebalance` resource each time you scale brokers up or down.
+- The templates you referenced are marked with `strimzi.io/rebalance-template: "true"`, so they act as reusable blueprints for the rebalance operation.
+
+### What goals are used?
+
+- Since the `spec` in your templates is empty, **Cruise Control uses its default goals** as defined in its configuration (e.g., balancing CPU, disk, network, rack-awareness, etc.).
+
+---
+
+**Summary:**
+When you add or remove brokers, Strimzi Cruise Control automatically triggers a rebalance using the specified templates, redistributing partitions and leaders to maintain cluster balance according to default optimization goals. No manual intervention is needed for each scaling event.
+
+## For following YAML, what are values for goals? For instance of CpuCapacityGoal, what is threshold value? On what value rebalance should occur?
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+
+metadata:
+  name: kafka-data-rebalance
+  labels:
+    strimzi.io/cluster: kafka-data-connect-cluster
+
+spec:
+  goals:
+    - CpuCapacityGoal
+    - NetworkInboundCapacityGoal
+    - DiskCapacityGoal
+    - RackAwareGoal
+    - MinTopicLeadersPerBrokerGoal
+    - NetworkOutboundCapacityGoal
+    - ReplicaCapacityGoal
+```
+
+In your `KafkaRebalance` YAML, the `goals` list specifies the **optimization goals** that Cruise Control should try to achieve during a rebalance. These are **not threshold values** themselves, but rather the **types of optimizations** (such as balancing CPU, disk, network, etc.) that Cruise Control will consider.
+
+### What are the values for `goals`?
+
+- The values under `goals` (like `CpuCapacityGoal`, `DiskCapacityGoal`, etc.) are the **names of built-in Cruise Control goals**.
+- Each goal represents a specific balancing objective (e.g., balance CPU usage, disk usage, network traffic, etc.).
+
+### What is the threshold for `CpuCapacityGoal` or others?
+
+- **Thresholds and limits are not set in this YAML.**
+- The thresholds for each goal (e.g., what is considered "imbalanced" for CPU, disk, etc.) are defined in the **Cruise Control server configuration**, not in the `KafkaRebalance` resource.
+- For example, `CpuCapacityGoal` uses the `cpu.balance.threshold` and `cpu.capacity.threshold` properties in Cruise Control’s config (typically in `cruisecontrol.properties`).
+
+#### Example (from Cruise Control config)
+
+```properties
+cpu.balance.threshold=1.10
+cpu.capacity.threshold=0.80
+```
+
+- These mean: rebalance if a broker’s CPU utilization is more than 10% above the average, or if a broker’s CPU utilization exceeds 80% of its capacity.
+
+### On what value does rebalance occur?
+
+- **Rebalance occurs when the current cluster state violates one or more of the specified goals, according to the thresholds set in Cruise Control’s configuration.**
+- The `KafkaRebalance` resource tells Strimzi/Cruise Control which goals to optimize for, but not the exact numeric thresholds.
+
+---
+
+**Summary Table:**
+
+| Goal Name                    | What it Balances           | Threshold Location                |
+|------------------------------|----------------------------|-----------------------------------|
+| CpuCapacityGoal              | CPU usage                  | Cruise Control config             |
+| DiskCapacityGoal             | Disk usage                 | Cruise Control config             |
+| NetworkInboundCapacityGoal   | Inbound network traffic    | Cruise Control config             |
+| NetworkOutboundCapacityGoal  | Outbound network traffic   | Cruise Control config             |
+| RackAwareGoal                | Replica distribution       | Cruise Control config             |
+| MinTopicLeadersPerBrokerGoal | Topic leader distribution  | Cruise Control config             |
+| ReplicaCapacityGoal          | Number of replicas         | Cruise Control config             |
+
+---
+
+**If you want to change the thresholds** (e.g., when Cruise Control should consider a rebalance for CPU), you must edit the Cruise Control configuration (not the Strimzi `KafkaRebalance` YAML).
+
+**References:**
+
+- [Strimzi KafkaRebalance docs](https://strimzi.io/docs/operators/latest/using.html#type-KafkaRebalance-reference)
+- [Cruise Control Goals](https://github.com/linkedin/cruise-control/wiki/Goals)
+- [Cruise Control Configuration](https://github.com/linkedin/cruise-control/wiki/Configurations)
+
+## Give a scenario where following Rebalance needs to be occur
+
+```yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+
+metadata:
+  name: remove-disk-rebalance
+  labels:
+    strimzi.io/cluster: kafka-data-connect-cluster
+
+# no goals specified, using the default goals from the Cruise Control configuration
+spec:
+  mode: remove-disks
+  moveReplicasOffVolumes:
+    - brokerId: 0
+      volumeIds: [1]
+```
+
+### What does this CR mean?
+
+```yaml
+spec:
+  mode: remove-disks
+  moveReplicasOffVolumes:
+    - brokerId: 0
+      volumeIds: [1]
+```
+
+- **`mode: remove-disks`** → Instead of doing a cluster-wide rebalance, Cruise Control will move replicas away from *specific storage volumes*.
+- **`moveReplicasOffVolumes`** → Here you specify which broker(s) and which disk(s) to drain.
+
+  - `brokerId: 0` → target broker is broker 0.
+  - `volumeIds: [1]` → specifically volume ID `1` on that broker.
+
+Cruise Control will then generate a plan to move all partitions/replicas off **broker 0’s volume 1**, redistributing them to other available brokers/disks.
+
+---
+
+### When would you use this?
+
+You’d create such a rebalance when you need to **decommission or replace a specific disk on a broker**.
+
+Example scenarios:
+
+1. **Disk Failure / Predictive Replacement**
+
+   - You detect errors (I/O issues, SMART alerts, high reallocation counts) on `volumeId=1` of `brokerId=0`.
+   - Before physically removing/replacing that disk, you run this rebalance so no Kafka replicas remain there.
+   - Once drained, you can safely detach or swap the disk without risking data loss.
+
+2. **Storage Migration**
+
+   - Suppose broker 0 had multiple storage volumes, and you’re migrating partitions from old/slow storage (e.g., HDD) to new/fast storage (e.g., SSD).
+   - You’d use this CR to drain just the old disk (`volumeId=1`) while keeping the broker online.
+
+3. **Cluster Maintenance**
+
+   - Your ops team plans to repurpose or resize a disk attached to broker 0.
+   - To avoid downtime, you use `remove-disks` to empty it first.
+
+---
+
+### How it plays out
+
+1. You apply the above `KafkaRebalance` CR.
+2. Operator asks Cruise Control for a **removal proposal**.
+3. Status goes to `ProposalReady`.
+4. You approve (or auto-approve).
+5. Cruise Control migrates the replicas off `broker 0, volume 1`.
+6. After completion, that volume has no Kafka replicas and can be safely removed/replaced.
+
+This CR is used when **you want to decommission a specific disk on a broker without downtime** — e.g., due to failure, hardware refresh, or storage migration.
+
+## What is the role of REST API in Kafka CruiseControl? Who interacts with that component? How?
+
+The **REST API is at the heart of Cruise Control**, both in plain Apache Kafka deployments and when managed by Strimzi.
+
+### Role of the REST API in Cruise Control
+
+Cruise Control exposes a **REST API** (usually on port `9090`) which is the **only way to interact with it**.
+Through this API, you can:
+
+- Request optimization proposals (rebalance plans).
+- Execute proposals (apply rebalance).
+- Query cluster load, broker stats, partition distribution.
+- Perform cluster maintenance actions (add/remove brokers, fix anomalies).
+
+Essentially, the REST API is the control surface for Cruise Control.
+
+### Who interacts with the REST API?
+
+In **Strimzi**, you as a user don’t normally call the REST API directly. Instead:
+
+1. **Strimzi Kafka Operator**
+
+   - The operator talks to Cruise Control REST API on your behalf.
+   - When you create a `KafkaRebalance` CR, the operator translates that into REST API calls to Cruise Control.
+   - The operator also polls the REST API to check proposal status, execution progress, and anomalies.
+
+2. **End Users (Optional)**
+
+   - In a raw Kafka + Cruise Control setup (without Strimzi), admins would directly send `curl` requests to the Cruise Control REST API.
+   - In Strimzi-managed clusters, this is abstracted away, but you *can* expose the REST API externally (not recommended unless you want manual control).
+
+### How does interaction happen in Strimzi?
+
+Example flow:
+
+1. You create a `KafkaRebalance` CR.
+2. Strimzi operator calls Cruise Control REST API `GET /proposals` → gets an optimization proposal.
+3. Operator updates the CR status to `ProposalReady`.
+4. You approve rebalance via annotation.
+5. Operator calls Cruise Control REST API `POST /proposals?json=true&dryrun=false` → executes the rebalance.
+6. Operator polls REST API endpoints to update CR status (`Rebalancing → Ready`).
+
+### Why REST API is kept?
+
+Even though Strimzi shields you from it:
+
+- It’s still useful for debugging or advanced ops (e.g., running ad-hoc queries about broker load).
+- Strimzi’s implementation is modular — if tomorrow they support more Cruise Control features, it’s just a matter of mapping more CR fields to REST API calls.
+- If you bypass Strimzi, you could directly use `curl` to hit Cruise Control REST endpoints.
+
+**In short:**
+
+- The REST API is Cruise Control’s command-and-control interface.
+- In Strimzi, **the Kafka Operator is the main client** of this REST API.
+- Users interact indirectly through `KafkaRebalance` CRs (or directly with `curl` if you expose it manually).

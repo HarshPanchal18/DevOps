@@ -23,6 +23,8 @@ Kafka architecture is based on **`producer-subscriber`** model and follows distr
 - [Kafka Tuning](#kafka-high-performance-tuning)
 - [Kafka Backup](#backup-of-kafka-data-and-configurations)
 - [Kafka MirrorMaker](#what-is-kafka-mirrormaker)
+- [What is Cruise Control in Kafka?](#what-is-cruise-control-in-kafka)
+- [DLQ in Kafka](#dlq-dead-letter-queue-in-kafka)
 
 ## Core Components of Kafka Architecture
 
@@ -447,6 +449,10 @@ The key features of SCRAM are:
 SCRAM is designed to be a more secure alternative to traditional password-based authentication mechanisms, such as plaintext password transmission or the use of unsalted hashes.
 It is commonly used in protocols like XMPP, LDAP, and MongoDB to provide secure authentication between clients and servers.
 
+### Reference
+
+- <https://www.researchgate.net/profile/Sean-Rooney/publication/357816909_Securing_Kafka_with_Encryption-at-Rest/links/62cfc4530c0767331a89eca0/Securing-Kafka-with-Encryption-at-Rest.pdf>
+
 ## What are Kafka Connectors?
 
 Kafka connectors are pluggable components used within the Kafka Connect framework to move data between Apache Kafka and external systems, such as databases, file systems, cloud services, or search indexes. They simplify the integration process, allowing you to build robust data pipelines without custom code.
@@ -849,8 +855,6 @@ Additionally, Strimzi provides Drain Cleaner, a separate tool that can be used a
 
     The User Operator watches for changes to `KafkaUser` custom resources and applies the necessary changes to the Kafka cluster.
 
-    <!-- ![User Operator](<https://strimzi.io/docs/operators/latest/images/user-operator.png> "User Operator") -->
-
     The User Operator manages Kafka users by watching for `KafkaUser` resources that describe Kafka users, and ensuring that they are configured properly in the Kafka cluster.
 
     ```yaml
@@ -899,8 +903,6 @@ Additionally, Strimzi provides Drain Cleaner, a separate tool that can be used a
       userOperator:
         reconciliationInterval: 60s
     ```
-
-    <!-- ![Entity Operator](<https://strimzi.io/docs/operators/latest/images/entity-operator.png> "Entity Operator") -->
 
 5. Drain Cleaner
 
@@ -1126,7 +1128,7 @@ Cruise Control is one of the earliest open source tools to provide a solution fo
 
 ### Architecture
 
-Cruise Control is integrated with Kafka through metrics reporting. In CDP it connects to Cloudera Manager’s time series database to fetch metrics.
+Cruise Control is integrated with Kafka through metrics reporting.
 
 Based on these metrics it builds an internal picture of the cluster, the so-called workload model, that will be used as the input of the optimization based on parameters such as network throughput, CPU or disk usage. These optimizations — or proposals — will be executed upon user request or automatically depending on how Cruise Control is configured.
 
@@ -1136,11 +1138,13 @@ This is a pluggable component that fetches and stores Kafka metrics. The open so
 
 ### Unbalanced workloads
 
-When a new topic is created in Kafka, the partitions and its replicas are distributed evenly among the available brokers in the cluster. This is a wise behavior if your cluster is empty and you have no idea of your actual workload for different partitions. Figure 1 shows an example of how eight topics with three partitions are distributed across a cluster of three brokers. Partitions belonging to the same topic have the same color.
+When a new topic is created in Kafka, the partitions and its replicas are distributed evenly among the available brokers in the cluster. This is a wise behavior if your cluster is empty and you have no idea of your actual workload for different partitions.
+
+Figure (1) shows an example of how **eight topics with three partitions are distributed across a cluster of three brokers**. Partitions belonging to the same topic have the same color.
 
 ![How 8 topics with 3 equal partitions are distributed across a cluster of 3 brokers.](https://developers.redhat.com/sites/default/files/styles/article_floated/public/equal-partitions_0.png.webp?itok=ZEXJShGN)
 
-_An illustration of a topic with eight partitions and three replicas that is distributed across a cluster of three brokers with equal partitions._
+(_An illustration of a topic with eight partitions and three replicas that is distributed across a cluster of three brokers with equal partitions._)
 
 Over time, layering multiple topics from different applications can result in partitions with different sizes and workloads. Simply increasing the size of the cluster does not solve the problem. In fact, the new cluster member will be used along with the existing ones to accommodate newly created topic partitions, but it won’t change the assignment of the existing topics.
 
@@ -1148,7 +1152,7 @@ In below figure, a cluster running out of resources expands with a new broker, t
 
 ![The new broker hosts only new partition replicas.](https://developers.redhat.com/sites/default/files/styles/article_floated/public/scaled-unbalanced.png.webp?itok=ueDaIiCX)
 
-_An illustration of a new broker hosting only new partition replicas._
+(_An illustration of a new broker hosting only new partition replicas._)
 
 A Kafka cluster can be unbalanced from these different points of view:
 
@@ -1165,9 +1169,9 @@ Trying to improve the partition assignment manually is **tedious and error prone
 
 ### Cruise Control for Apache Kafka
 
-LinkedIn, who originally created Apache Kafka and operates it on a large scale, developed **Cruise Control** to keep their clusters healthy. Then they made it open source.
+LinkedIn developed **Cruise Control** to keep their clusters healthy.
 
-Here is a summary of the key features of Kafka Cruise Control:
+Here are **key features** of Kafka Cruise Control:
 
 - Resource utilization tracking for brokers, topics, and partitions.
 - Multi-goal rebalance proposal generation (subset)
@@ -1176,7 +1180,94 @@ Here is a summary of the key features of Kafka Cruise Control:
 - Per-broker replica count violation check
 - Resource utilization balance (CPU, DISK, Network I/O)
 - Leader traffic distribution
-- Actualize the previous proposal:
+- Actualize the previous proposal
 - Rebalance the current partition topology
 - Rebalance on newly added brokers
 - Rebalance before removing brokers
+
+- Wiki: <https://github.com/linkedin/cruise-control/wiki>
+- Cruise control properties: <https://github.com/linkedin/cruise-control/blob/main/config/cruisecontrol.properties>
+- Goals: <https://github.com/linkedin/cruise-control#goals>
+- Rebalance Modes: <https://github.com/strimzi/strimzi-kafka-operator/blob/ecb872dd2fc413121e1e46b43784316355d058a4/documentation/modules/cruise-control/proc-generating-optimization-proposals.adoc#L64>
+- Cruise Control Templates: <https://github.com/strimzi/strimzi-kafka-operator/tree/0.45.0/examples/cruise-control>
+- Metrics: <https://github.com/strimzi/strimzi-kafka-operator/blob/0.45.0/examples/metrics/kafka-cruise-control-metrics.yaml>
+- Capacity overrides: <https://strimzi.io/docs/operators/latest/configuring#property-cruise-control-capacity-overrides-reference>
+- Default Config Values for Goals: <https://github.com/linkedin/cruise-control/blob/bea2bcbd50936c4b152e59dbf3803b990917395d/cruise-control/src/main/java/com/linkedin/kafka/cruisecontrol/config/constants/AnalyzerConfig.java>
+- Config Goals: <https://strimzi.io/blog/2020/06/15/cruise-control/>
+- Guide: <https://blog.devgenius.io/kafka-rebalancing-when-and-how-it-happens-d81f4050eeae>
+
+## DLQ (Dead Letter Queue) in Kafka
+
+Apache Kafka has emerged as a leading platform for building real - time data pipelines and streaming applications.
+
+Kafka **Dead Letter Queues (DLQs)** play a crucial role in handling messages that cannot be processed successfully by consumers. A DLQ is a _special topic_ where failed messages are sent, allowing developers to isolate and analyze issues without losing important data.
+
+When a consumer encounters an error while processing a message, instead of discarding the message, it can be sent to the DLQ. This helps in preserving the data for later analysis and retry.
+
+### Reasons for Message Failure
+
+**Deserialization Errors**: When the message format does not match the expected format for deserialization.
+**Business Logic Errors**: Errors in the application’s business logic while processing the message.
+**External System Failures**: Failures in external systems such as databases or APIs that the consumer depends on.
+
+### Typical Usage Example
+
+Consider a scenario where you have a Kafka topic named orders that contains messages about new orders. A consumer application is responsible for processing these orders and storing them in a database.
+
+**Message Production**: Producers send order messages to the orders topic.
+**Message Consumption**: The consumer reads messages from the orders topic.
+**Error Handling**: If an error occurs while processing an order (e.g., database connection failure), the consumer sends the failed message to a DLQ topic named for instance, `orders-dlq`.
+**Analysis and Retry**: A _separate process_ can then analyze the messages in the DLQ and retry processing them after fixing the underlying issues.
+
+### Common Practise
+
+#### Creating a DLQ Topic
+
+When setting up a Kafka cluster, create a dedicated DLQ topic for each main topic or a set of related topics.
+
+You can use the Kafka command - line tools to create a topic:
+
+```bash
+kafka-topics --create --bootstrap-servers localhost:9092 --replication-factor 1 --partitions 1 --topic orders-dlq
+```
+
+#### Sending Messages to DLQ
+
+In your consumer code, catch exceptions and send the failed messages to the DLQ. You can use the Kafka producer API to send messages to the DLQ topic.
+
+#### Monitoring DLQ
+
+Regularly monitor the DLQ topic to identify patterns of failures. Tools like `Kafka Connect`, `Confluent Control Center`, or custom monitoring scripts can be used for this purpose.
+
+#### Monitoring Retry Counts
+
+It’s important to monitor the retry counts of messages. High retry counts may indicate a persistent problem in the system, such as a misconfigured service or a bug in the processing logic.
+
+#### Logging Errors
+
+Detailed error logging is crucial. When a message fails to process, log the error message, the message content, and the retry count. This information can be used for debugging and root - cause analysis.
+
+#### Separating DLQ by Error Type
+
+Instead of having a single DLQ topic, it can be beneficial to have multiple DLQ topics based on the type of error. This makes it easier to analyze and handle different types of failures.
+
+### Best Practices
+
+#### Retry Mechanism
+
+Implement a retry mechanism in your consumer code. Instead of immediately sending a message to the DLQ, retry processing the message a few times with a backoff strategy. For example, you can use an exponential backoff where the time between retries doubles after each failure.
+
+#### Isolation and Separation
+
+Keep the DLQ topic separate from the main topic. This helps in isolating the failed messages and prevents them from interfering with the normal processing of new messages.
+
+#### DLQ Cleanup
+
+Set up a process to clean up old messages from the DLQ after a certain period. This helps in managing the storage space of the Kafka cluster.
+
+#### Idempotent Processing
+
+Ensure that the message processing logic is idempotent. This means that processing a message multiple times should have the same effect as processing it once. This is important because retries may cause a message to be processed more than once.
+
+- Java Example [CodeStudy.net](https://www.codestudy.net/blog/kafka-dlq-best-practices)
+- Retry Mechanism Java Example [CodeStudy.net](https://www.codestudy.net/blog/kafka-dlq-retry/#typical-usage-example)
