@@ -204,3 +204,52 @@ gpg --export-ssh-key ABC123456789DEF0
     git commit -m "new commit message"
     git push -f
     ```
+
+## Access data from deleted fork repo
+
+1. Fork a repo in your account.
+2. Make a commit.
+3. Save commit's `SHA` code for future use.
+4. Delete forked repo.
+5. Now, go on the parent repo from which you have forked.
+6. Append `/commit/YOUR-COMMIT-SHA` to the repo's URL.
+
+- You can do the same for Org's repository.
+
+## Access data from deleted repository
+
+1. Create a new private repo in Org.
+2. Fork that repo inside Org. Both repos will be private.
+3. Add a new file (just make a new commit) into forked.
+4. Make parent repo public. The forked repo is still in private visibility.
+5. Append forked repo's commit hash to the public repo URL.
+
+## Better at GIT
+
+### `git log` with more visibility
+
+Using `--graph` and `--format` we can quickly get a summary view of git commits in our project.
+
+```bash
+git log --graph --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%an%C(reset)%C(bold yellow)%d%C(reset) %C(dim white)- %s%C(reset)' --all
+```
+
+## Understanding a particular commit
+
+You’ll often want to understand what’s happening with a specific commit. `git show` can show you a high-level view of changes in a commit, but it also lets you see changes to specific files.
+
+### View the summary of a commit
+
+```bash
+git show <commit> --stat
+```
+
+Using the --stat flag you’ll see the commit summary along with the files that changed and details on how they changed.
+
+### View specific file changes for a commit
+
+When you want to dive into the specific line changes in a particular file, use `git show` with the file path.
+
+```bash
+git show <commit> -- <filepath>
+```
