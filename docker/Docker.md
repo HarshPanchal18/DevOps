@@ -170,3 +170,210 @@ docker buildx build --platform linux/amd64,linux/arm64 -t my-app:latest --push .
 ```
 
 Use Case: In a microservices deployment spanning both cloud and edge, use docker buildx to build multi-architecture images that run seamlessly on x86 cloud servers and ARM-based edge devices. This approach ensures consistent behaviour across environments without maintaining separate images. Though powerful, it's still underused due to its newer tooling and additional setup requirements. To get started, initialise a Buildx builder docker buildx create --use and build with --platform linux/amd64,linux/arm64 for broad compatibility.
+
+## Misconfigurations You Should Avoid
+
+1. Running Docker container in rootless mode
+
+    ```Dockerfile
+    FROM python:3.10
+    RUN pip install flask
+    ```
+
+    By default, Docker containers run as the root user, which increases the risk of privilege escalation if the container is compromised. A safer practice is to create and use a non root user inside the container.
+
+    ```Dockerfile
+    FROM python:3.10
+    RUN pip install flask
+    USER normaluser
+    ```
+
+2. Using tagged minimal base images and multistage builds
+
+    ```Dockerfile
+    FROM python:3.10 as build
+    WORKDIR /app
+    COPY requirements.txt app.py ./
+    RUN pip install -r requirements.txt
+    EXPOSE 5000
+    CMD ["python", "app.py"]
+    ```
+
+    Using large untagged images leads to bloated containers and unpredictable builds. A better approach is to use versioned tags and multistage builds. Here, dependencies are installed in a builder image, and only the required artifacts are copied into a lightweight runtime image.
+
+    ```Dockerfile
+    FROM python:3.10 as build
+    WORKDIR /app
+    COPY requirements.txt app.py ./
+    RUN pip install -r requirements.txt
+    FROM gcr.io/distroless/python3
+    COPY --from=build /app /
+    EXPOSE 5000
+    CMD ["python", "app.py"]
+    ```
+
+3. Using COPY command with specific parameters
+
+    ```Dockerfile
+    COPY . .
+    ```
+
+    Using a broad `COPY . .` can unintentionally include unnecessary files such as configs, build artifacts, or secrets. It makes images larger and riskier. Instead, copy only the required files or directories explicitly, like `COPY target/app.jar /app`.
+
+    ```Dockerfile
+    COPY target/app.jar /app
+    ```
+
+4. Update and install packages in the same RUN instruction
+
+    ```Dockerfile
+    FROM python:3.10
+    RUN pip install --upgrade pip
+    RUN pip install flask requests==2.31.*
+    ```
+
+    Splitting updates and package installations across multiple RUN layers leads to larger image sizes and cache inconsistencies. Combining them in a single RUN reduces layers, keeps images cleaner, and ensures package versions remain consistent during builds.
+
+    ```Dockerfile
+    FROM python:3.10
+    RUN pip install --upgrade pip && pip install \
+        flask \
+        requests==2.31.*
+    ```
+
+5. Removing unnecessary dependencies
+
+    ```Dockerfile
+    FROM debian:11
+    RUN apt-get update && apt-get -y install \
+        python3 \
+        python3-venv
+    ```
+
+    Package managers often install extra packages by default, which makes images larger and more complex. Installing only what is strictly required keeps the image lightweight, improves maintainability, and reduces the potential attack surface.
+
+    ```Dockerfile
+    FROM debian:11
+    RUN apt-get update && apt-get -y install --no-install-recommends \
+        python3 \
+        python3-venv
+    ```
+
+## Docker Daemon Logs: How to Find, Read, and Use Them
+
+Sometimes Docker behaves in ways that catch you off guard—containers don’t start as expected, images pause during pull, or networking takes longer than usual to respond.
+
+In those moments, the Docker daemon logs are your best reference point.
+
+These logs capture exactly what the Docker engine is doing at any given time. They give you a running account of system state, performance signals, and events that help you understand what’s happening beneath the surface.
+
+### What is the Docker Daemon?
+
+The Docker daemon (dockerd) is the background process that makes Docker work. It listens for API requests and manages things like images, containers, networks, and volumes.
+
+When you run a command such as docker run or docker build, the client talks to the daemon. From there, the daemon pulls images, starts containers, assigns resources, and keeps everything running. Without it, Docker doesn’t function.
+
+#### Why Docker Daemon Logs are Important
+
+Daemon logs are the running account of what Docker is doing. They give you:
+
+* Troubleshooting clues – If a container won’t start or an image pull hangs, logs show where the issue began.
+* Performance signals – Spikes or repeated warnings can point to bottlenecks before they cause bigger trouble.
+* Security visibility – Image pulls, container creation, and other key actions are logged, giving you an audit trail.
+* System health – Startup events, config changes, and runtime details tell you how Docker is behaving over time.
+* Compliance coverage – For many teams, keeping these logs isn’t optional — they’re part of the record.
+* Daemon logs turn Docker from a black box into something you can observe and reason about.
+
+#### Where to Find Docker Daemon Logs
+
+Finding the Docker daemon logs is the first step in troubleshooting or monitoring Docker. The exact location depends on your OS and how Docker was installed, but there are clear defaults you can rely on.
+
+##### Linux Systems
+
+Most Linux distributions integrate Docker logs with the system’s logging service. Depending on your setup, you’ll either use journalctl (`systemd`) or check traditional log files.
+
+###### Using journalctl (systemd-based distros: Ubuntu, Debian, Fedora, CentOS 7+)
+
+The daemon logs are stored in the systemd journal.
+
+```bash
+# Show all daemon logs
+journalctl -u docker.service
+
+# Follow logs live (like tail -f)
+journalctl -u docker.service -f
+
+# Filter by time
+journalctl -u docker.service --since "1 hour ago"
+journalctl -u docker.service --since "2023-10-26 10:00:00" --until "2023-10-26 11:00:00"
+```
+
+You may need sudo privileges to run these commands.
+Using log files (rsyslog or older Linux):
+Some older distributions, or custom installs, still write logs directly to files:
+
+```bash
+/var/log/docker.log
+/var/log/messages (mixed with system logs)
+/var/log/syslog (mixed with system logs)
+```
+
+Examples:
+
+```bash
+sudo tail -f /var/log/docker.log
+sudo cat /var/log/syslog | grep dockerd
+```
+
+##### Windows Systems
+
+On Windows, Docker integrates with the Event Viewer and Docker Desktop.
+
+* Event Viewer:
+  * Open Event Viewer (`eventvwr.msc`)
+  * Navigate to Windows Logs → Application
+  * Filter by Source (`Docker` or `dockerd`) to see events such as startup, shutdown, or critical errors
+* Docker Desktop Diagnostics:
+  * Click the Docker icon in the system tray
+  * Select Troubleshoot (bug icon) → Get logs
+  * This generates a diagnostics bundle that includes daemon logs plus other useful info
+* `dockerd.exe` output (development use):
+
+Running `dockerd.exe` directly from a terminal stream logs to the console. Handy for debugging startup issues, but not something you’d rely on in production.
+
+##### macOS Systems
+
+Docker on macOS runs inside a lightweight Linux VM managed by Docker Desktop.
+
+Docker Desktop Diagnostics (recommended):
+
+* Click the Docker whale icon in the macOS menu bar
+  * Go to Troubleshoot → Get logs
+  * This produces a bundle with daemon logs and other Docker Desktop components
+* Accessing the VM directly (advanced):
+  * Advanced users can log into the Linux VM created by Docker Desktop and use journalctl from inside. This is rarely needed since the diagnostics tool covers most use cases.
+
+#### A Quick Reference
+
+| Platform        | Default Method                           | Alternative                              |
+|-----------------|------------------------------------------|------------------------------------------|
+| Linux (systemd) | journalctl -u docker.service             | Time filtering with --since / --until    |
+| Linux (older)   | /var/log/docker.log                      | /var/log/messages or /var/log/syslog     |
+| Windows         | Event Viewer → Application logs          | Docker Desktop → Troubleshoot → Get logs |
+| macOS           | Docker Desktop → Troubleshoot → Get logs | Advanced: VM access with journalctl      |
+
+### How to Read Docker Daemon Logs Effectively
+
+Once you know where the logs are, the next step is learning how to make sense of them. Docker daemon logs can look busy, but with the right approach, you can quickly spot the details that matter.
+
+#### Log Levels: How to Prioritize
+
+Docker logs are grouped by severity. These levels help you decide what to look at first:
+
+* DEBUG – Very detailed output for tracing execution flow. You’ll use this when you need fine-grained insight into how the daemon is operating.
+* INFO – Normal events: container start/stop, image pulls, network setup. These show you what’s happening under normal conditions.
+* WARN – Signals something isn’t ideal, but Docker is still running. Examples include deprecated configs or resource pressure. These are worth reviewing before they turn into larger issues.
+* ERROR – An operation failed, like a container that didn’t start or a registry connection that broke. These require action.
+* FATAL – The daemon itself has stopped working. This is rare but critical to address right away.
+
+A good habit is to start with ERROR and FATAL, then review WARN for additional context. Drop into INFO or DEBUG when you need a fuller picture.
