@@ -890,3 +890,99 @@ Implementation Architecture
 * Talos ensures immutable, locked down nodes.
 * Zarf solves dependency and packaging challenges.
 * No internet needed at runtime.
+
+## How To Perform Git clone in Kubernetes Pod deployment
+
+This serves as an ideal solution if you store application code in Git version control and would like to pull the latest code during deployment without rebuilding container image. A kubernetes feature which allows us to perform this operation is Init Containers.
+
+`Init Containers` are specialized type of containers that run before application containers in a Pod. These containers can contain utilities or setup scripts not present in an application image. There is nothing so unique about Init containers as they can be specified in the Pod specification alongside the containers array.
+
+### Requirements
+
+* `alpine/git`: Init container for `git pull`.
+* `nginx`: Runs nginx web server
+
+Create a namespace for the project
+
+```bash
+kubectl create ns helloworld
+```
+
+Retrieve nginx pod YAML and modify to add `initContainer`. Below is a pod YAML.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx-helloworld
+  name: nginx-helloworld
+spec:
+  containers:
+  - image: nginx
+    name: nginx-helloworld
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Never
+```
+
+Update the manifest as below:
+
+```diff
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx-helloworld
+  name: nginx-helloworld
+spec:
+  containers:
+  - image: nginx
+    name: nginx-helloworld
++    ports:
++    - containerPort: 80
++    volumeMounts:
++    - mountPath: "/usr/share/nginx/html"
++      name: www-data
+-    resources: {}
++  initContainers:
++  - name: git-cloner
++    image: alpine/git
++    args:
++        - clone
++        - --single-branch
++        - --
++        - https://github.com/jmutai/hello-world-nginx.git
++        - /data
++    volumeMounts: # Sharing between containers
++    - mountPath: /data
++      name: www-data
++  volumes:
++  - name: www-data
++    emptyDir: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Never
+```
+
+Apply the file to deploy pods.
+
+```bash
+kubectl apply -f pod-nginx-helloworld.yml
+```
+
+## Scale down kubernetes deployments to 0 and scale back to original number of replica sets
+
+[Query](https://stackoverflow.com/questions/64133011/scale-down-kubernetes-deployments-to-0-and-scale-back-to-original-number-of-repl)
+
+```bash
+# annotate first
+kubectl get deploy -o jsonpath='{range .items[*]}{"kubectl annotate --overwrite deploy "}{@.metadata.name}{" previous-size="}{@.spec.replicas}{" \n"}{end}' | sh
+
+# scale to 0
+kubectl scale --replicas=0 $(kubectl get deploy -o name)
+
+## scaleback to the previous size
+kubectl get deploy -o jsonpath='{range .items[*]}{"kubectl scale deploy "}{@.metadata.name}{" --replicas="}{.metadata.annotations.previous-size}{"\n"}{end}' | sh
+```
