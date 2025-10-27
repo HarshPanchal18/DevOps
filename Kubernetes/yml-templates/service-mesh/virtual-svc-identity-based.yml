@@ -1,0 +1,23 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: reviews-route
+
+spec:
+  hosts:
+    - reviews
+  http:
+    - name: "review-v2-routes"
+      match:
+        - headers: # Match requests with specific headers
+            end-user: # If the header "end-user" is present with value "jason",
+              exact: jason
+      route: # route to v2 of the reviews service
+      - destination:
+          host: reviews
+          subset: v2
+    - name: "reviews-v1-route"
+      route:
+      - destination:
+          host: reviews
+          subset: v1

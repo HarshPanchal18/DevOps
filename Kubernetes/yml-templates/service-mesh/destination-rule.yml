@@ -1,0 +1,17 @@
+# DestinationRule defines policies that apply to traffic intended for the service.
+# They are rules applied to traffic after they have been routed to a destination by a virtual service.
+# It specifies subsets for different versions of the service, allowing for version-specific routing.
+
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: reviews-destination
+spec:
+  host: reviews.prod.svc.cluster.local # Host for which this DestinationRule applies
+  subsets: # Define subsets for different versions of the service
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
