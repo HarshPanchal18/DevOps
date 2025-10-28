@@ -125,6 +125,70 @@ scoop install helm
 winget install Helm.Helm
 ```
 
+#### Downloading Helm via PowerShell
+
+To download Helm directly using PowerShell, execute the following command:
+
+```powershell
+Invoke-WebRequest -Uri "https://get.helm.sh/helm-v3.6.3-windows-amd64.zip" -OutFile "C:\path\to\your\folder\helm.zip"
+```
+
+In this command:
+
+- `Invoke-WebRequest` is used to send an HTTP request to download files.
+- `-Uri` specifies the URL from where to download Helm.
+- `-OutFile` indicates the local path where the ZIP file will be saved.
+
+#### Extracting the Helm Binary
+
+Once the Helm ZIP file has been downloaded, the next step is to extract its contents. Use the following command:
+
+```powershell
+Expand-Archive -Path "C:\path\to\your\folder\helm.zip" -DestinationPath "C:\path\to\your\folder"
+```
+
+Ensure that the extraction was successful. Navigate to the destination folder to confirm that `helm.exe` is present.
+
+#### Moving Helm to a Local Directory
+
+To keep your system organized, it's advisable to move `helm.exe` to a more suitable directory, such as `C:\Program Files\Helm`.
+
+```powershell
+Move-Item -Path "C:\path\to\your\folder\windows-amd64\helm.exe" -Destination "C:\Program Files\Helm"
+```
+
+#### Adding Helm to your PATH
+
+To modify the PATH environment variable using PowerShell, run this command:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\Helm", [System.EnvironmentVariableTarget]::Machine)
+```
+
+This command appends the Helm directory to the system's PATH variable. After updating your PATH, confirm the changes using:
+
+```powershell
+$env:Path -split ';'
+```
+
+#### Verifying the PATH Variable
+
+Check if Helm is correctly added by typing `helm` in any PowerShell window.
+
+```powershell
+helm version
+```
+
+#### Setting Up Helm Repositories
+
+Before starting to use Helm, it’s recommended to set up your chart repositories. This step ensures that you have access to various packages available for deployment in Kubernetes.
+
+```bash
+helm repo add stable https://charts.helm.sh/stable
+```
+
+This command allows Helm to access ongoing updates and charts from the official repository.
+
 ### Verification and Initial Setup
 
 After installation, verify Helm is working correctly:
