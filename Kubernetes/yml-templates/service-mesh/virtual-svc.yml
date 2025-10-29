@@ -1,0 +1,28 @@
+# Routes all HTTP traffic by default to pods of the reviews service with label “version: v1”.
+# In addition, HTTP requests with path starting with /wpcatalog/ or /consumercatalog/ will be rewritten to /newcatalog and sent to pods with label “version: v2”.
+
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: reviews-route
+spec:
+  hosts:                           # List of hosts that this VirtualService applies to
+  - reviews.prod.svc.cluster.local
+  http:                            # HTTP routing rules
+  - name: "reviews-v2-routes"
+    match:                         # Match conditions for the route
+    - uri:
+        prefix: "/wpcatalog"       # Match requests with URI starting with /wpcatalog
+    - uri:
+        prefix: "/consumercatalog" # Match requests with URI starting with /consumercatalog
+    rewrite:                       # Rewrite the URI to /newcatalog
+      uri: "/newcatalog"
+    route:                         # Routing rules
+    - destination:                 # Destination service for the route
+        host: reviews.prod.svc.cluster.local
+        subset: v2
+  - name: "reviews-v1-route"
+    route:                         # Default route for all other requests
+    - destination:
+        host: reviews.prod.svc.cluster.local
+        subset: v1

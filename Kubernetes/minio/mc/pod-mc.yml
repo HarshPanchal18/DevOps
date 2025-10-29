@@ -8,7 +8,7 @@ spec:
   containers:
     - name: mc
       image: minio/mc:RELEASE.2025-05-21T01-59-54Z
-      command: [ "sleep", "3600" ]  # Keeps the container running
+      command: [ "sleep", "infinity" ]  # Keeps the container running
       # If you want to run a command directly instead, replace the above line
       # Example: [ "mc", "ls", "myminio" ]
       resources:

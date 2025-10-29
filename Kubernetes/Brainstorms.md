@@ -890,3 +890,225 @@ Implementation Architecture
 * Talos ensures immutable, locked down nodes.
 * Zarf solves dependency and packaging challenges.
 * No internet needed at runtime.
+
+## How To Perform Git clone in Kubernetes Pod deployment
+
+This serves as an ideal solution if you store application code in Git version control and would like to pull the latest code during deployment without rebuilding container image. A kubernetes feature which allows us to perform this operation is Init Containers.
+
+`Init Containers` are specialized type of containers that run before application containers in a Pod. These containers can contain utilities or setup scripts not present in an application image. There is nothing so unique about Init containers as they can be specified in the Pod specification alongside the containers array.
+
+### Requirements
+
+* `alpine/git`: Init container for `git pull`.
+* `nginx`: Runs nginx web server
+
+Create a namespace for the project
+
+```bash
+kubectl create ns helloworld
+```
+
+Retrieve nginx pod YAML and modify to add `initContainer`. Below is a pod YAML.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx-helloworld
+  name: nginx-helloworld
+spec:
+  containers:
+  - image: nginx
+    name: nginx-helloworld
+    resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Never
+```
+
+Update the manifest as below:
+
+```diff
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx-helloworld
+  name: nginx-helloworld
+spec:
+  containers:
+  - image: nginx
+    name: nginx-helloworld
++    ports:
++    - containerPort: 80
++    volumeMounts:
++    - mountPath: "/usr/share/nginx/html"
++      name: www-data
+-    resources: {}
++  initContainers:
++  - name: git-cloner
++    image: alpine/git
++    args:
++        - clone
++        - --single-branch
++        - --
++        - https://github.com/jmutai/hello-world-nginx.git
++        - /data
++    volumeMounts: # Sharing between containers
++    - mountPath: /data
++      name: www-data
++  volumes:
++  - name: www-data
++    emptyDir: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Never
+```
+
+Apply the file to deploy pods.
+
+```bash
+kubectl apply -f pod-nginx-helloworld.yml
+```
+
+## Scale down kubernetes deployments to 0 and scale back to original number of replica sets
+
+[Query](https://stackoverflow.com/questions/64133011/scale-down-kubernetes-deployments-to-0-and-scale-back-to-original-number-of-repl)
+
+```bash
+# annotate first
+kubectl get deploy -o jsonpath='{range .items[*]}{"kubectl annotate --overwrite deploy "}{@.metadata.name}{" previous-size="}{@.spec.replicas}{" \n"}{end}' | sh
+
+# scale to 0
+kubectl scale --replicas=0 $(kubectl get deploy -o name)
+
+## scaleback to the previous size
+kubectl get deploy -o jsonpath='{range .items[*]}{"kubectl scale deploy "}{@.metadata.name}{" --replicas="}{.metadata.annotations.previous-size}{"\n"}{end}' | sh
+```
+
+## What is ambassador-pattern in Kubernetes? How it is differed from the sidecar-pattern?
+
+The **Ambassador** and **Sidecar** patterns are both multi-container Pod patterns in Kubernetes, but they serve distinct roles in application architecture. **The ambassador pattern acts as a proxy for external communication, while the sidecar pattern augments or extends the main application container’s functionality within the Pod.**
+
+### **Ambassador Pattern**
+
+* Functions as a `proxy container` that handles communication between the main application container and external services.
+* Typically used to manage outbound connections, such as routing traffic to external APIs or databases, abstracting away network complexities from the main application.
+* The ambassador container is responsible for protocol translation, authentication, or traffic management for external interactions.
+
+### **Sidecar Pattern**
+
+* Involves a secondary container that runs alongside the main application container within the same Pod.
+* Enhances the main application by providing supporting features like logging, monitoring, configuration updates, or security.
+* Sidecars often intercept and manage internal traffic, or add operational capabilities without modifying the application code.
+
+### Key Differences
+
+| Aspect                | Ambassador Pattern                  | Sidecar Pattern                        | Citations                                               |
+|-----------------------|-------------------------------------|----------------------------------------|---------------------------------------------------------|
+| Main Purpose          | Proxy for external communication    | Augment internal app functionality     |  (Valavandan et al., 2023; Salcedo-Navarro et al., 2025)|
+| Traffic Direction     | Outbound (to external services)     | Inbound/outbound (internal/external)   |  (Valavandan et al., 2023; Salcedo-Navarro et al., 2025)|
+| Example Use Cases     | API gateway, DB proxy               | Logging, monitoring, service mesh      |  (Valavandan et al., 2023; Salcedo-Navarro et al., 2025)|
+| Application Coupling  | Loosely coupled to app container    | Tightly coupled to app container       |  (Valavandan et al., 2023; Salcedo-Navarro et al., 2025)|
+
+### Functional Differences
+
+**Sidecar Pattern**: Primarily used to add operational features (e.g., logging, monitoring, security, or storage management) to the main application container by intercepting and managing traffic or providing auxiliary services within the same Pod. Sidecars are tightly coupled to the application and often handle internal concerns.
+
+**Ambassador Pattern**: Functions as a proxy for external communication, managing outbound connections from the main application to external services. Ambassadors abstract away network complexities and are loosely coupled, focusing on external service integration.
+
+### Example YAML
+
+#### Sidecar Pattern Example
+
+A sidecar container runs alongside the main application container, often providing logging, monitoring, or proxying services.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sidecar-example
+spec:
+  containers:
+    - name: main-app
+      image: nginx
+    - name: sidecar-logger
+      image: busybox
+      args: [/bin/sh, -c, 'while true; do echo Sidecar logging; sleep 5; done']
+```
+
+Explanation:
+
+* `main-app` is the primary application (nginx).
+* `sidecar-logger` is a sidecar container that continuously logs messages, demonstrating how sidecars can add auxiliary functionality.
+
+#### Ambassador Pattern Example
+
+An ambassador container acts as a proxy between the main application and an external service (e.g., a database or API).
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ambassador-example
+spec:
+  containers:
+    - name: main-app
+      image: my-app-image
+      env:
+        - name: DB_HOST
+          value: "localhost"
+    - name: ambassador-proxy
+      image: envoyproxy/envoy
+      args: ["-c", "/etc/envoy/envoy.yaml"]
+      ports:
+        - containerPort: 3306
+```
+
+Explanation:
+
+* `main-app` connects to a database at `localhost`, but the actual connection is handled by the `ambassador-proxy` (e.g., Envoy), which forwards traffic to the real database endpoint.
+* The ambassador abstracts external service details from the main app.
+
+### How Sidecar and Ambassador Patterns Improve Communication?
+
+#### Sidecar Pattern
+
+* **Separation of Concerns**: Sidecar proxies (e.g., Envoy) decouple operational features like security, networking, and monitoring from the application logic, allowing microservices to focus solely on business functionality.
+
+* **Traffic Management**: Sidecars can intercept, route, and monitor inter-service traffic, enabling features such as endpoint access control, request rate limiting, logging, and mutual TLS (mTLS) for secure communication.
+
+* **Modularity and Reusability**: By abstracting cross-cutting concerns, sidecars make it easier to apply consistent policies across services and reuse communication logic.
+
+#### Ambassador Pattern
+
+* **External Communication Proxy**: Ambassador containers act as proxies for outbound connections, managing and abstracting communication with external services or APIs. This simplifies integration and centralizes external traffic management.
+
+* **Enhanced Flexibility**: Like sidecars, ambassadors can be configured to handle protocol translation, authentication, and traffic routing, further improving the robustness of microservices communication.
+
+#### Performance Considerations
+
+* **Overhead**: While these patterns provide significant benefits, sidecar proxies can introduce latency and resource overhead, especially in large-scale deployments. Studies report increased request latency and CPU usage depending on the complexity of policies enforced by sidecars.
+
+* **Optimization Needed**: Careful configuration and monitoring are necessary to balance the benefits of improved communication with potential performance impacts.
+
+### Conclusion
+
+The ambassador pattern is best for **managing external service communication**, while the sidecar pattern is ideal for **extending or supporting the main application’s internal operations**. Both patterns enhance modularity and flexibility in Kubernetes, but their use cases and integration points differ significantly.
+
+Sidecar and ambassador patterns are not interchangeable in Kubernetes because they address different architectural needs. Choosing the right pattern depends on whether the requirement is internal operational support (sidecar) or external service communication (ambassador).
+
+Sidecar and ambassador patterns are effective tools for improving microservices communication in Kubernetes by modularizing operational concerns and enabling advanced traffic management. However, their use should be balanced with awareness of potential performance trade-offs.
+
+### References
+
+Valavandan, R., Gothandapani, B., Gnanavel, A., Ramamurthy, N., Balakrishnan, M., Gnanavel, S., & Ramamurthy, S. (2023). Unleashing the Power of Kubernetes: Embracing Openness and Vendor Neutrality for Agile Container Development in an Evolving Landscape. _International Journal of Research Publication and Reviews_. <https://doi.org/10.55248/gengpi.4.523.44101>
+
+Salcedo-Navarro, A., García-Pineda, M., & Gutiérrez-Aguado, J. (2025). K8sidecar: A Modular Kubernetes Chain of Sidecar Proxies for Microservices and Serverless Architectures. _Software: Practice and Experience_. <https://doi.org/10.1002/spe.3423>
+
+Sahu, P., Zheng, L., Bueso, M., Wei, S., Yadwadkar, N., & Tiwari, M. (2023). Sidecars on the Central Lane: Impact of Network Proxies on Microservices. ArXiv, abs/2306.15792. <https://doi.org/10.48550/arXiv.2306.15792>
+
+Maia, J., & Correia, F. (2022). Service Mesh Patterns. Proceedings of the 27th European Conference on Pattern Languages of Programs. <https://doi.org/10.1145/3551902.3551962>
+
+Kratzke, N. (2018). A Brief History of Cloud Application Architectures. Applied Sciences. <https://doi.org/10.20944/PREPRINTS201807.0276.V1>
