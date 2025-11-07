@@ -58,3 +58,25 @@ resource "kubernetes_service" "nginx" {
         }
     }
 }
+
+resource "kubernetes_config_map" "example_cm" {
+    metadata {
+        name  = "example-cm"
+    }
+    data = {
+        "foo" = "bar"
+    }
+}
+
+resource "kubernetes" "example_secret" {
+    metadata {
+        name = "example-secret"
+    }
+    type = "Opaque"
+    data = {
+        "password" = base64encode("verysecret")
+    }
+    # string_data = {
+    #     password = data.external.db_credentials.result
+    # }
+}
