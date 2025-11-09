@@ -16,6 +16,7 @@
 *.tfstate*
 *LICENSE.txt*
 *tyv*
+*.zip*
 
 # Python env
 /kafka/impl/another-python/env/bin
