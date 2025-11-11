@@ -1,0 +1,57 @@
+# apiVersion: logging.banzaicloud.io/v1beta1
+# kind: Logging
+# metadata:
+#   name: default-logging
+# spec:
+#   fluentd: {}
+#   fluentbit: {}
+#   controlNamespace: kube-logging
+# ---
+
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: ClusterFlow
+metadata:
+  name: metric-flow
+  namespace: kube-logging
+
+spec:
+  filters:
+    - parser:
+        parse:
+          type: json
+          time_format: "%Y-%m-%dT%H:%M:%S%zZ"
+
+  match:
+    - select:
+        labels:
+          beat.k8s.elastic.co/name: metricbeat-stack-monitoring
+
+        namespaces:
+          - kube-logging
+
+  globalOutputRefs:
+    - metrics-op-es
+
+---
+
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: ClusterOutput
+metadata:
+  name: metrics-op-es
+  namespace: kube-logging
+
+spec:
+  elasticsearch:
+    host: elasticsearch-es-http.kube-logging.svc.cluster.local
+    port: 9200
+    scheme: http
+    logstash_format: true
+    logstash_prefix: metrics-yagnesh
+    user: elastic
+    password:
+      value: kH289v813rA97WaLLxs0FG1k # REPLACE WITH YOUR PASSWORD
+
+    buffer:
+      timekey: 5s
+      timekey_wait: 1s
+      timekey_use_utc: true
