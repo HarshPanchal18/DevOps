@@ -1,0 +1,53 @@
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: ClusterFlow
+
+metadata:
+  name: production-app-flow
+  namespace: kube-logging
+
+spec:
+  filters: # Filters to process logs from the application
+    - parser: # Parser for parsing logs from the application
+        parse:
+          #type: json
+          #time_format: "%Y-%m-%dT%H:%M:%S%zZ"
+          type: regexp
+          expression: '^(?<time>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{4}) (?<level>[A-Z]+) (?<message>.*)$'
+          time_format: '%Y-%m-%dT%H:%M:%S%z'
+
+  match: # Match logs from the application
+    - select:
+        labels:
+          app: example
+        namespaces:
+          - production
+
+  globalOutputRefs: # List of global output references applied in ClusterOutput
+    - es-output
+
+---
+
+apiVersion: logging.banzaicloud.io/v1beta1
+kind: ClusterOutput
+
+metadata:
+  name: es-output
+  namespace: kube-logging
+
+spec:
+  elasticsearch:
+    host: elasticsearch-es-http.kube-logging.svc.cluster.local # or use the external IP of the Elasticsearch service
+    port: 9200
+    scheme: http
+
+    logstash_format: true
+    logstash_prefix: production # Prefix for the log index in Elasticsearch
+
+    user: elastic
+    password:
+      value: <PASSWORD> # kubectl get secrets elasticsearch-es-elastic-user -o jsonpath='{.data.elastic}{"\n"}' -n kube-logging | base64 -d
+
+    buffer:
+      timekey: 5s # Time interval for flushing logs to Elasticsearch
+      timekey_wait: 1s # Wait time before flushing logs
+      timekey_use_utc: true # Use UTC for time key

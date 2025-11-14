@@ -101,6 +101,12 @@ spec:
           image: chentex/random-logger:latest
 ```
 
+OR
+
+```bash
+kubectl apply -f deploy-logger.yml
+```
+
 ## Apply ClusterFlow and ClusterOutput
 
 ```bash
@@ -108,6 +114,12 @@ kubectl apply -f cflow-coutput.yml
 ```
 
 - Make sure to update password provided inside above YAML.
+
+## Apply Metric Beat for visualization
+
+```bash
+kubectl apply -f metric-beat.yml
+```
 
 ## Theories
 

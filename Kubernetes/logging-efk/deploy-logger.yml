@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: prod-app
+  namespace: production
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: example
+
+  template:
+    metadata:
+      labels:
+        app: example
+      name: prod-logger
+
+    spec:
+      containers:
+        - image: chentex/random-logger:latest
+          name: prod-container

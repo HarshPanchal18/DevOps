@@ -1,0 +1,39 @@
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: metricbeat-stack-monitoring
+  namespace: kube-logging
+spec:
+  type: metricbeat
+  version: 8.18.1
+  elasticsearchRef:
+    name: elasticsearch
+  kibanaRef:
+    name: kibana
+  config:
+    metricbeat:
+      modules:
+        - module: elasticsearch
+          xpack.enabled: true
+          period: 10s
+          hosts: ["http://elasticsearch-es-http:9200"]
+          username: "elastic"
+          password: "${ELASTIC_PASSWORD}"
+
+        - module: kibana
+          xpack.enabled: true
+          period: 10s
+          hosts: ["http://kibana-kb-http:5601"]
+          username: "elastic"
+          password: "${ELASTIC_PASSWORD}"
+
+  deployment:
+    podTemplate:
+      spec:
+        securityContext:
+          runAsUser: 0
+        containers:
+          - name: metricbeat
+            env:
+              - name: ELASTIC_PASSWORD
+                value: kH289v813rA97WaLLxs0FG1k # REPLACE WITH YOUR PASSWORD
