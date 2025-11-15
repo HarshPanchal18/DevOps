@@ -253,3 +253,119 @@ When you want to dive into the specific line changes in a particular file, use `
 ```bash
 git show <commit> -- <filepath>
 ```
+
+## Git Submodule
+
+- Submodule lets you keep a git repo inside another.
+- Useful for libraries in language instead of package manager.
+
+E.X.
+
+```bash
+git submodule add <REPO-LINK> # Clones the link to a subdir.
+```
+
+### Adding a submodule gives a new file
+
+```text
+.gitmodules
+[submodule "foobar"]
+    path = foobar
+    url = https://github.com/username/repoX
+```
+
+- Git treats the submodule as commit-object, rather than a dir or a file.
+
+- To update a submodule:
+
+```bash
+cd foobar; git fetch; git merge
+git submodule update --remote
+```
+
+- To see a good explanation of the changes this made:
+
+```bash
+git diff --submodule
+git config --global diff.submodule log
+```
+
+- When you clone a repo with submodule, the folder appear empty.
+- You can automatically fetch submodule with:
+
+```bash
+gt clone --recurse-submodule https://repo.location
+```
+
+## Git Bundle
+
+### Problems
+
+- GitHub goes down...
+- GitLab goes down...
+- Internet medium goes down...
+- How do you share git information without HTTPS or SSH?
+
+Git bundle is a way of packaging commit histories into a single file.
+
+- To bundle a series of commits:
+
+```bash
+git bundle create my.bundle master # Bundle the master branch only
+git bundle create my.bundle --since=10.days master # Bundle last 10 days commit
+git bundle create my.bundle -12 master # Bundle last 12 commits
+git bundle create my.bundle 5j3gf1..master # Bundle from specific commit to the latest
+```
+
+## Diffing MS word doc
+
+We can diff .docx files using git attributes
+git still treats them as binary, but shows a meaningful diffs.
+
+```properties
+.gitattributes
+*.docx diff=word
+```
+
+```bash
+$PATH/doc2txt
+#!/usr/bin/perl
+doc2txt.pl $1 -
+```
+
+```bash
+git config --global diff.word.textconv doc2txt
+```
+
+## Aliases to add inside `.bashrc`
+
+```bash
+alias gs="git status --short"
+alias gd="git diff"
+alias ga="git add"
+alias gc="git commit"
+alias gp="git push"
+alias gu="git pull"
+alias gb="git branch"
+alias gl="git log"
+alias gi="git init"
+alias gcl="git clone"
+```
+
+### `.gitconfig` configuration
+
+```toml
+[status]
+    branch = true
+    showStash = true
+    showUntrackedFiles = all
+[push]
+    default = current
+[pull]
+    default = current
+    rebase = true
+[branch]
+    sort = -committerdate
+[tag]
+    sort = -taggerdate
+```
