@@ -1112,3 +1112,152 @@ Sahu, P., Zheng, L., Bueso, M., Wei, S., Yadwadkar, N., & Tiwari, M. (2023). Sid
 Maia, J., & Correia, F. (2022). Service Mesh Patterns. Proceedings of the 27th European Conference on Pattern Languages of Programs. <https://doi.org/10.1145/3551902.3551962>
 
 Kratzke, N. (2018). A Brief History of Cloud Application Architectures. Applied Sciences. <https://doi.org/10.20944/PREPRINTS201807.0276.V1>
+
+## What is supply chain attack?
+
+A supply chain attack occurs when an attacker targets a company's or organization's supply chain, often by compromising a third-party vendor or supplier, to gain access to sensitive information or disrupt operations. This can happen when a vendor's system is breached, allowing the attacker to inject malicious code or steal sensitive data, which is then used to attack the company's own systems or compromise its customers.
+
+**Examples of supply chain attacks include:**
+
+* Malware being introduced into a company's software or hardware through a compromised vendor
+* Sensitive data being stolen from a vendor's system and used to conduct targeted attacks
+* A vendor's system being used to distribute malware to a company's customers
+
+In the context of the provided text, Gartner predicts that 45% of global organizations will be impacted by a supply chain attack by 2025, highlighting the growing risk of these types of attacks.
+
+## Do I need virtual-service for each microservices?
+
+Yes, you typically need to create a **Gateway** and **VirtualService** for each microservice that you want to expose externally or route traffic to within the Istio service mesh. However, the exact setup depends on your architecture and requirements. Here's a breakdown:
+
+### When to Create a Gateway
+
+* **External Access**: If a microservice needs to be accessed from outside the cluster (e.g., by users or external systems), you need a **Gateway** to expose it through Istio's ingress gateway.
+* **Shared Gateway**: You can use a single Gateway for multiple microservices by defining multiple
+* **VirtualServices** that route traffic to different services based on hostnames or URI prefixes.
+
+### When to Create a VirtualService
+
+* **Traffic Routing**: Each microservice typically needs a **VirtualService** to define how traffic is routed to it. This includes:
+* Matching incoming requests (e.g., by URI or headers).
+* Specifying the destination service and port.
+* **Advanced Features**: If you want to implement features like traffic splitting, retries, timeouts, or fault injection, you need a VirtualService for each microservice.
+
+### Example Scenarios
+
+1. **Single Gateway for All Microservices**:
+    * Create one Gateway (e.g., `app-gateway`) and multiple VirtualServices for each microservice.
+    * Use URI prefixes or hostnames in the VirtualServices to route traffic to the appropriate microservice.
+
+   Example:
+
+    ```yaml
+    # Gateway
+    apiVersion: networking.istio.io/v1beta1
+    kind: Gateway
+    metadata:
+        name: app-gateway
+    spec:
+        selector:
+        istio: ingressgateway
+        servers:
+        - port:
+            number: 80
+            name: http
+            protocol: HTTP
+        hosts:
+        - "*"
+
+    ---
+
+    # VirtualService for login-service
+    apiVersion: networking.istio.io/v1beta1
+    kind: VirtualService
+    metadata:
+        name: login-route
+    spec:
+        hosts:
+        - "*"
+        gateways:
+        - app-gateway
+        http:
+        - match:
+            - uri:
+                prefix: /login
+        route:
+        - destination:
+            host: login-service
+            port:
+                number: 80
+
+    ---
+
+    # VirtualService for dashboard-service
+    apiVersion: networking.istio.io/v1beta1
+    kind: VirtualService
+    metadata:
+        name: dashboard-route
+    spec:
+        hosts:
+        - "*"
+        gateways:
+        - app-gateway
+        http:
+        - match:
+            - uri:
+                prefix: /dashboard
+        route:
+        - destination:
+            host: dashboard-service
+            port:
+                number: 80
+    ```
+
+2. **Separate Gateway for Each Microservice**:
+    * If each microservice needs its own external entry point, create a separate Gateway and VirtualService for each.
+
+    Example:
+
+    ```yaml
+    # Gateway for login-service
+    apiVersion: networking.istio.io/v1beta1
+    kind: Gateway
+    metadata:
+        name: login-gateway
+    spec:
+        selector:
+        istio: ingressgateway
+        servers:
+        - port:
+            number: 80
+            name: http
+            protocol: HTTP
+        hosts:
+        - "login.example.com"
+
+    ---
+
+    # VirtualService for login-service
+    apiVersion: networking.istio.io/v1beta1
+    kind: VirtualService
+    metadata:
+        name: login-route
+    spec:
+        hosts:
+        - "login.example.com"
+        gateways:
+        - login-gateway
+        http:
+        - route:
+        - destination:
+            host: login-service
+            port:
+                number: 80
+    ```
+
+### Best Practices
+
+* **Shared Gateway**: Use a single Gateway for simplicity unless you have specific reasons to separate them (e.g., different domains or security policies).
+* **Namespace Isolation**: Deploy microservices and their corresponding Istio resources (Gateway, VirtualService) in separate namespaces for better organization and isolation.
+* **DNS and Hostnames**: Use hostnames (e.g., `login.example.com`) in your Gateway and VirtualService for better clarity and scalability.
+
+Let me know if you need help setting up specific configurations!
