@@ -3,6 +3,7 @@ data:
   redis.conf: |
     bind 0.0.0.0
     protected-mode yes
+    masteruser default
     masterauth strongpassword
     requirepass strongpassword
     port 6379
