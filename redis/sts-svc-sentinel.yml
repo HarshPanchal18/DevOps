@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-sentinel
+  namespace: redis
+spec:
+  serviceName: sentinel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sentinel
+  template:
+    metadata:
+      labels:
+        app: sentinel
+    spec:
+      initContainers:
+      - name: config
+        image: redis:7.4-alpine
+        command: [ "sh", "-c" ]
+        args:
+          - |
+            PASSWORD=strongpassword
+            nodes="redis-0.redis.redis.svc.cluster.local redis-1.redis.redis.svc.cluster.local"
+            MASTER=""
+
+            for i in $nodes; do
+              echo "Checking $i"
+              MASTER=$(redis-cli -h $i -a $PASSWORD --no-auth-warning info replication | grep '^role:master')
+              if [ -n "$MASTER" ]; then
+                MASTER=$i
+                echo "Master found: $MASTER"
+                break
+              fi
+            done
+
+            if [ -z "$MASTER" ]; then
+              echo "ERROR: No master found!"
+              exit 1
+            fi
+
+            cat <<EOF > /etc/redis/sentinel.conf
+            port 5000
+            sentinel resolve-hostnames yes
+            sentinel announce-hostnames yes
+            sentinel monitor mymaster $MASTER 6379 2
+            sentinel down-after-milliseconds mymaster 5000
+            sentinel failover-timeout mymaster 60000
+            sentinel parallel-syncs mymaster 1
+            sentinel auth-pass mymaster $PASSWORD
+            EOF
+
+            cat /etc/redis/sentinel.conf
+
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis/
+      containers:
+      - name: redis
+        image: redis:7.4-alpine
+        command: ["redis-sentinel"]
+        args: ["/etc/redis/sentinel.conf"]
+        ports:
+        - containerPort: 5000
+          name: sentinel
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis/
+      volumes:
+      - name: redis-config
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel
+spec:
+  clusterIP: None
+  ports:
+  - port: 5000
+    targetPort: 5000
+    name: sentinel
+  selector:
+    app: sentinel
