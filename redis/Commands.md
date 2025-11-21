@@ -87,3 +87,49 @@
 - `ZREVRANGEBYSCORE key max min` - Display members in reverse by score
 - `ZINCRBY key increment number` - Increment score of a member by the `increment` value.
 - `ZREMRANGE key min max` - Remove members of a given range.
+
+### Geospatial Index
+
+- `GEOADD key longitude latitude member` - Adds the specified geospatial items (longitude, latitude, name) to the specified key. Data is stored into the key as a sorted set.
+
+  Valid longitudes are from -180 to 180 degrees.
+  Valid latitudes are from -85.05112878 to 85.05112878 degrees.
+
+  ```bash
+  redis> GEOADD Sicily 13.361389 38.115556 "Palermo" 15.087269 37.502669 "Catania"
+  (integer) 2
+  redis> GEODIST Sicily Palermo Catania
+  "166274.1516"
+  redis> GEORADIUS Sicily 15 37 100 km
+  1) "Catania"
+  redis> GEORADIUS Sicily 15 37 200 km
+  1) "Palermo"
+  2) "Catania"
+  ```
+
+- `GEODIST key member1 member2 [M | KM | FT | MI]` - Return the distance betwee two members in the geo index.
+
+  ```bash
+  redis> GEOADD Sicily 13.361389 38.115556 "Palermo" 15.087269 37.502669 "Catania"
+  (integer) 2
+  redis> GEODIST Sicily Palermo Catania
+  "166274.1516"
+  redis> GEODIST Sicily Palermo Catania km
+  "166.2742"
+  redis> GEODIST Sicily Palermo Catania mi
+  "103.3182"
+  redis> GEODIST Sicily Foo Bar
+  (nil)
+  ```
+
+- `GEOPOS key` - Return the positions (longitude,latitude) of all the specified members of the geospatial index represented by the sorted set at key.
+
+  ```bash
+  redis> GEOADD Sicily 13.361389 38.115556 "Palermo" 15.087269 37.502669 "Catania"
+  (integer) 2
+  redis> GEOPOS Sicily Palermo Catania NonExisting
+  1) 1) "13.361389338970184"
+    2) "38.1155563954963"
+  2) 1) "15.087267458438873"
+    2) "37.50266842333162"
+  ```
