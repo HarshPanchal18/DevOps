@@ -1,21 +1,18 @@
-CFLAGS = -Wno-implicit-function-declaration # You can append multiple flags separated by space
+CC=gcc
+CFLAGS=-Wno-implicit-function-declaration -Wall -Wextra -O0
+BIN=final
+OBJECTS=main.o hello.o
 
-all: final
+all: $(BIN)
 
-final: main.o hello.o
+$(BIN): $(OBJECTS)
 	@echo "Linking and producing the final application"
-	gcc $(CFLAGS) main.o hello.o -o final
-	chmod +x final
+	$(CC) $(CFLAGS) -o $@ $^
 
-main.o: main.c
-	@echo "Compiling main.c..."
-	gcc $(CFLAGS) -c main.c
-
-hello.o: hello.c
-# Starting line by '@' suppress the command print on stdin
-	@echo "Compiling hello.c..."
-	gcc $(CFLAGS) -c hello.c
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $^ 
+	@# $@ points to the left hand of colon (:), $^ to dependency (i.e. %.c)..
 
 clean:
 	@echo "Removing everything but the source file"
-	rm main.o hello.o final
+	rm $(BIN) $(OBJECTS)

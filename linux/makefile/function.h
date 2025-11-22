@@ -1,3 +1,3 @@
 const char* get_message() {
-	return "Hello World!";
+	return "Hello World, C!";
 }
