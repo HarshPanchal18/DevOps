@@ -1,167 +1,159 @@
 --- # StorageClass
-
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: sc-minio
   namespace: minio-operator
-
-provisioner: kubernetes.io/no-provisioner
+provisioner: rancher.io/local-path
 reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
-
 --- # PersistentVolumes (1..6)
-
 apiVersion: v1
 kind: PersistentVolume
-
 metadata:
   name: minio-pv-1
   namespace: minio-operator
 spec:
-  capacity:
-    storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: sc-minio
+  capacity:
+    storage: 5Gi
   hostPath:
-    path: /var/data/minio1
+    path: /var/data/volume/minio1
+    type: DirectoryOrCreate
   nodeAffinity:
     required:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kube-cluster-worker
-
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kind-kube-worker
+                - kind-kube-worker2
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sc-minio
 ---
-
 apiVersion: v1
 kind: PersistentVolume
-
 metadata:
   name: minio-pv-2
   namespace: minio-operator
 spec:
-  capacity:
-    storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: sc-minio
+  capacity:
+    storage: 5Gi
   hostPath:
-    path: /var/data/minio2
+    path: /var/data/volume/minio2
+    type: DirectoryOrCreate
   nodeAffinity:
     required:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kube-cluster-worker
-
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kind-kube-worker
+                - kind-kube-worker2
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sc-minio
 ---
-
 apiVersion: v1
 kind: PersistentVolume
-
 metadata:
   name: minio-pv-3
   namespace: minio-operator
 spec:
-  capacity:
-    storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: sc-minio
+  capacity:
+    storage: 5Gi
   hostPath:
-    path: /var/data/minio3
+    path: /var/data/volume/minio3
+    type: DirectoryOrCreate
   nodeAffinity:
     required:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kube-cluster-worker
-
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kind-kube-worker
+                - kind-kube-worker2
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sc-minio
 ---
-
 apiVersion: v1
 kind: PersistentVolume
-
 metadata:
   name: minio-pv-4
   namespace: minio-operator
 spec:
-  capacity:
-    storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: sc-minio
+  capacity:
+    storage: 5Gi
   hostPath:
-    path: /var/data/minio4
+    path: /var/data/volume/minio4
+    type: DirectoryOrCreate
   nodeAffinity:
     required:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kube-cluster-worker
-
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kind-kube-worker
+                - kind-kube-worker2
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sc-minio
 ---
-
 apiVersion: v1
 kind: PersistentVolume
-
 metadata:
   name: minio-pv-5
   namespace: minio-operator
 spec:
-  capacity:
-    storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: sc-minio
+  capacity:
+    storage: 5Gi
   hostPath:
-    path: /var/data/minio5
+    path: /var/data/volume/minio5
+    type: DirectoryOrCreate
   nodeAffinity:
     required:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kube-cluster-worker
-
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kind-kube-worker
+                - kind-kube-worker2
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sc-minio
 ---
-
 apiVersion: v1
 kind: PersistentVolume
-
 metadata:
   name: minio-pv-6
   namespace: minio-operator
 spec:
-  capacity:
-    storage: 5Gi
   accessModes:
     - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: sc-minio
+  capacity:
+    storage: 5Gi
   hostPath:
-    path: /var/data/minio6
+    path: /var/data/volume/minio6
+    type: DirectoryOrCreate
   nodeAffinity:
     required:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - kube-cluster-worker
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kind-kube-worker
+                - kind-kube-worker2
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: sc-minio

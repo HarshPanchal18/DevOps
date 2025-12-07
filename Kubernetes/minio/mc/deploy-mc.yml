@@ -49,10 +49,10 @@ spec:
           resources:
             requests:
               memory: "64Mi"
-              cpu: "50m"
+              cpu: "500m"
             limits:
               memory: "128Mi"
-              cpu: "200m"
+              cpu: "2000m"
       #     volumeMounts:
       #       - name: minio-upload-data
       #         mountPath: /data/minio-uploads  # Mount path inside the container
