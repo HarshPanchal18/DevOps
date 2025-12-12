@@ -11,6 +11,8 @@
 - **HyperLogLog**
 - **Geo spatial indexes**
 
+## Commands
+
 ### String
 
 - `set key value`
