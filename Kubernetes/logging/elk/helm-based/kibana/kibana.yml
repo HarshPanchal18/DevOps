@@ -1,0 +1,25 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: elk-logging
+  namespace: logging
+spec:
+  version: 9.2.2
+  count: 1
+  elasticsearchRef:
+    name: elk-logging
+    namespace: logging
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+    service:
+      spec:
+        type: NodePort
+        ports:
+          - port: 5601
+            protocol: TCP
+            name: http
+            targetPort: 5601
+            nodePort: 30094
+            appProtocol: http

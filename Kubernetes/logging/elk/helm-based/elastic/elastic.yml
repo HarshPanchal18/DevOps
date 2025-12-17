@@ -1,0 +1,41 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elk-logging
+  namespace: logging
+spec:
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+    service:
+      spec:
+        type: NodePort
+        ports:
+          - port: 9200
+            protocol: TCP
+            name: http
+            targetPort: 9200
+            nodePort: 30092
+            appProtocol: http
+  version: 9.2.2
+  nodeSets:
+  - name: default
+    count: 1
+    podTemplate:
+      spec:
+        automountServiceAccountToken: true
+        containers:
+        - name: elasticsearch
+          env:
+            - name: ES_JAVA_OPTS
+              value: "-Xms2g -Xmx2g"
+          resources:
+            requests:
+              cpu: 2
+              memory: 3Gi
+            limits:
+              cpu: 3
+              memory: 3Gi
+    # config:
+      # node.store.allow_mmap: false
