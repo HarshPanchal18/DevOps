@@ -1,0 +1,38 @@
+apiVersion: logstash.k8s.elastic.co/v1alpha1
+kind: Logstash
+metadata:
+  name: elk-logging
+  namespace: logging
+spec:
+  count: 1
+  elasticsearchRefs:
+    - clusterName: elk-logging
+      name: elk-logging
+      namespace: logging
+  pipelines:
+    - config.string: |
+        input {
+          beats {
+            port => 5044
+          }
+        }
+        output {
+          elasticsearch {
+            hosts => [ "${QS_ES_HOSTS}" ]
+            user => "${QS_ES_USER}"
+            password => "${QS_ES_PASSWORD}"
+            ssl_certificate_authorities => "${QS_ES_SSL_CERTIFICATE_AUTHORITY}"
+          }
+        }
+      pipeline.id: main
+  services:
+    - name: beats
+      service:
+        spec:
+          ports:
+            - name: filebeat
+              port: 5044
+              protocol: TCP
+              targetPort: 5044
+          type: NodePort
+  version: 9.2.2

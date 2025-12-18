@@ -21,7 +21,7 @@ spec:
   version: 9.2.2
   nodeSets:
   - name: default
-    count: 1
+    count: 2
     podTemplate:
       spec:
         automountServiceAccountToken: true
@@ -29,13 +29,14 @@ spec:
         - name: elasticsearch
           env:
             - name: ES_JAVA_OPTS
-              value: "-Xms2g -Xmx2g"
+              value: "-Xms4g -Xmx4g"
           resources:
             requests:
-              cpu: 2
-              memory: 3Gi
+              cpu: 1
+              memory: 6Gi
             limits:
-              cpu: 3
-              memory: 3Gi
+              cpu: 4
+              memory: 6Gi
     # config:
-      # node.store.allow_mmap: false
+    #   node.store.allow_mmap: false
+    #   reindex.remote.whitelist: ['*:*']

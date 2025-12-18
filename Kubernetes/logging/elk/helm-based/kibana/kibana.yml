@@ -5,10 +5,17 @@ metadata:
   namespace: logging
 spec:
   version: 9.2.2
+  podTemplate:
+    spec:
+      containers:
+      - name: kibana
+        resources:
+          requests:
+            cpu: 0.5
+            memory: 1Gi
   count: 1
   elasticsearchRef:
     name: elk-logging
-    namespace: logging
   http:
     tls:
       selfSignedCertificate:

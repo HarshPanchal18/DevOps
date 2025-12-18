@@ -130,3 +130,65 @@ Get kibana dashboard credentials:
 kubectl get secrets -n logging elasticsearch-master-credentials -o jsonpath={".data.username"} | base64 -d
 kubectl get secrets -n logging elasticsearch-master-credentials -o jsonpath={".data.password"} | base64 -d
 ```
+
+## CRD Operator based
+
+Go to [quickstart](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/elasticsearch-deployment-quickstart)
+
+Install Elastic's CRD:
+
+```bash
+kubectl create -f https://download.elastic.co/downloads/eck/3.2.0/crds.yaml
+```
+
+Install elastic-operator:
+
+```bash
+kubectl apply -f https://download.elastic.co/downloads/eck/3.2.0/operator.yaml
+```
+
+Install Elastic Search: [Ref](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/elasticsearch-deployment-quickstart)
+
+```bash
+kubectl apply -f elastic/elastic.yml
+```
+
+Install Kibana: [Ref](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/kibana-instance-quickstart)
+
+```bash
+kubectl apply -f kibana/kibana.yml
+```
+
+Monitor the operator’s setup by watching the logs:
+
+```bash
+kubectl -n elastic-system logs -f statefulset.apps/elastic-operator
+```
+
+When the operator is ready to use, it will report as Running
+
+```bash
+$ kubectl get -n elastic-system pods
+NAME                 READY   STATUS    RESTARTS   AGE
+elastic-operator-0   1/1     Running   0          1m
+```
+
+Install Kibana: [Doc](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/logstash)
+
+```bash
+kubectl apply -f logstash/logstash.yml
+```
+
+```bash
+# Fix disk watermarks (no auth needed now)
+kubectl exec -it elasticsearch-master-0 -- \
+curl -X PUT http://localhost:9200/_cluster/settings \
+-H 'Content-Type: application/json' \
+-d '{
+  "transient": {
+    "cluster.routing.allocation.disk.watermark.low": "92%",
+    "cluster.routing.allocation.disk.watermark.high": "95%",
+    "cluster.routing.allocation.disk.watermark.flood_stage": "97%"
+  }
+}'
+```
