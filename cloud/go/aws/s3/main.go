@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log"
@@ -9,71 +10,100 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-func main() {
-	context := context.Background()
-
-	bucketName := os.Getenv("AWS_S3_BUCKET_NAME")
-	awsEndpoint := os.Getenv("AWS_S3_ENDPOINT")
-	awsRegion := os.Getenv("AWS_DEFAULT_REGION")
-
-	client := getClient(context, awsEndpoint, awsRegion)
-
-	log.Println(client.Options().Region)
-	log.Println(*client.Options().BaseEndpoint)
-
-	listObjects(*client, context, bucketName)
-	getObject(*client, context, bucketName)
-
+type BucketClient struct {
+	client *s3.Client
 }
 
-// Create an AWS S3 service client
-func getClient(context context.Context, endpoint string, region string) *s3.Client {
-	config, err := config.LoadDefaultConfig(context,config.WithRegion(region))
+// NewBucketClient constructs a BucketClient wrapping an AWS S3 client.
+func NewBucketClient(ctx context.Context, endpoint, region string) (*BucketClient, error) {
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	return s3.NewFromConfig(config, func(o *s3.Options) {
+	s3client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(endpoint)
 		o.UsePathStyle = true
 	})
+
+	return &BucketClient{client: s3client}, nil
 }
 
-func getObject(client s3.Client, context context.Context, bucketName string) {
-	output, err := client.GetObject(context, &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
-		Key: aws.String("go.mod"),
-	})
-
-	if err != nil {
-		log.Fatal(err)
+// UploadObject uploads data to the given bucket/key. Returns the PutObject output or an error.
+func (bc *BucketClient) UploadObject(ctx context.Context, bucket, key string, body io.Reader) (*s3.PutObjectOutput, error) {
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   body,
 	}
-
-	bytes, err := io.ReadAll(output.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println(string(bytes))
-
+	return bc.client.PutObject(ctx, input)
 }
 
-func listObjects(client s3.Client, context context.Context, bucketName string) {
-	output, err := client.ListObjectsV2(context, &s3.ListObjectsV2Input {
-		Bucket: aws.String(bucketName),
+// GetObject retrieves object contents as bytes.
+func (bc *BucketClient) GetObject(ctx context.Context, bucket, key string) ([]byte, error) {
+	out, err := bc.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
 	})
+	if err != nil {
+		return nil, err
+	}
+	defer out.Body.Close()
+	return io.ReadAll(out.Body)
+}
 
-	log.Println(output.KeyCount)
+// ListObjects returns the objects from the bucket's first page.
+func (bc *BucketClient) ListObjects(ctx context.Context, bucket string) ([]s3types.Object, error) {
+	objs, err := bc.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
+	if err != nil {
+		return nil, err
+	}
 
+	return objs.Contents, nil
+}
+
+func main() {
+	ctx := context.Background()
+
+	awsEndpoint := os.Getenv("AWS_S3_ENDPOINT")
+	awsRegion := os.Getenv("AWS_DEFAULT_REGION")
+	bucketName := os.Getenv("AWS_S3_BUCKET_NAME")
+	key := "test.txt"
+
+	log.Println("Starting,...")
+
+	client, err := NewBucketClient(ctx, awsEndpoint, awsRegion)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println("First page results:")
-	for _, object := range output.Contents {
-		log.Printf("key=%s size=%d", aws.ToString(object.Key), object.Size)
+	log.Println(aws.ToString(client.client.Options().BaseEndpoint))
+	log.Println(client.client.Options().Region)
+
+	// Upload sample content
+	_, err = client.UploadObject(ctx, bucketName, key, bytes.NewReader([]byte("Hello world!")))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Get object back
+	data, err := client.GetObject(ctx, bucketName, key)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println(string(data))
+
+	objects, err := client.ListObjects(ctx, bucketName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Found %d objects", len(objects))
+	for _, o := range objects {
+		log.Printf("key=%s size=%d", aws.ToString(o.Key), o.Size)
 	}
 }
