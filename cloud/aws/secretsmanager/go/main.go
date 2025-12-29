@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 
@@ -31,46 +32,65 @@ func NewSecretManagerClient(ctx context.Context, endpoint, region string) (*Secr
 	return &SecretClient{client: secretClient}, nil
 }
 
-func (sc *SecretClient) CreateKV(ctx context.Context, key, value string) (bool, error) {
+func (sc *SecretClient) CreateSecret(ctx context.Context, name string) (bool, error) {
 	var created = false
-	// value = "{\"" + key + "\":\"" + value + "\"}"
 
-	result, err := sc.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
-		Name: aws.String(key),
-		SecretString: aws.String(value),
-	})
+	result, err := sc.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{Name: aws.String(name)})
 	if err != nil {
 		return created, err
 	}
 
 	created = true
-	infoLogger.Println("Secret '", aws.ToString(result.Name), "' is created")
+	infoLogger.Printf("Secret '%s' is created", aws.ToString(result.Name))
+
 	return created, nil
 }
 
-func (sc *SecretClient) GetSecret(ctx context.Context, key string) (string, error) {
-	result, err := sc.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(key)})
+func (sc *SecretClient) PutSecretValue(ctx context.Context, name, value string) (bool, error) {
+	_, err := sc.client.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{
+		SecretId: aws.String(name),
+		SecretString: aws.String(value),
+	})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (sc *SecretClient) GetSecretValue(ctx context.Context, name string) (string, error) {
+	result, err := sc.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(name)})
 	if err != nil {
 		return "", err
 	}
 	return aws.ToString(result.SecretString), nil
 }
 
-func (sc *SecretClient) DeleteSecret(ctx context.Context, key string, force bool) (bool, error) {
-	var deleted = false
-
-	result, err := sc.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
-		SecretId: aws.String(key),
-		ForceDeleteWithoutRecovery: aws.Bool(force),
+func (sc *SecretClient) UpdateSecretValue(ctx context.Context, name, value string) (bool, error) {
+	_, err := sc.client.UpdateSecret(ctx, &secretsmanager.UpdateSecretInput{
+		SecretId: aws.String(name),
+		SecretString: aws.String(value),
 	})
-	if err != nil { return deleted, err }
+	if err != nil {
+		return false, err
+	}
 
-	deleted = true
-	infoLogger.Println("Secret '", aws.ToString(result.Name), "' is deleted")
-	return deleted, nil
+	infoLogger.Printf("Updated value for '%s' secret", name)
+
+	return true, nil
 }
 
-func (sc *SecretClient) ListSecret(ctx context.Context) ([]secretsType.SecretListEntry, error) {
+func (sc *SecretClient) DeleteSecret(ctx context.Context, name string, force bool) (bool, error) {
+	_, err := sc.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
+		SecretId: aws.String(name),
+		ForceDeleteWithoutRecovery: aws.Bool(force),
+	})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (sc *SecretClient) GetSecretList(ctx context.Context) ([]secretsType.SecretListEntry, error) {
 	result, err := sc.client.ListSecrets(ctx, &secretsmanager.ListSecretsInput{SortOrder: secretsType.SortOrderTypeAsc})
 	if err != nil {
 		return nil, err
@@ -78,43 +98,111 @@ func (sc *SecretClient) ListSecret(ctx context.Context) ([]secretsType.SecretLis
 	return result.SecretList, nil
 }
 
-func main() {
-	ctx := context.TODO()
-	secretKey := "username"
-	secretValue := "john-doe"
-
-	client, err := NewSecretManagerClient(ctx, awsEndpoint, awsRegion)
+func (sc *SecretClient) RestoreSecret(ctx context.Context, name string) (bool, error) {
+	_, err := sc.client.RestoreSecret(ctx, &secretsmanager.RestoreSecretInput{SecretId: aws.String(name)})
 	if err != nil {
-		errorLogger.Println(err)
+		return false, err
+	}
+	return true, nil
+}
+
+func (sc *SecretClient) IsSecretExist(ctx context.Context, name string) (bool, error) {
+	result, err := sc.GetSecretValue(ctx, name)
+	if err != nil {
+		return false, err
 	}
 
-	_, err = client.CreateKV(ctx, secretKey, secretValue)
-	if err != nil {
-		errorLogger.Println(err)
-	}
+	return result != "", err
+}
 
-	secrets, err := client.ListSecret(ctx)
-	if err != nil {
-		errorLogger.Println(err)
-	}
+func (sc *SecretClient) PrintSecrets(ctx context.Context) {
+	secrets, err := sc.GetSecretList(ctx)
+	logIfErr(err)
 	infoLogger.Printf("Found %d secrets", len(secrets))
 	for _, secret := range secrets {
 		infoLogger.Printf("key=%s, ARN=%s", aws.ToString(secret.Name), aws.ToString(secret.ARN))
 	}
+}
 
-	secret, err := client.GetSecret(ctx, secretKey)
-	if err != nil {
-		errorLogger.Println(err)
+func logIfErr(err error) {
+    if err != nil {
+        errorLogger.Println(err)
+    }
+}
+
+func main() {
+	ctx := context.TODO()
+
+	/*
+	awsEndpoint := os.Getenv("AWS_ENDPOINT")
+	awsRegion   := os.Getenv("AWS_DEFAULT_REGION")
+	secretName  := os.Getenv("AWS_SECRET_NAME")
+	*/
+
+	client, err := NewSecretManagerClient(ctx, awsEndpoint, awsRegion)
+	logIfErr(err)
+
+	kvPairs := map[string]string{}
+	kvPairs["john-doe"] = "john@123"
+	kvPairs["db-name"] = "db-user"
+	kvPairs["john-doe"] = "john@456"
+
+	// JSONify key-value...
+	secretInBytes, err := json.Marshal(kvPairs)
+	logIfErr(err)
+	secretInString := string(secretInBytes)
+
+	secretExist, _ := client.IsSecretExist(ctx, secretName)
+	infoLogger.Println("Secret exist:", secretExist)
+	// logIfErr(err)
+	if !secretExist {
+		_, err = client.CreateSecret(ctx, secretName)
+		logIfErr(err)
 	}
-	infoLogger.Println(secret)
 
-	_, err = client.DeleteSecret(ctx, secretKey, true)
-	if err != nil {
-		errorLogger.Println(err)
+	_, err = client.PutSecretValue(ctx, secretName, secretInString)
+	logIfErr(err)
+
+	client.PrintSecrets(ctx)
+
+	value, err := client.GetSecretValue(ctx, secretName)
+	logIfErr(err)
+	infoLogger.Printf("%s:%s", secretName, value)
+
+	forceDelete := false
+	_, err = client.DeleteSecret(ctx, secretName, forceDelete)
+	logIfErr(err)
+
+	if forceDelete {
+		infoLogger.Printf("Secret '%s' is deleted", secretName)
+	} else {
+		infoLogger.Printf("Secret '%s' will be deleted after recovery period", secretName)
 	}
 
-	// infoLogger.Printf("Found %d secrets", len(secrets))
-	// for _, secret := range secrets {
-	// 	infoLogger.Printf("key=%s, ARN=%s", aws.ToString(secret.Name), aws.ToString(secret.ARN))
-	// }
+	client.PrintSecrets(ctx)
+
+	restored, err := client.RestoreSecret(ctx, secretName)
+	logIfErr(err)
+	if restored {
+		infoLogger.Printf("Secret '%s' is restored", secretName)
+	}
+
+	client.PrintSecrets(ctx)
+
+	// kvPairs = make(map[string]string)
+	kvPairs["table-name"] = "users"
+
+	secretInBytes, err = json.Marshal(kvPairs)
+	logIfErr(err)
+	secretInString = string(secretInBytes)
+
+	updated, err := client.UpdateSecretValue(ctx, secretName, secretInString)
+	logIfErr(err)
+	if updated {
+		client.PrintSecrets(ctx)
+	}
+
+	value, err = client.GetSecretValue(ctx, secretName)
+	logIfErr(err)
+	infoLogger.Printf("%s:%s", secretName, value)
 }
