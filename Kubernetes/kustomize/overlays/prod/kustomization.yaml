@@ -4,6 +4,20 @@ kind: Kustomization
 resources:
   - ../../base
 
+commonLabels:
+  env: prod
+
+labels:
+  - pairs:
+      backend: nginx
+
+commonAnnotations:
+  istio.sidecar.inject: 'false'
+
+nameSuffix: "-nginx"
+namePrefix: "prod-"
+namespace: "production"
+
 patches:
   - path: deployment-prod.yaml
   - path: service-prod.yaml

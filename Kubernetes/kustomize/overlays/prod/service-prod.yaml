@@ -3,4 +3,4 @@ kind: Service
 metadata:
   name: web-service
 spec:
-  type: NodePort
+  type: LoadBalancer
