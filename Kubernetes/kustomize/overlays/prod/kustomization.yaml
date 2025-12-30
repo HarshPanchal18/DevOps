@@ -6,13 +6,17 @@ resources:
 
 commonLabels:
   env: prod
-
+commonAnnotations:
+  istio.sidecar.inject: 'false'
 labels:
   - pairs:
       backend: nginx
 
-commonAnnotations:
-  istio.sidecar.inject: 'false'
+images:
+  - name: nginx     # Skip if the name doesn't match with any container
+    newName: nginx
+    newTag: '1.14.0'
+    # newTag: 'fjkdgjfgjfdgbdjk'
 
 nameSuffix: "-nginx"
 namePrefix: "prod-"
@@ -21,3 +25,18 @@ namespace: "production"
 patches:
   - path: deployment-prod.yaml
   - path: service-prod.yaml
+  - path: cluster-role-prod.yaml
+  - target:
+      kind: Deployment
+      name: web-deployment
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: app-deployment
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: web-deployment
+      spec:
+        replicas: 5
