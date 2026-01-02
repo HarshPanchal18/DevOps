@@ -9,10 +9,8 @@ spec:
     server: https://kubernetes.default.svc # Default cluster
   project: default
   source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
     helm:
-      releaseName: application-from-helm
-      valueFiles:
-        - values-beta.yaml
-    path: nginx-helm # Path of manifest under repository
-    repoURL: https://github.com/HarshPanchal18/argocd-application.git
-    targetRevision: main # Branch name
+      releaseName: sealed-secrets
+    targetRevision: 1.16.1

@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: applcation-repo
+  namespace: argocd
+spec:
+  destination: # Where should my application deployed
+    namespace: default
+    server: https://kubernetes.default.svc # Default cluster
+  project: default
+  source:
+    directory:
+      exclude: "{service-account.yaml,secret.yaml}"
+      recurse: true
+    path: deployments # Path of manifest under repository
+    repoURL: https://github.com/HarshPanchal18/argocd-application.git
+    targetRevision: main # Branch name
