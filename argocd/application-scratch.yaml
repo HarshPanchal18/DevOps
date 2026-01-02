@@ -11,9 +11,8 @@ spec:
   source:
     helm:
       releaseName: application-from-helm
-      parameters:
-        - name: "replicaCount"
-          value: "3"
+      valueFiles:
+        - values-beta.yaml
     path: nginx-helm # Path of manifest under repository
     repoURL: https://github.com/HarshPanchal18/argocd-application.git
     targetRevision: main # Branch name
