@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-scratch
+  namespace: argocd
+spec:
+  destination: # Where should my application deployed
+    namespace: default
+    server: https://kubernetes.default.svc # Default cluster
+  project: default
+  source:
+    helm:
+      releaseName: application-from-helm
+      parameters:
+        - name: "replicaCount"
+          value: "3"
+    path: nginx-helm # Path of manifest under repository
+    repoURL: https://github.com/HarshPanchal18/argocd-application.git
+    targetRevision: main # Branch name
