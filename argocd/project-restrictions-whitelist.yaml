@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: project-3
+spec:
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "ServiceAccount" # Only apply service account, no other resources
+  namespaceResourceBlacklist:
+    - group: "*"
+      kind: "ServiceAccount" # Apply all resources but not service account
+  destinations:
+    namespace: "*"
+    server: "*"
+  sourceRepos:
+    - "*"

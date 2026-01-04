@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: project-1
+spec:
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  destinations:
+    namespace: "*"
+    server: "*"
+  sourceRepos:
+    - "!https://github.com/HarshPanchal18/argocd-project" # Do not allow this repository
+    - "*"

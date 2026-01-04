@@ -40,3 +40,38 @@ Creates a `controller` which continuously monitors running application and compa
 - **API Server** - gRPC/REST server which exposes API consumed by UI, CLI, or CI pipeline
 - **Repository Service** - An internal service maintains cache of manifest. Stored in Redis
 - **Application controller** - Compare the TARGET state and LIVE state. Optionally take corrective action.
+
+## Restricting Applications using Projects in different ways
+
+1. `sourceRepos`: White listing repository to deploy from only given repository.
+
+    ```yaml
+    sourceRepo:
+        - https://github.com/user-abc/repo-xyz # Consider this repository only (Whitelisting)
+        - !https://github.com/user-abc/repo-xyz # Blacklisting repository
+        - '*' # All
+    ```
+
+2. `destinations`: Where to deploy Application
+
+    ```yaml
+    destinations:
+        namespace: 'dev' # Install in dev namespace only. Put "!" prefix for inverse
+        server: 'https://kubernetes.default.svc' # Install in given server only
+    ```
+
+3. `clusterResourceWhitelist` and `namespaceResourceWhitelist`: Restrict application based on the Kubernetes resource(s).
+
+    ```yaml
+    clusterResourceWhitelist:
+        - group: ""
+          kind: "Namespace" # Application can use namespace resource but not allowed to use other resource
+    namespaceResourceWhitelist:
+        - group: "apps"
+          kind: "Deployment" # We only allow Deployments
+    namespaceResourceBlacklist:
+        - group: "apps"
+          kind: "Deployment" # We only deny Deployments
+    ```
+
+After applying these conditions (e.x. `sourceRepo`), the status of the deployed application would be of **Unknown** status and errors in the conditiions saying "_InvalidSpecError: application repo is not permitted in project_" if an application violates any whitelist or conditions.
