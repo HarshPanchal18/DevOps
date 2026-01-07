@@ -7,10 +7,17 @@ spec:
   destination: # Where should my application deployed
     namespace: default
     server: https://kubernetes.default.svc # Default cluster
-  project: default
+  project: experiments
   source:
     chart: sealed-secrets
     repoURL: https://bitnami-labs.github.io/sealed-secrets
     helm:
       releaseName: sealed-secrets
     targetRevision: 1.16.1
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true

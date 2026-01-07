@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-scratch
+  namespace: argocd
+spec:
+  destination: # Where should my application deployed
+    namespace: prod
+    server: https://kubernetes.default.svc # Default cluster
+  project: project-1
+  source:
+    repoURL: https://github.com/your-org/your-repo.git
+    targetRevision: main
+    path: charts/my-app
+    helm:
+      parameters: # Option 1 (Small override)
+        - name: image.tag
+          value: "v1"
+      valueFiles: # Option 2 (custom values.yaml)
+        - prod-values.yaml
+      values: |   # Option 3 (simple override)
+        replicaCount: 3
+        ingress:
+          enabled: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true

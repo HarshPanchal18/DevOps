@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-deployment
+  namespace: argocd
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: samples
+  source:
+    path: kustomize/base
+    repoURL: https://github.com/HarshPanchal18/argocd-application
+    # targetRevision: HEAD # can be commit, tag, or branch
+  ignoreDifferences: # Ignore changes for given values. This weakens source of truth.
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+      - /spec/replicas # Instead, use HPA for prod

@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-multiple
+  namespace: argocd
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: samples
+  sources:
+    - repoURL: https://github.com/HarshPanchal18/deployments
+      path: YAMLs
+    - name: "ArgoCD Kustomize Dev"
+      repoURL: https://github.com/HarshPanchal18/argocd-application
+      path: kustomize/overlays/dev
+    - name: "ArgoCD Deployment Manifests"
+      repoURL: https://github.com/HarshPanchal18/argocd-application
+      path: deployments
+      directory:
+        recurse: true
