@@ -76,6 +76,72 @@ Creates a `controller` which continuously monitors running application and compa
 
 After applying these conditions (e.x. `sourceRepo`), the status of the deployed application would be of **Unknown** status and errors in the conditiions saying "_InvalidSpecError: application repo is not permitted in project_" if an application violates any whitelist or conditions.
 
+## Cluster management
+
+Cluster credentials are stored in secrets same as repositories or repository credentials.
+
+Each secret must have label `argocd.argoproj.io/secret-type: cluster`.
+
+The secret data must include following fields:
+
+- `name` - cluster name
+- `server` - cluster api server url
+- `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
+    > When `namespaces` is set, Argo CD will perform a separate **list/watch** operation for each namespace. This can cause the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server. To resolve this issue, you can increase the **ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS** environment variable in the **Application controller**.
+
+- `clusterResources` - optional boolean string ("true" or "false") determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
+- `project` - optional string to designate this as a project-scoped cluster.
+- `config` - JSON representation of the following data structure:
+
+    ```yaml
+    # Basic authentication settings
+    username: string
+    password: string
+
+    # Bearer authentication settings
+    bearerToken: string
+
+    # IAM authentication configuration
+    awsAuthConfig:
+        clusterName: string
+        roleARN: string
+        profile: string
+
+    # Configure external command to supply client credentials
+    # See <https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig>
+    execProviderConfig:
+        command: string
+        args: [
+            string
+        ]
+        env: {
+            key: value
+        }
+        apiVersion: string
+        installHint: string
+
+    # Proxy URL for the kubernetes client to use when connecting to the cluster api server
+    proxyUrl: string
+
+    # Transport layer security configuration settings
+    tlsClientConfig:
+        # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
+        caData: string
+        # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
+        certData: string
+        # Server should be accessed without verifying the TLS certificate
+        insecure: boolean
+        # Base64 encoded PEM-encoded bytes (typically read from a client certificate key file).
+        keyData: string
+        # ServerName is passed to the server for SNI and is used in the client to check server
+        # certificates against. If ServerName is empty, the hostname used to contact the
+        # server is used.
+        serverName: string
+
+    # Disable automatic compression for requests to the cluster
+    disableCompression: boolean
+    ```
+
 ## Add a Kubernetes cluster to deploy applications through ArgoCD
 
 The `bearerToken` is essentially a digital key (a Service Account Token) that gives Argo CD permission to talk to your remote cluster’s API server.
@@ -245,6 +311,125 @@ argocd account generate-token --account local-user
 ```
 
 Encode the generated token and put inside `argocd-secret` secret as `accounts.local-user.
+
+## Reset password
+
+```bash
+# Generate token
+htpasswd -bnBC 10 "" admin123 | tr -d ':\n'
+
+# e.x. $2y$10$E0rosdjd./3d1xajkCm0qeyKCxYlBsX5c41nQrCtn3ke78pfCyGc6
+
+# Encode token
+echo -n "$2y$10$E0rosdjd./3d1xajkCm0qeyKCxYlBsX5c41nQrCtn3ke78pfCyGc6" | base64
+
+# e.x. eTAuLzNkMXhhamtDbTBxZXlLQ3hZbEJzWDVjNDFuUXJDdG4za2U3OHBmQ3lHYzY=
+
+# Patch secret to update value
+kubectl -n argocd patch secret argocd-secret -p '{"data": {"admin.password": "eTAuLzNkMXhhamtDbTBxZXlLQ3hZbEJzWDVjNDFuUXJDdG4za2U3OHBmQ3lHYzY="}}'
+kubectl -n argocd patch secret argocd-secret -p '{"data": {"admin.passwordMtime": "'$(date +%FT%T%Z | base64)'"}}'
+
+# Restart argocd server pod
+kubectl -n argocd delete pods -l app.kubernetes.io/name=argocd-server
+```
+
+## RBAC Authorization
+
+ArgoCD RBAC configuration can be found inside `argocd-rbac-cm` configmap.
+
+_Default:_
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    annotations:
+        meta.helm.sh/release-name: argocd
+        meta.helm.sh/release-namespace: argocd
+    labels:
+        app.kubernetes.io/component: server
+        app.kubernetes.io/instance: argocd
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: argocd-rbac-cm
+        app.kubernetes.io/part-of: argocd
+    name: argocd-rbac-cm
+    namespace: argocd
+data:
+    policy.csv: ""
+    policy.default: ""
+    policy.matchMode: glob
+    scopes: '[groups]'
+```
+
+### RBAC supports below resources
+
+| Resource     | Meaning              |
+| ------------ | -------------------- |
+| applications | Argo CD Applications |
+| projects     | AppProjects          |
+| repositories | Git repos            |
+| clusters     | Destination clusters |
+| logs         | Pod logs             |
+| exec         | Pod exec             |
+| certificates | TLS certs            |
+| accounts     | Argo CD accounts     |
+
+### Common actions
+
+| Action   | Meaning              |
+| -------- | -------------------- |
+| get      | View                 |
+| list     | List                 |
+| create   | Create               |
+| update   | Modify               |
+| delete   | Delete               |
+| sync     | Sync app             |
+| override | Change params        |
+| action   | Run resource actions |
+
+Design policies to provide **least required** privileges.
+
+- Line starts with `p,` considered as a policy (What a role can do).
+- Line starts with `g,` considered as a policy (Maps group (imported from SSO) with role).
+
+```yaml
+data:
+    policy.csv: |
+        p, role:dev, applications, get, dev/*, allow
+        p, role:dev, applications, sync, dev/*, allow
+
+        p, role:admin, *, *, *, allow
+
+        g, my-org:backend, role:dev
+        g, my-org:frontend, role:dev
+        g, my-org:platform, role:admin
+
+    policy.default: "role:readonly" # Anyone not explicitly mapped gets read-only access
+```
+
+In above policy, `backend` team can `get` and `sync` applications only, while `admin` team have full access of all the reources.
+
+> **Groups are imported, roles are invented, permissions are attached.**
+
+### Debugging RBAC
+
+Check who you are:
+
+```bash
+argocd account get-user-info
+```
+
+Check groups:
+
+```bash
+argocd account get-user-info --show-groups
+```
+
+Test access:
+
+```bash
+argocd admin settings rbac can dev-team applications sync myproj/app1
+```
 
 ## Context Switching (Troubleshooting)
 
