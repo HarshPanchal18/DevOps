@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: project-with-roles
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  destinations:
+    - namespace: "*"
+      server: "*"
+  sourceRepos:
+    - "*"
+  roles:
+    - name: read-only-role-jr
+      descriptions: "This role can be used for viewing applications"
+      policies:
+        - p, role:read-only-role, applications, get, project-1/*, allow
+        - g, juniors, role:read-only-role

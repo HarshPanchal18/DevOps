@@ -6,6 +6,9 @@ spec:
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"
+  clusterResourceBlacklist:
+    - group: "*"
+      kind: "*"
   namespaceResourceWhitelist:
     - group: "*"
       kind: "ServiceAccount" # Only apply service account, no other resources
@@ -13,7 +16,10 @@ spec:
     - group: "*"
       kind: "ServiceAccount" # Apply all resources but not service account
   destinations:
-    namespace: "*"
-    server: "*"
+    - namespace: "*"
+      server: "*"
   sourceRepos:
     - "*"
+  sourceNamespaces: # the namespaces ArgoCD Application resources are allowed to be created in
+    - "prod-space"
+    - "beta-space"

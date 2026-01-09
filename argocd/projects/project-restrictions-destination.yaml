@@ -7,7 +7,7 @@ spec:
     - group: "*"
       kind: "*"
   destinations:
-    namespace: "dev" # Deploy applications in "dev" namespace only
-    server: "*"
+    - namespace: "dev" # Deploy applications in "dev" namespace only
+      server: "*"
   sourceRepos:
     - "*"

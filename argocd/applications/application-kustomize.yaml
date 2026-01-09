@@ -8,7 +8,13 @@ spec:
     namespace: default
     server: https://kubernetes.default.svc
   project: default
+  info:
+    - name: author
+      value: HarshPanchal
   source:
     path: kustomize/base
     repoURL: https://github.com/HarshPanchal18/argocd-application
     targetRevision: HEAD
+    kustomize:
+      commonLabels:
+        env: base-layer-app

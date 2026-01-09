@@ -7,8 +7,8 @@ spec:
     - group: "*"
       kind: "*"
   destinations:
-    namespace: "*"
-    server: "*"
+    - namespace: "*"
+      server: "*"
   sourceRepos:
     - "!https://github.com/HarshPanchal18/argocd-project" # Do not allow this repository
     - "*"
