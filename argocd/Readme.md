@@ -1,5 +1,19 @@
 # GitOps - A Simple, Consistent, and Secure approach to manage your environments
 
+## Index
+
+- [Problem](#problem)
+- [Solution](#solution)
+- [Introduction](#argocd---a-declarative-gitops-cd-tool-based-on-kubernetes)
+- [Application Restrictions](#restricting-applications-using-projects-in-different-ways)
+- [Cluster Management](#cluster-management)
+- [Add New Cluster](#add-a-kubernetes-cluster-to-deploy-applications-through-argocd)
+- [Local User Management](#local-user-management)
+- [Reset Password](#reset-password)
+- [RBAC Authorization](#rbac-authorization)
+- [Context Switching](#context-switching-troubleshooting)
+- [Rollouts](#rollouts)
+
 ## Problem
 
 1. You started running your app on your own computers and servers.
@@ -637,3 +651,98 @@ This forces `argocd` to recreate the config with just your new context.
 - After a successful login, `argocd context` will show your `argocd-server` endpoint again.
 
 If you tell me exactly how you normally access Argo CD (e.g., the URL in your browser or your `kubectl port-forward` command) and what auth method you use (admin/password, SSO, token), I can give you the exact `argocd login` line to paste.
+
+## Rollouts
+
+1. Install a rollout controller and Rollout Kubetl plugin.
+
+    ```bash
+    kubectl create namespace argo-rollouts
+    kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+    ```
+
+    - Install `Argo Rollouts Kubectl Plugin` - to visualize the Rollouts(ReplicaSets, Pods, AnalysisRuns).
+
+    ```bash
+    curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+    chmod +x ./kubectl-argo-rollouts-linux-amd64
+    sudo mv ./kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts-linux-amd64
+    kubectl argo rollouts version
+    ```
+
+2. Deploy a rollout.
+
+    Deployment strategy Blueprint:
+
+    ```yaml
+    spec:
+      replicas: 5
+      strategy:
+        canary:
+          steps:
+          - setWeight: 20 # sends 20% of traffic to the canary followed by a manual promotion.
+          - pause: {}
+          # finally gradual automated traffic increases for the remainder of the upgrade.
+          - setWeight: 40
+          - pause: {duration: 10}
+          - setWeight: 60
+          - pause: {duration: 10}
+          - setWeight: 80
+          - pause: {duration: 10}
+    ```
+
+    ```bash
+    kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/rollout.yaml
+    kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/docs/getting-started/basic/service.yaml
+    ```
+
+3. Monitor rollouts.
+
+    ```bash
+    kubectl argo rollouts get rollout rollouts-demo --watch
+    ```
+
+4. Update a rollout just as we do with `Deployments`, any change to the Pod template field (`spec.template`) results in a new version (i.e. ReplicaSet) to be deployed.
+
+    - Update the rollouts-demo Rollout with the "yellow" version of the container.
+
+    ```bash
+    kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-demo:yellow
+    ```
+
+    - Monitor rollout that it sets a 20% traffic weight to the canary, and pauses the rollout indefinitely until user action is taken to **unpause/promote** the rollout.
+
+    ```bash
+    kubectl argo rollouts get rollout rollouts-demo --watch
+    ```
+
+5. Promote a rollout.
+
+    ```bash
+    kubectl argo rollouts promote rollouts-demo
+    ```
+
+    - After promotion, rollout will proceed to execute remaining pods on a newer version.
+
+6. Abort a rollout.
+
+    - First deploy new version of the container image to `red` and make rollout `paused` again.
+
+    ```bash
+    kubectl argo rollouts set image rollout-demo rollouts-demo=argoproj/rollouts-demo:red
+    ```
+
+    - Abort the update, so it falls back to the `stable` version. (in yellow)
+
+    ```bash
+    kubectl argo rollouts abort rollout-demo
+    ```
+
+    - The rollout is considered as `Degraded`, since `red` image is not the version which is actually running.
+    - In order to make it `Healthy` again, change the desired state back to the `yellow` version.
+
+    ```bash
+    kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-demo:yellow
+    ```
+
+    - When a Rollout has not yet reached its desired state (e.g. it was aborted, or in the middle of an update), and the stable manifest were re-applied, the Rollout detects this as a rollback and not a update, and will fast-track the deployment of the stable ReplicaSet by skipping analysis, and the steps.
