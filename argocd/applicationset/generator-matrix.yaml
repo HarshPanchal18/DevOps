@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: matrix-generator
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - cluster: yaml
+                  serverURL: https://kubernetes.default.svc
+                  namespace: production
+                  manifestPath: 'deployments'
+                  author: Human
+                  repoURL: https://github.com/HarshPanchal18/argocd-application
+                  environment: "prod"
+                - cluster: kustomize
+                  serverURL: https://kubernetes.default.svc
+                  namespace: default
+                  manifestPath: 'kustomize/base'
+                  author: Robot
+                  repoURL: https://github.com/HarshPanchal18/argocd-application
+                  environment: "prod"
+          - git:
+              repoURL: https://github.com/HarshPanchal18/argocd-application
+              revision: HEAD
+              directories:
+                - path: '{{manifestPath}}'
+          # - matrix:
+          #     generators:
+          #       - clusters:
+          #           selector:
+          #             matchLabels:
+          #               # argocd.argoproj.io/secret-type: cluster
+          #               kubernetes.io/environment: '{{environment}}'
+  template:
+    metadata:
+      name: '{{cluster}}-application'
+    spec:
+      info:
+        - name: 'author'
+          value: "{{author}}"
+      project: default
+      destination:
+        server: '{{serverURL}}'
+        namespace: '{{namespace}}'
+      source:
+        repoURL: '{{repoURL}}'
+        path: '{{manifestPath}}'

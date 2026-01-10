@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: git-generator
+  namespace: argocd
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        revision: HEAD
+        directories:
+          - path: 'deployments'
+          - path: kustomize/base
+  template:
+    metadata:
+      name: '{{path.basename}}-application'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: production
+      source:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        path: '{{path}}'
