@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: matrix-generator-git-cluster
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/HarshPanchal18/argocd-application
+              revision: main
+              directories:
+                - path: 'deployments'
+          - clusters: {}
+  template:
+    metadata:
+      name: '{{path.basename}}-{{name}}'
+    spec:
+      project: default
+      destination:
+        server: '{{server}}'
+        namespace: 'ns-{{metadata.labels.environment}}'
+      source:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        path: '{{path}}'
+      syncPolicy:
+        automated: {}
+        syncOptions:
+          - CreateNamespace=true

@@ -15,9 +15,9 @@ spec:
       releaseName: sealed-secrets
     targetRevision: 1.16.1
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    automated:       # Apply changes automatically
+      prune: true    # Delete resources removed from the git
+      selfHeal: true # Revert manual changes in the cluster
     syncOptions:
       - CreateNamespace=true
       - PruneLast=true

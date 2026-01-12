@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-generator
+  namespace: argocd
+spec:
+  generators:
+    # Auto-detect fields (when providing empty {}) from cluster-secret: name, namenormalized, server, metadata.labels.key, metadata.annotations.key
+    - clusters:
+        selector:
+          matchLabels:
+            argocd.argoproj.io/secret-type: cluster # First select the "cluster" type of secret (Created while on multicluster setup)
+            environment: dev
+  template:
+    metadata:
+      name: '{{name}}-application'
+    spec:
+      project: default
+      destination:
+        server: '{{server}}'
+        namespace: dev
+      source:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        path: 'deployments'
+      syncPolicy:
+        automated: {}
+        syncOptions:
+          - CreateNamespace=true
+
+# Make sure you labelled multicluster secret(s) with "environment" to choose right cluster.
+# Default cluster (in-cluster) doesn't labelled with a "argocd.argoproj.io/secret-type".
+# To also include for that cluster,
+# Create same cluster joining secret, label with "environment", change "server" with "https://kubectl.default.svc" delete "bearerToken" and "caData" from the config JSON.

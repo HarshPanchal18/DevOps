@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: merge-generator
+  namespace: argocd
+spec:
+  generators:
+    - merge:
+        mergeKeys: # This is same as Left Join in SQL. Replace the matching values from the right-sided (new) values.
+          - server
+        generators:
+          - clusters: # Default values for all clusters
+              values:
+                tag: "1.23"
+                replicas: "1"
+          - clusters: # Select clusters and overwrite image tag to '1.24' with replica 1
+              selector:
+                matchLabels:
+                  environment: "dev"
+              values:
+                tag: "1.24"
+          - list:
+              elements:
+                # - server: https://kubernetes.default.svc
+                  # values.replicas: '2'
+                - server: https://192.168.0.1 # set replica to 3 of tag '1.23' for this server
+                  values.replicas: '3'
+  template:
+    metadata:
+      name: '{{name}}-application'
+    spec:
+      project: default
+      destination:
+        server: '{{server}}'
+        namespace: default
+      source:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        path: 'nginx-helm'
+        helm:
+          parameters:
+            - name: "image.tag"
+              value: '{{values.tag}}'
+            - name: "replicaCount"
+              value: '{{values.replicas}}'
+
+# Use case: I want to add per-cluster configuration without duplicating cluster definitions.
+# generators:
+#   - merge:
+#       mergeKeys:
+#         - name
+#       generators:
+#         - clusters: {}
+#         - list:
+#             elements:
+#               - name: cluster-prod
+#                 namespace: production
+#               - name: cluster-staging
+#                 namespace: staging
+
+# destination:
+#   server: "{{server}}"
+#   namespace: "{{namespace}}"

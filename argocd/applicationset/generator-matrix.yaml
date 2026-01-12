@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: matrix-generator
+  name: matrix-generator-list-git
   namespace: argocd
 spec:
   generators:
@@ -49,3 +49,26 @@ spec:
       source:
         repoURL: '{{repoURL}}'
         path: '{{manifestPath}}'
+
+# If two key have same name in different generator, then application is not created and give error such as:
+# "failed to combine string maps with merging params for the matrix generator: found duplicate key path with different value"
+# spec:
+#   generators:
+#     - matrix:
+#         generators:
+#           - list:
+#               elements:
+#                 - cluster: yaml
+#                   namespace: production
+#                   path: 'deployments'
+#                   repoURL: https://github.com/HarshPanchal18/argocd-application
+#                 - cluster: kustomize
+#                   namespace: default
+#                   path: 'kustomize/base'
+#                   repoURL: https://github.com/HarshPanchal18/argocd-application
+#           - git:
+#               repoURL: https://github.com/HarshPanchal18/argocd-application
+#               revision: HEAD
+#               directories:
+#                 - path: 'kustomize/overlays/dev'
+#                 - path: 'kustomize/base'
