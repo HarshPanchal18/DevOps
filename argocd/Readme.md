@@ -637,3 +637,33 @@ This forces `argocd` to recreate the config with just your new context.
 - After a successful login, `argocd context` will show your `argocd-server` endpoint again.
 
 If you tell me exactly how you normally access Argo CD (e.g., the URL in your browser or your `kubectl port-forward` command) and what auth method you use (admin/password, SSO, token), I can give you the exact `argocd login` line to paste.
+
+## Sync Options for Application
+
+### `syncPolicy` - controls when and how a sync will be performed
+
+- `syncPolicy.automated` - keep an application synced to the target revision
+- `syncPolicy.automated.prune` - whether to delete resources from the cluster that are not found in the sources anymore (default: `false`)
+- `syncPolicy.automated.selfHeal` - whether to revert resources back to their desired state upon modification in the cluster (default: `false`)
+
+### `syncPolicy.syncOptions` - allow to specify whole app **sync-options**
+
+- `syncPolicy.syncOptions.CreateNamespace=true` - Creates namespace if it doesn't exist.
+- `syncPolicy.syncOptions.ApplyOutOfSyncOnly=true` - To sync only **OutOfSync** resources. By default ArgoCD syncs all the resources. This may fill up API Server if there are large number of resources.
+  - You can check **Result** of which resources are synced by clicking on **SYNC STATUS**.
+- `syncPolicy.syncOptions.Replace=true` - Replace the changes instead of **Apply**ing.
+  - `kubectl apply` is limited to smaller changes relatively.
+  - To make this apply for selective resource(s), prefer passing annotations to each resources.
+- `syncPolicy.syncOptions.FailOnSharedResource=true` - If a resource is already deployed in same namespace via other application, mark `application` as **OutOfSync** with warnings such as "_Service/nginx is a part of applications argocd/ application1 and application2_".
+- `syncPolicy.syncOptions.PruneLast=true` - To prune resource/application after all other resources/applications are pruned.
+
+### Resource Level
+
+Annotate resource(s) with:
+
+- `argocd.argoproj.io/sync-options: Prune=false` - to prevent from being delete by **syncPolicy.automated.prune**.
+- `argocd.argoproj.io/sync-options: Validate=false` - to disable schema validation of resource, silently dropping any unknown or duplicate fields.
+  - Similar to `kubectl apply -f resource.yaml --validate='ignore'`.
+- `argocd.argoproj.io/sync-options: Delete=false` - to retain resources even after application is deleted. (e.g. PersistentVolumeClaim)
+- `argocd.argoproj.io/sync-options: Delete=confirm` - to require manual confirmation before deletion.
+  - To confirm the deletion, annotate the application with `argocd.argoproj.io/deletion-approved: ISO-Timestamp`
