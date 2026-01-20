@@ -5,6 +5,14 @@ metadata:
   namespace: argocd
 spec:
   namespace: argocd # Namespace of application
+  # writeBackConfig:
+  #   method: argocd
+  # OR
+  # writeBackConfig:
+  #   method: git
+  #   gitConfig:
+  #     repository: https://github.com/HarshPanchal18/argocd-application.git
+  #     branch: "main"
   applicationRefs:
     - namePattern: "application-nginx-*"
       images:
@@ -13,4 +21,8 @@ spec:
           commonUpdateSettings:
             updateStrategy: "semver"
             allowTags: "regexp:^v[0-9]+\\.[0-9]+\\.[0-9]+$" # To match v*
-            # allowTags: "regexp:^v[0-9]+\\.[0-9]+$" # To match v*
+      writeBackConfig:
+        method: git
+        gitConfig:
+          repository: https://github.com/HarshPanchal18/argocd-application.git
+          branch: "main"
