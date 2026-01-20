@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-generator-values
+  namespace: argocd
+spec:
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            environment: beta
+        values:
+          path: kustomize/overlays/beta
+          namespace: beta
+          team: beta-engineer
+    - clusters:
+        selector:
+          matchLabels:
+            environment: dev
+        values:
+          path: kustomize/overlays/dev
+          namespace: dev
+          team: dev-engineer
+  template:
+    metadata:
+      name: '{{name}}-application'
+      labels:
+        team: '{{values.team}}'
+    spec:
+      project: default
+      destination:
+        server: '{{server}}'
+        namespace: '{{values.namespace}}'
+      source:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        path: '{{values.path}}'
+      syncPolicy:
+        automated: {}
+        syncOptions:
+          - CreateNamespace=true

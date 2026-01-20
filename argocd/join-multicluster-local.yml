@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: in-cluster # This name will be given to the cluster you are joining
+    labels:
+        argocd.argoproj.io/secret-type: cluster
+        environment: alpha
+    namespace: argocd
+type: Opaque
+stringData:
+    name: in-cluster
+    server: https://kubernetes.default.svc
+    config: |
+        {
+            "tlsClientConfig": {
+                "insecure": false
+            }
+        }

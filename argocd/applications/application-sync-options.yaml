@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: applcation-repo
+  namespace: argocd
+spec:
+  destination: # Where should my application deployed
+    namespace: default
+    server: https://kubernetes.default.svc # Default cluster
+  project: default
+  source:
+    directory:
+      exclude: "{service-account.yaml,secret.yaml}"
+      recurse: true
+    path: deployments # Path of manifest under repository
+    repoURL: https://github.com/HarshPanchal18/argocd-application.git
+    targetRevision: main
+  ignoreDifferences: # Ignore changes for given values. This weakens source of truth.
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  syncPolicy:
+    # ArgoCD will sync application to the target revision automatically on refresh-interval(default: 3min (data.timeout.reconciliation)) or by clicking on "refresh" from the UI.
+    automated:                              # Apply changes automatically
+      prune: true                           # Delete resources removed from the git
+      selfHeal: true                        # Revert manual changes in the cluster
+    syncOptions:
+      - CreateNamespace=true                # Create namespace if doesn't exist
+      - PruneLast=true                      # Prune this application at last
+      - ServerSideApply=true                # Apply as Server Side (kubectl apply --server-side)
+      - PrunePropagationPolicy=foreground   # Deletion of resources
+                                            # foreground - blocking delete, parent object waits until all its dependents are deleted (slow deletes, safe teardown, for statefulsets)
+                                            # background - parent object is deleted immediately, dependents are deleted asynchronously (fast deletes, for stateless)
+                                            # orphan - parent is deleted, dependents are left running
+      - Replace=false                       # Replace the resource instead of apply
+      - ApplyOutOfSyncOnly=true             # Sync only OutOfSync resources
+      - RespectIgnoreDifferences=true       # Ignore the fields given in "spec.ignoreDifferences" during the sync stage
+      - Validate=false                      # If need to validate schema or silently dropping any unknown or duplicate fields
+    managedNamespaceMetadata:               # Provide labels and annotations to the namespace created via "CreateNamespace=true"
+      labels:
+        any: label-giving-to-created-namespace
+      annotations:
+        any: annotation-giving-to-created-namespace

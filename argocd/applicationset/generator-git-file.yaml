@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: git-generator-file
+  namespace: argocd
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        revision: HEAD
+        files:
+          - path: 'deployments/**/config.json'
+  template:
+    metadata:
+      name: '{{cluster.application}}'
+    spec:
+      project: default
+      destination:
+        server: '{{cluster.serverAddress}}'
+        namespace: '{{cluster.targetNamespace}}'
+      source:
+        repoURL: "{{values.repoUrl}}"
+        path: '{{cluster.path}}'
+        targetRevision: '{{cluster.revision}}'
+
+# config.json
+# {
+#     "cluster": {
+#         "repoUrl": "https://github.com/HarshPanchal18/argocd-application",
+#         "application": "web-application",
+#         "revision": "main",
+#         "targetNamespace": "prod-web",
+#         "serverAddress": "https://192.168.0.1"
+#     }
+# }

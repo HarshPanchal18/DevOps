@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: list-generator
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - cluster: yaml
+            url: https://kubernetes.default.svc
+            manifestPath: deployments
+            namespace: production
+            author: Harsh
+          - cluster: kustomize
+            url: https://kubernetes.default.svc
+            manifestPath: kustomize/base
+            namespace: default
+            author: Robot
+  template:
+    metadata:
+      name: '{{cluster}}-application'
+    spec:
+      info:
+        - name: 'author'
+          value: "{{author}}"
+      project: default
+      destination:
+        server: '{{url}}'
+        namespace: '{{namespace}}'
+      source:
+        repoURL: https://github.com/HarshPanchal18/argocd-application
+        path: '{{manifestPath}}'
