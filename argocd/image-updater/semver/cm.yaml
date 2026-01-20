@@ -1,0 +1,14 @@
+# Tell Image Updater to use mentioned secret for docker registry
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-image-updater-docker-config
+  namespace: argocd
+data:
+  registry.con: |
+    registeries: Docker Hub
+    prefix: docker.io
+    api_url: https://registry1.docker.io
+    credentials: pullsecret:argocd/docker-registry
+    defaultns: library
+    default: true

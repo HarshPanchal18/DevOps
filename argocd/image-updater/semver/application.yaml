@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-nginx-semver-tag
+  namespace: argocd
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: harshpanchal18/nginx-argo:v1.x
+    argocd-image-updater.argoproj.io/nginx-argo.update-strategy: semver
+    argocd-image-updater.argoproj.io/write-back-method: git
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: auto-image/semver/kustomize/base
+    repoURL: https://github.com/HarshPanchal18/argocd-application.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
