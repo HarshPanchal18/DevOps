@@ -14,7 +14,7 @@ spec:
   #     repository: https://github.com/HarshPanchal18/argocd-application.git
   #     branch: "main"
   applicationRefs:
-    - namePattern: "application-nginx-*"
+    - namePattern: "application-*-semver-tag"
       images:
         - alias: "nginx"
           imageName: "harshpanchal18/nginx-argo:v1.x"
@@ -26,3 +26,4 @@ spec:
         gitConfig:
           repository: https://github.com/HarshPanchal18/argocd-application.git
           branch: "main"
+          writeBackTarget: "kustomization"
