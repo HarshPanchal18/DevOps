@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: pull-request-generator
+  namespace: argocd
+spec:
+  generators:
+  - pullRequest:
+      github:
+        owner: my-org
+        repo: my-repo
+      requeueAfterSeconds: 1800 # 30 Min
+  template:
+    metadata:
+      name: 'myapp-{{branch}}-{{number}}'
+    spec:
+      source:
+        repoURL: 'https://github.com/my-org/my-repo.git'
+        targetRevision: '{{head_sha}}'
+        path: kubernetes/
+        kustomize:
+          nameSuffix: '-{{branch}}'
+          commonLabels:
+            app.kubernetes.io/instance: 'pr-{{branch}}-{{number}}'
+          images:
+          - 'ghcr.io/my-org/my-repo:{{author}}-{{head_sha}}'
+      project: "my-project"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+
+# Template variables
+# branch - Name of the branch of the PR head
+# target_branch - Name of the target branch of the PR
+# head_sha - SHA of the head of PR
+# author - Creator of PR
+# number - ID number of PR

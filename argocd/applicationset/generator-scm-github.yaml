@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: github-scm-generator
+  namespace: argocd
+spec:
+  generators:
+  - scmProvider:
+      github:
+        organization: myorg
+      filters:
+        - repositoryMatch: ^.*-kustomize$
+          pathsExist: [kustomization.yaml]
+    values:
+      name: "{{organization}}-{{repository}}"
+  template:
+    metadata:
+      name: '{{repository}}-{{branch}}'
+    spec:
+      source:
+        repoURL: '{{ url }}'
+        targetRevision: '{{ branch }}'
+        path: kustomize/overlays/beta
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+
+# Template variables
+# url - Repo URL
+# repository - Repo name
+# organization - Org name
+# branch - Branch name
+# branchNormalized - Branch name sanitized for Kubernetes (alphanum, -, .)
