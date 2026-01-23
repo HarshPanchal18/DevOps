@@ -1,0 +1,20 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: digest-updater
+  namespace: argocd
+spec:
+  namespace: argocd
+  applicationRefs:
+    - namePattern: "application-*-latest-tag"
+      images:
+        - alias: "argocd-nginx-digest"
+          imageName: "harshpanchal18/nginx-argo:latest"
+          commonUpdateSettings:
+            updateStrategy: "digest"
+      writeBackConfig:
+        method: git
+        gitConfig:
+          repository: https://github.com/HarshPanchal18/argocd-application.git
+          branch: "main"
+          writeBackTarget: "kustomization"
