@@ -336,16 +336,64 @@ htpasswd -bnBC 10 "" admin123 | tr -d ':\n'
 # e.x. $2y$10$E0rosdjd./3d1xajkCm0qeyKCxYlBsX5c41nQrCtn3ke78pfCyGc6
 
 # Encode token
-echo -n "$2y$10$E0rosdjd./3d1xajkCm0qeyKCxYlBsX5c41nQrCtn3ke78pfCyGc6" | base64
+# echo -n "$2y$10$E0rosdjd./3d1xajkCm0qeyKCxYlBsX5c41nQrCtn3ke78pfCyGc6" | base64
 
 # e.x. eTAuLzNkMXhhamtDbTBxZXlLQ3hZbEJzWDVjNDFuUXJDdG4za2U3OHBmQ3lHYzY=
 
 # Patch secret to update value
-kubectl -n argocd patch secret argocd-secret -p '{"data": {"admin.password": "eTAuLzNkMXhhamtDbTBxZXlLQ3hZbEJzWDVjNDFuUXJDdG4za2U3OHBmQ3lHYzY="}}'
-kubectl -n argocd patch secret argocd-secret -p '{"data": {"admin.passwordMtime": "'$(date +%FT%T%Z | base64)'"}}'
+kubectl -n argocd patch secret argocd-secret -p '{"data": {"azdmin.password": "eTAuLzNkMXhhamtDbTBxZXlLQ3hZbEJzWDVjNDFuUXJDdG4za2U3OHBmQ3lHYzY=", "admin.passwordMtime": "'$(date +%FT%T%Z | base64)'"}}'
 
 # Restart argocd server pod
 kubectl -n argocd delete pods -l app.kubernetes.io/name=argocd-server
+```
+
+### Reset Admin password
+
+To reset the ArgoCD admin password it is required to delete the values of admin.password and admin.passwordMtime that are stored as K8s secret object argocd-secret in the namespace in which ArgoCD is installed (default argocd)
+
+```bash
+$ kubectl patch secret argocd-secret -p '{"data": {"admin.password": null, "admin.passwordMtime": null}}'
+- sample output -
+secret/argocd-secret patched
+```
+
+Restart ArgoCD server to generate the new admin password
+
+```bash
+$ kubectl rollout restart deployment.apps/argocd-server
+- sample output -
+deployment.apps/argocd-poc-server restarted
+
+```
+
+The new admin password will be saved as argocd-initial-admin-secret object, that can be retrieved as follows
+
+```bash
+
+$ kubectl get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+- sample output -
+RCUmfqHpZrwHXUUt
+```
+
+Log into ArgoCD using the new admin password:
+
+```bash
+$ argocd login <ARGOCD_URL> --username admin --password ******* --skip-test-tls --grpc-web
+- sample output -
+'admin:login' logged in successfully
+Context '<ARGOCD_URL>' updated
+```
+
+To change the ArgoCD admin password, execute:
+
+```bash
+$  argocd account update-password
+- sample output -
+***Enter password of currently logged in user (admin):
+*** Enter new password for user admin:
+*** Confirm new password for user admin:
+Password updated
+Context '<ARGOCD_URL>' updated
 ```
 
 ## RBAC Authorization
@@ -376,6 +424,8 @@ data:
     scopes: '[groups]'
 ```
 
+[RBAC Model](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/#rbac-model-structure)
+
 ### RBAC supports below resources
 
 | Resource     | Meaning              |
@@ -391,16 +441,16 @@ data:
 
 ### Common actions
 
-| Action   | Meaning              |
-| -------- | -------------------- |
-| get      | View                 |
-| list     | List                 |
-| create   | Create               |
-| update   | Modify               |
-| delete   | Delete               |
-| sync     | Sync app             |
-| override | Change params        |
-| action   | Run resource actions |
+| Action   | Meaning                  |
+| -------- | --------------------     |
+| get      | View                     |
+| create   | Create                   |
+| update   | Modify                   |
+| delete   | Delete                   |
+| sync     | Sync app                 |
+| override | Change params            |
+| action   | Run resource actions     |
+| invoke   | Invoke ArgoCD extensions |
 
 Design policies to provide **least required** privileges.
 
@@ -419,7 +469,7 @@ data:
         g, my-org:frontend, role:dev
         g, my-org:platform, role:admin
 
-    policy.default: "role:readonly" # Anyone not explicitly mapped gets read-only access
+    policy.default: "role:readonly" # Anyone not mapped explicitly gets read-only access
 ```
 
 In above policy, `backend` team can `get` and `sync` applications only, while `admin` team have full access of all the reources.
@@ -777,3 +827,37 @@ Annotate resource(s) with:
 - `argocd.argoproj.io/sync-options: Delete=false` - to retain resources even after application is deleted. (e.g. PersistentVolumeClaim)
 - `argocd.argoproj.io/sync-options: Delete=confirm` - to require manual confirmation before deletion.
   - To confirm the deletion, annotate the application with `argocd.argoproj.io/deletion-approved: ISO-Timestamp`
+
+## ArgoCD Hooks - Run Kubernetes jobs around the ArgoCD application sync
+
+1. `PreSync` - To deploy before `sync` phase. e.x. Database healthcheck jobs, database migration job, etc.
+
+    - ArgoCD will run this `pre-sync` phase first, and once pre-sync phase completes, all the resource of the phase becomes healthy. The `sync` phase will be run and deploy all the resources.
+
+2. `Sync` (default) - The phase when actual resources(deployments, services, service accounts, etc.) are going to deploy in a cluster.
+
+3. `PostSync` - To send notification for application health, sync status.
+
+    - This phase will run only when the `sync` phase is healthy and completed, otherwise won't.
+
+4. `SyncFail` - Runs when `Sync` phase results in failure.
+
+You can create and annotate Kubernetes Job with `argocd.argoproj.io/hook: HookName` to run job in given phases.
+
+- E.x. `argocd.argoproj.io/hook: PreSync` for pre-sync hook.
+
+Make sure that the job is stored on the **same path of the application source**. (Git repository path)
+
+The jobs will run according to the sync-phase of your application.
+
+You can see execution of hook in application **SYNC DETAILS** in steps.
+
+### Hook Deletion policy - Delete hook immediately
+
+- `HookSucceeded` - Hook resource is deleted after a hook succeed. (e.x. Delete `PreSync` Jobs after **Healthy** status)
+- `HookFailed` - Hook resource is deleted after a hook failed.
+- `BeforeHookCreation` - Any existing hook is deleted before any new one is created. Default Hook deletion policy.
+
+To apply deletion policy, annotate the hook-job with `argocd.argoproj.io/hook-delete-policy: <Deletion-Policy>`
+
+- E.x. `argocd.argoproj.io/hook-delete-policy: HookSucceeded` for deletion of succeeded hook.
