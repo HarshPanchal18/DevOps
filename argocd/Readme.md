@@ -14,6 +14,8 @@
 - [Context Switching](#context-switching-troubleshooting)
 - [Rollouts](#rollouts)
 - [SyncOptions for Application](#sync-options-for-application)
+- [ArgoCD Hooks](#argocd-hooks---run-kubernetes-jobs-around-the-argocd-application-sync)
+- [Resource creation order](#create-resources-in-order)
 
 ## Problem
 
@@ -331,19 +333,14 @@ Encode the generated token and put inside `argocd-secret` secret as `accounts.lo
 
 ```bash
 # Generate token
-htpasswd -bnBC 10 "" admin123 | tr -d ':\n'
+$ htpasswd -nbBC 10 "" admin123 | tr -d ':\n' | sed 's/$2y/$2a/'
 
-# e.x. $2y$10$E0rosdjd./3d1xajkCm0qeyKCxYlBsX5c41nQrCtn3ke78pfCyGc6
+# e.x. $2a$10$UAJR/PVjG9UcjVhQSLNike1j9LilJA6vYlJw/yuZ6/kJ3903N/dm6
 
-# Encode token
-# echo -n "$2y$10$E0rosdjd./3d1xajkCm0qeyKCxYlBsX5c41nQrCtn3ke78pfCyGc6" | base64
+# Patch secret/argocd-secret to update value
+kubectl -n argocd patch secret argocd-secret -p '{"data": {"admin.password": "$2a$10$UAJR/PVjG9UcjVhQSLNike1j9LilJA6vYlJw/yuZ6/kJ3903N/dm6", "admin.passwordMtime": "'$(date +%FT%T%Z | base64)'"}}'
 
-# e.x. eTAuLzNkMXhhamtDbTBxZXlLQ3hZbEJzWDVjNDFuUXJDdG4za2U3OHBmQ3lHYzY=
-
-# Patch secret to update value
-kubectl -n argocd patch secret argocd-secret -p '{"data": {"azdmin.password": "eTAuLzNkMXhhamtDbTBxZXlLQ3hZbEJzWDVjNDFuUXJDdG4za2U3OHBmQ3lHYzY=", "admin.passwordMtime": "'$(date +%FT%T%Z | base64)'"}}'
-
-# Restart argocd server pod
+# Restart pod/argocd-server
 kubectl -n argocd delete pods -l app.kubernetes.io/name=argocd-server
 ```
 
@@ -861,3 +858,52 @@ You can see execution of hook in application **SYNC DETAILS** in steps.
 To apply deletion policy, annotate the hook-job with `argocd.argoproj.io/hook-delete-policy: <Deletion-Policy>`
 
 - E.x. `argocd.argoproj.io/hook-delete-policy: HookSucceeded` for deletion of succeeded hook.
+
+## Create resources in order
+
+- You can create order for scheduling resources based on your priority in ArgoCD (e.x. Creating service before deployment).
+
+- Just annotate your resource with `argocd.argoproj.io/sync-wave: "2"`. By default, all resources have priority set to '0'.
+
+- The priority is considered as **High to Low**. (Resource with smaller value has high priority).
+
+- If all resource has same priority, it is created on **`Kind`** order [more info](https://github.com/argoproj/argo-cd/blob/b137439c076f1f5da45edfb9b719504892e3ee7e/gitops-engine/pkg/sync/sync_tasks.go#L26).
+
+### Priorities
+
+| Order | Reference |
+| - | - |
+| 1 | By Phase (PreSync, PostSync, ...) |
+| 2 | By SyncWave (-2, 0, 4, ...) |
+| 3 | By Kind (ServiceAccount, Service, ...) |
+| 4 | By Name (Same Kind with different name) |
+
+## Configure GitHub Webhook with ArgoCD
+
+- [Reference](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md)
+
+1. Navigate to the **Organization's settings -> Webhook**. Click **Add Webhhok**
+2. Put ArgoCD webhook endpoint in Payload URL (e.x. <https://argocd.example.com/api/webhook>)
+3. Choose content type as `application/json`
+4. Decide webhook secret and put inside `secret/argocd-secret`
+
+    ```yaml
+    stringData:
+        webhook.github.secret: SECRET
+    ```
+
+    OR under `configs.secret.githubSecret` inside `value.yaml`.
+
+    After saving, the changes should take effect automatically. No pod restart required.
+5. Go back to webhook settings in GitHub
+6. Enable SSL Verification
+7. Decide events to trigger webhook (e.x. **Push**)
+8. Mark Active to enable webhook
+9. Click Add webhook to create webhook successfully
+10. Test webhook by pushing changes in repo
+
+For disabling SSL verification, you have to change in `configmap/argocd-cmd-params-cm` in argocd namespace
+
+```bash
+kubectl patch cm argocd-cmd-params-cm -n argocd --type merge -p '{"data": {"server.insecure": "true"}}'
+```
