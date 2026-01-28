@@ -907,3 +907,167 @@ For disabling SSL verification, you have to change in `configmap/argocd-cmd-para
 ```bash
 kubectl patch cm argocd-cmd-params-cm -n argocd --type merge -p '{"data": {"server.insecure": "true"}}'
 ```
+
+## Authenticating with OAuth apps in GitHub
+
+1. Create Oauth App under Github Organization
+2. Navigate to `Developer Settings -> OAuth Apps`
+3. Click on "New OAuth App"
+4. Assign **Application name** (e.x. argocd)
+    - Provide **Homepage URL** (e.x. <https://argocd.example.com>)
+    - Provide **Callback URL** (e.x. <https://argocd.example.com/api/dex/callback>)
+5. Click on "Register Application"
+6. After successful creation
+    - There will be **Client ID** generated
+    - Click on "Genereate a new Client Secrets" to generate a **Client Secret**
+    - Store **Client Secrets** and **Client ID** in your space for configuring in ArgoCD later
+7. Click on "Update Application" to complete the process of OAuth App
+8. After creating OAuth app, Follow below steps in Kubernetes cluster where ArgoCD is deployed
+
+- Via helm chart's values.yaml
+
+    ```yaml
+    config:
+        cm:
+          dex.config: |
+            connectors:
+                - type: github
+                  id: github
+                  name: GitHub
+                  config:
+                    clientID: YOUR-CLIENT-ID
+                    clientSecret: YOUR-CLIENT-SECRET
+                    orgs:
+                      - name: your-github-org-name
+                        teams:
+                        - team-infra
+                        - team-dev
+                        - team-admin
+    ```
+
+> OR
+
+- Via `configmap/argocd-cm`
+- Add `data.dex.config` & `data.url` as following:
+
+    ```yaml
+    apiVersion: v1
+    data:
+        admin.enabled: "true"
+        application.sync.impersonation.enabled: "false"
+        ...
+        dex.config: |
+            connectors:
+            - type: github
+              id: github
+              name: GitHub
+              config:
+                clientID: Ov23linEEEBbioJu7zoc
+                clientSecret: c09aaa16e4faa158103f2132dd19947e9f001017
+                orgs:
+                  - name: manavnmodi
+                    teams:
+                    - devops
+        ...
+        statusbadge.enabled: "false"
+        timeout.hard.reconciliation: 0s
+        timeout.reconciliation: 180s
+        url: <https://argocd.example.com>
+    kind: ConfigMap
+    metadata:
+    annotations:
+        meta.helm.sh/release-name: argocd
+        meta.helm.sh/release-namespace: argocd
+    labels:
+        app.kubernetes.io/component: server
+        app.kubernetes.io/instance: argocd
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: argocd-cm
+        app.kubernetes.io/part-of: argocd
+        app.kubernetes.io/version: v3.2.3
+        helm.sh/chart: argo-cd-9.2.4
+    name: argocd-cm
+    namespace: argocd
+    ```
+
+## GitHub Authorization with GitHub App
+
+1. Go to `Organization Settings->Developer Settings->Github Apps`
+2. Click on "New GitHub App"
+    - Provide decided **GitHub App name**
+    - Provide ArgoCD Homepage URL in **Home Page URL** (e.x. <https://argocd.example.com/>)
+    - Provide Callback URL in **Callback URL** to redirect after successful authorization (e.x. <https://argocd.example.com/>)
+
+3. Mark webhook **Active** and Provide ArgoCD webhook URL (e.x. <https://argocd.example.com/api/webhook>)
+4. Provide decided **Webhook secret**
+5. Enable **SSL verification**
+6. Scroll down and select **Only on this account** to allow this GitHub App to be installed on this organization only
+7. Click on "Create GitHub App" to create app
+8. After the creation of app, there will be **App ID** & **Client ID** generated. Store and keep both to your local space
+9. Generate a new client secret. Store and keep to your local space
+10. You need a private key to sign access token requests
+    - Click on Generate a private key
+    - Download this key
+
+11. Navigate to **Permissions & events** from the sidebar
+12. Give Required Permission & Events For ArgoCD
+    - Repository Persmissions:
+
+        | Resource | Permission |
+        | - | - |
+        | Contents | Read Only |
+        | Pull Requests | Read Only |
+
+    - Organization Permission
+
+        | Resource | Permission |
+        | - | - |
+        | Members | Read Only |
+
+13. Subscribe to **Push** Events for Webhook
+14. Click "Save Changes"
+15. After completing these steps, Install this Github App under your Organization for **All repositories**
+16. After GitHub App installation, go to <https://github.com/organizations/your-org/settings/installations>
+17. Click "Configure" for your GitHub app
+18. Copy URL of opened page suffixed with **appInstallationID**. Store and Keep that **appInstallationID**
+19. After all configuration done in GitHub, configure ArgoCD by creating a secret labelled with `argocd.argoproj.io/secret-type: repo-creds`
+in secret under `stringData`:
+    - `url` - organization URL
+    - `githubAppID` - get appID we get above
+    - `githubAppInstallationID` - get appInstallationID we get above
+    - `githubAppPrivateKey` - download private key generated at creation time of github app
+
+    Or put above values in helm `values.yaml` under `configs.credentialTemplates.<your-appname>` (i.e. my-github-app)
+
+    ```yaml
+    configs:
+        credentialTemplates:
+            my-github-app:
+                url: ""
+                githubAppID: ""
+                ...
+    ```
+
+## Managed Applications modification Policies
+
+The ApplicationSet controller supports a parameter `--policy`, which restricts what types of modifications will be made to managed Argo CD Application resources.
+
+You can enforce this parameter by providing argument within the Controller Deployment container (`application-controller`)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+    # ...
+    syncPolicy:
+        applicationsSync: create-only # create-update, create-delete, sync
+```
+
+Enumerated values for `applicationsSync`:
+
+| Policy | Allows | Prevents |
+|---|---|---|
+| `create-only` | **Create** Application resources | **Deletion** or **Modification** |
+| `create-update` | **Create** or **Modify** Application resources | **Deletion** |
+| `create-delete` | **Create** or **Delete** Application resources | **Modification** |
+| `sync` | **Create**, **Modification** and **Delete** | Nothing |
