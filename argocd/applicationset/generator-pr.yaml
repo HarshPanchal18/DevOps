@@ -7,24 +7,25 @@ spec:
   generators:
   - pullRequest:
       github:
-        owner: my-org
-        repo: my-repo
-      requeueAfterSeconds: 1800 # 30 Min
+        owner: HarshPanchal18
+        repo: argocd-application
+      requeueAfterSeconds: 1800 # the ApplicationSet controller polls every `requeueAfterSeconds` interval (default: 30 Min) to detect changes in PR.
+      filters:
+        - branchMatch: ".*-kustomize"
+        - titleMatch: "^feat:*" # Optional
   template:
     metadata:
-      name: 'myapp-{{branch}}-{{number}}'
+      name: 'application-{{branch}}-{{number}}'
     spec:
       source:
-        repoURL: 'https://github.com/my-org/my-repo.git'
+        repoURL: 'https://github.com/HarshPanchal18/argocd-application'
         targetRevision: '{{head_sha}}'
-        path: kubernetes/
+        path: kustomize/base
         kustomize:
           nameSuffix: '-{{branch}}'
           commonLabels:
             app.kubernetes.io/instance: 'pr-{{branch}}-{{number}}'
-          images:
-          - 'ghcr.io/my-org/my-repo:{{author}}-{{head_sha}}'
-      project: "my-project"
+      project: default
       destination:
         server: https://kubernetes.default.svc
         namespace: default
@@ -35,3 +36,4 @@ spec:
 # head_sha - SHA of the head of PR
 # author - Creator of PR
 # number - ID number of PR
+# title - title of PR
