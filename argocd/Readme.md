@@ -224,9 +224,10 @@ When Argo CD manages a remote cluster, it logs in as a Service Account with spec
     stringData:
         name: gke-cluster
         server: SERVER-URL
+        namespaces: "staging,dev,uiportal-beta" # Namespace(s) allowed to manage on target cluster
         config: |
             {
-                "bearerToken": "ENCODED-BEARER-TOKEN",
+                "bearerToken": "BEARER-TOKEN",
                 "tlsClientConfig": {
                     "insecure": true,
                     "caData": "ENCODED-CA-DATA"
@@ -234,7 +235,23 @@ When Argo CD manages a remote cluster, it logs in as a Service Account with spec
             }
     ```
 
-6. Apply above secret in a clustere where ArgoCD is deployed.
+    Or for configuring directly in helm `values.yaml`:
+
+    ```yaml
+    configs:
+        clusterCredentials:
+            toy-cluster: # This would be referred as a `name` of your cluster
+                server: https://toy.cluster.com
+                labels: {}
+                annotations: {}
+                config:
+                    bearerToken: "<BEARER-TOKEN>"
+                    tlsClientConfig:
+                    insecure: false
+                    caData: "<base64 encoded certificate>"
+    ```
+
+6. Apply above secret in a cluster where ArgoCD is deployed.
 7. After applying this secret, ArgoCD sync target cluster automatically.
 8. Check if the target cluster is added successfully into ArgoCD by visiting: <https://argocd.example.com/settings/clusters>
 
@@ -246,7 +263,7 @@ When Argo CD manages a remote cluster, it logs in as a Service Account with spec
 
 ## Local User Management
 
-### Create new user
+### Create new user with password
 
 New user should be defined in `argocd-cm` Configmap.
 
@@ -271,6 +288,38 @@ Each user might have two capabilities:
 
 - `apiKey` - allows generating authentication tokens for API access
 - `login` - allows to login using UI
+
+Or via Helm `values.yaml`:
+
+```yaml
+configs:
+    cm:
+        accounts.local-user: login
+```
+
+Create/Set a password for the above user:
+
+```bash
+# Install below package first to generate password
+$ sudo apt install apache2-utils
+
+# Generate a hash for a password (e.x. secretpassword)
+$ htpasswd -nbBC 10 "" secretpassword | tr -d ':\n' | sed 's/$2y/$2a/'
+
+# e.x. $2a$10$dwC0Wu4eEXe0.LgUEpwlvOkqMwUaFyaIf0oxTWYpE4yoxxTQsvjfy
+```
+
+Patch/Set above generated hash inside `secret/argocd-secret` to apply a password for user `local-user`:
+
+```bash
+kubectl -n argocd patch secret argocd-secret -p '{"stringData": { "local-user.password": "$2a$10$dwC0Wu4eEXe0.LgUEpwlvOkqMwUaFyaIf0oxTWYpE4yoxxTQsvjfy" }}'
+```
+
+Restart `pod/argocd-server`:
+
+```bash
+kubectl -n argocd delete pods -l app.kubernetes.io/name=argocd-server
+```
 
 ### Get user list
 
@@ -333,12 +382,12 @@ Encode the generated token and put inside `argocd-secret` secret as `accounts.lo
 
 ```bash
 # Generate token
-$ htpasswd -nbBC 10 "" admin123 | tr -d ':\n' | sed 's/$2y/$2a/'
+$ htpasswd -nbBC 10 "" new-password | tr -d ':\n' | sed 's/$2y/$2a/'
 
 # e.x. $2a$10$UAJR/PVjG9UcjVhQSLNike1j9LilJA6vYlJw/yuZ6/kJ3903N/dm6
 
 # Patch secret/argocd-secret to update value
-kubectl -n argocd patch secret argocd-secret -p '{"data": {"admin.password": "$2a$10$UAJR/PVjG9UcjVhQSLNike1j9LilJA6vYlJw/yuZ6/kJ3903N/dm6", "admin.passwordMtime": "'$(date +%FT%T%Z | base64)'"}}'
+kubectl -n argocd patch secret argocd-secret -p '{"data": {"local-user.password": "$2a$10$UAJR/PVjG9UcjVhQSLNike1j9LilJA6vYlJw/yuZ6/kJ3903N/dm6" }}'
 
 # Restart pod/argocd-server
 kubectl -n argocd delete pods -l app.kubernetes.io/name=argocd-server
@@ -393,6 +442,12 @@ Password updated
 Context '<ARGOCD_URL>' updated
 ```
 
+Change local user password
+
+```bash
+argocd account update-password --server argocd-server.argocd.svc --insecure --account local-user
+```
+
 ## RBAC Authorization
 
 ArgoCD RBAC configuration can be found inside `argocd-rbac-cm` configmap.
@@ -403,15 +458,6 @@ _Default:_
 apiVersion: v1
 kind: ConfigMap
 metadata:
-    annotations:
-        meta.helm.sh/release-name: argocd
-        meta.helm.sh/release-namespace: argocd
-    labels:
-        app.kubernetes.io/component: server
-        app.kubernetes.io/instance: argocd
-        app.kubernetes.io/managed-by: Helm
-        app.kubernetes.io/name: argocd-rbac-cm
-        app.kubernetes.io/part-of: argocd
     name: argocd-rbac-cm
     namespace: argocd
 data:
