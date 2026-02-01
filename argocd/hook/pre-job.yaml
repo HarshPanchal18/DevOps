@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: health-check-pre-job
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    spec:
+      containers:
+      - name: healthcheck
+        image: curlimages/curl
+        command: ["/bin/sh", "-c"]
+        args: ["if curl -s https://192.168.208.253:5000 | grep -qi 'running'; then echo 'Flask app is UP and running'; exit 0; else echo 'Flask app is NOT accessible'; exit 1; fi"]
+      restartPolicy: Never
+  backoffLimit: 0
