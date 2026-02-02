@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: samples
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  description: Experimental space.
+  destinations:
+  - name: '*'
+    namespace: '*'
+    server: '*'
+  sourceRepos:
+  - '*'
+  syncWindows:
+    - kind: deny # or allow
+      schedule: '* 10 * * *' # Deny sync of every "application*" from 10am to 11am everyday
+      duration: 1h # or 30m
+      applications:
+        - 'application*'
+      # Optionals
+      timezone: "Asia/Kolkata"
+      namespaces: # Default *
+        - default
+        - ns-staging
+      clusters:   # Default *
+        - in-cluster
+      andOperator: false  # ANDed selections (applications, namespaces, and clusters)
+      manualSync: false   # Deny manual sync too
+                          # Red symbol: Sync denied
+                          # Orange symbol: Manual Sync allowed
+                          # Green symbol: Sync allowed
