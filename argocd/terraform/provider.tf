@@ -1,14 +1,15 @@
 terraform {
   required_providers {
     argocd = {
-      source  = "oboukili/argocd"
-      version = "6.0.2"
+      source  = "argoproj-labs/argocd"
+      version = "7.12.5"
     }
   }
 }
 
 provider "argocd" {
-  server_addr = var.server_address
-  username = var.username
-  password = var.password
+  server_addr = var.argocd_server_address
+  username    = var.argocd_admin_username
+  password    = var.argocd_password
+  insecure    = true
 }
