@@ -27,12 +27,12 @@ resource "argocd_application" "app-helm-redis" {
 }
 
 resource "argocd_application" "app-kustomize-dev" {
-  depends_on          = [ argocd_project.experiments ]
+  depends_on          = [argocd_project.experiments]
   metadata {
     name              = "app-kustomize-dev"
     namespace         = var.argocd_namespace
   }
-	spec {
+  spec {
     project           = argocd_project.experiments.metadata[0].name
     destination {
       namespace       = "default"
@@ -56,14 +56,57 @@ resource "argocd_project" "experiments" {
       namespace       = "*"
       server          = var.destination_k8s_server
     }
-    source_namespaces = [ "*" ]
-    source_repos      = [ "*" ]
+    source_namespaces = ["*"]
+    source_repos      = ["*"]
     sync_window {
       kind            = "deny"
-      applications    = [ "*" ]
+      applications    = ["*"]
       schedule        = "* 10 * * *"
       duration        = "10m"
       manual_sync     = false
+    }
+  }
+}
+
+resource "argocd_application_set" "git_directories" {
+  metadata {
+    name = "git-directories"
+  }
+
+  spec {
+    generator {
+      git {
+        repo_url = "https://github.com/argoproj/argo-cd.git"
+        revision = "HEAD"
+
+        directory {
+          path = "applicationset/examples/git-generator-directory/cluster-addons/*"
+        }
+
+        directory {
+          path    = "applicationset/examples/git-generator-directory/excludes/cluster-addons/exclude-helm-guestbook"
+          exclude = true
+        }
+      }
+    }
+
+    template {
+      metadata {
+        name = "{{path.basename}}-git-directories"
+      }
+
+      spec {
+        source {
+          repo_url        = "https://github.com/argoproj/argo-cd.git"
+          target_revision = "HEAD"
+          path            = "{{path}}"
+        }
+
+        destination {
+          server    = "https://kubernetes.default.svc"
+          namespace = "{{path.basename}}"
+        }
+      }
     }
   }
 }
