@@ -1,0 +1,9 @@
+controller:
+  metricsConfig:
+    enabled: true
+  serviceMonitor:
+    enabled: true
+server:
+  serviceType: NodePort
+  serviceNodePort: 32746
+  authModes: ['server']
