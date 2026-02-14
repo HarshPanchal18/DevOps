@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+    generateName: demo-workflow-
+spec:
+  entrypoint: main # Entrypoint for the workflow
+  templates:       # steps used in the workflow
+  - name: main     # name of the template
+    steps:
+      - - name: hello1
+          template: print-message
+          arguments:
+            parameters:
+            - name: message
+              value: "hello1"
+  - name: secondary
+    steps:
+      - - name: hello2
+          template: print-message
+          arguments:
+            parameters:
+            - name: message
+              value: "hello2"
+  - name: print-message
+    inputs:
+      parameters:
+      - name: message
+    container:
+      image: busybox # Docker image to use for the container
+      command: ["/bin/sh"]
+      args: ["-c", "echo 'The message from previous workflow... {{inputs.parameters.message}}'"]
+  ttlStrategy:
+    secondsAfterCompletion: 300 # TTL for completed jobs
+    secondsAfterFailure: 180    # TTL for failed jobs
+    secondsAfterSuccess: 60     # TTL for succeed jobs
