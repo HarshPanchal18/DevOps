@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: argo-dag-wf-
+  namespace: argo
+spec:
+  entrypoint: dag-template # Starting point of workflow
+  templates:
+    - name: dag-template
+      dag:
+        tasks:
+          - name: A
+            template: container-template
+          - name: B
+            template: script-template
+            dependencies: [A]
+          - name: C
+            template: resource-template
+            dependencies: [A]
+          - name: D
+            template: suspend-template
+            dependencies: [B, C]
+    - name: container-template
+      container:
+        image: alpine
+        command:
+          - "/bin/sh"
+          - "-c"
+        args: ["echo 'hello from container template...'"]
+    - name: script-template
+      script:
+        image: python:alpine3.6
+        command:
+          - python
+        source: |
+          import random
+          i = random.randint(1, 10)
+          print("Random digit is: ", i)
+    - name: resource-template
+      resource:
+        action: create # can be: get, create, apply, delete, replace, patch
+        manifest: |    # Configmap is created in the same namespace the workflow runs
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            generateName: argo-wf-configmap-
+            labels:
+              created_by: argo-workflows
+            namespace: default
+          data:
+            author: HarshPanchal
+    - name: suspend-template
+      suspend:
+        duration: "10s"
+  ttlStrategy:
+    secondsAfterCompletion: 120 # TTL for completed jobs
+    secondsAfterFailure: 180    # TTL for failed jobs
+    secondsAfterSuccess: 120    # TTL for succeed jobs
