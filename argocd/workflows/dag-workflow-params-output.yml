@@ -4,52 +4,57 @@ metadata:
   generateName: argo-dag-wf-
   namespace: argo
 spec:
-  arguments: # Global variables
-    parameters:
-      - name: message
-        # value: "Hello from spec.arguments.parameters.message" # argo submit dag-workflow-params.yml -p 'message="hello from terminal"'
   entrypoint: dag-template
   templates:
     - name: dag-template
       dag:
         tasks:
           - name: A
-            template: container-template
-            arguments:
-              parameters:
-                - name: message
-                  # value: "Hello from dag.tasks.A.arguments.parameters.message"
-                  value: "{{workflow.parameters.message}}" # Calling global parameters
+            templateRef:
+              name: argo-workflow-template-container
+              template: container-template
           - name: B
             template: script-template
             dependencies: [A]
           - name: C
             template: resource-template
-            dependencies: [A]
+            arguments:
+              parameters:
+                - name: rand_num_input
+                  value: "{{tasks.B.outputs.parameters.rand_num_output}}"
+            dependencies: [A, B]
           - name: D
             template: suspend-template
-            dependencies: [B, C]
+            dependencies: [A, B, C]
     - name: container-template
-      inputs:
-        parameters:
-          - name: message
-            # value: "A message from inputs.parameters"
       container:
         image: alpine
         command:
           - "/bin/sh"
           - "-c"
-        args: ["echo '{{inputs.parameters.message}}'"]
+        args: ["echo 'Hello from container'"]
     - name: script-template
+      outputs:
+        parameters:
+          - name: rand_num_output
+            # value: "20"
+            valueFrom:
+              path: "/tmp/rand_num"
       script:
         image: python:alpine3.6
         command:
           - python
-        source: |
+        source: | # Script to execute
           import random
           i = random.randint(1, 10)
-          print("Random digit is: ", i)
+
+          with open('/tmp/rand_num', 'w') as f:
+            f.write(str(i))
+            print("Written", i, "into file: /tmp/rand_num")
     - name: resource-template
+      inputs:
+        parameters:
+          - name: rand_num_input
       resource:
         action: create # can be: get, create, apply, delete, replace, patch
         manifest: |    # Configmap is created in the same namespace the workflow runs
@@ -62,6 +67,7 @@ spec:
             namespace: default
           data:
             author: HarshPanchal
+            randomNumber: "{{inputs.parameters.rand_num_input}}"
     - name: suspend-template
       suspend:
         duration: "10s"
