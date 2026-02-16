@@ -1,0 +1,19 @@
+# argo template create template-container.yaml -n argo
+# argo template delete argo-workflow-template-container -n argo
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: argo-workflow-template-container
+  namespace: argo
+spec:
+  templates:
+    - name: container-template
+      # inputs:                 # For template scoped variables
+      #   parameters:
+      #     - name: message
+            # value: "Hello from WorkflowTemplate.inputs.parameters.message"
+      container:
+        image: alpine
+        command: ["/bin/sh", "-c"]
+        # args: ["echo {{inputs.parameters.message}}"] # Coming from the workflow
+        args: ["echo {{workflow.parameters.message}}"] # Coming from the workflow spec (global arguments)

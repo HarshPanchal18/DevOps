@@ -4,6 +4,10 @@ metadata:
   generateName: argo-dag-wf-
   namespace: argo
 spec:
+  arguments:
+    parameters:
+      - name: message
+        value: "Hello from workflow"
   entrypoint: dag-template
   templates:
     - name: dag-template
@@ -13,6 +17,11 @@ spec:
             templateRef:
               name: argo-workflow-template-container
               template: container-template
+              # clusterScope: true # Enabling use of argo-cluster-workflow-template-container
+            # arguments:
+            #   parameters:
+            #     - name: message
+            #       value: "Hello from workflow"
           - name: B
             template: script-template
             dependencies: [A]
