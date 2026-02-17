@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  generateName: argo-cron-wf-
+spec:
+  schedules:
+    - "* * * * *"             # Every minute
+  # suspend: true             # Suspend this job from executing (default: false)
+  concurrencyPolicy: "Forbid" # What to do if multiple workflows are scheduled at the same time
+  # Allow: allow all
+  # Replace: remove all old before scheduling new
+  # Forbid: do not allow any new while there are old
+  startingDeadlineSeconds: 0
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  workflowMetadata:
+    labels:
+      workflow-type: cron
+  workflowSpec:               # same as Workflow.spec
+    entrypoint: date
+    templates:
+      - name: date
+        retryStrategy:
+          limit: "2"          # maximum number of retry attempts (limit + 1)
+        container:
+          image: busybox
+          command: [echo]
+          args: ["Scheduled on: {{workflow.scheduledTime}}"]

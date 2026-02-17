@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  generateName: argo-cron-wf-multi-schedule-
+spec:
+  schedules:
+    - "*/5 * * * 1-5"     # Every 5 minutes from Mon to Fri
+    - "*/10 * * * 0"      # Every 10 minutes on weekends
+  concurrencyPolicy: "Allow"
+  workflowSpec:
+    podGC:
+      strategy: OnPodCompletion # Can be "OnPodSuccess", "OnWorkflowCompletion", "OnWorkflowSuccess". If unset, does not delete Pods
+    entrypoint: date
+    templates:
+      - name: date
+        container:
+          image: busybox
+          command: [echo]
+          args: ["This workflow is scheduled on: {{workflow.scheduledTime}}"]
