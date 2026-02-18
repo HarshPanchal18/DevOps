@@ -157,18 +157,38 @@ kubectl delete crd workflowtasksets.argoproj.io
 kubectl delete ns argo
 ```
 
-## Create workflows
+## Commands
 
-Create a workflow e.x. `sequence-workflow.yaml`.
+### workflow
 
-Apply workflow with `argo`:
+| Action | Command |
+|---|---|
+| Create a workflow | `argo submit sequence-workflow.yaml -n argo` |
+| List workflows | `argo list -n argo` |
+| Suspend workflows | `argo suspend workflow-names -n argo` |
+| Stop workflows | `argo stop workflow-names -n argo` |
+| Terminate workflows | `argo terminate workflow-names -n argo` |
+| Resume workflows | `argo resume workflow-names -n argo` |
+| Retry failed workflows | `argo retry workflow-names -n argo` |
+| Resubmit workflows | `argo resubmit workflow-names -n argo` |
+| View logs of a workflow | `argo logs workflow-name -n argo` |
+| Watch a workflow until completion | `argo watch workflow-name -n argo` |
+| Delete failed workflows |`argo delete -n argo --status Failed` |
 
-```bash
-argo submit workflow/sequence-workflow.yaml -n argo
-```
+### workflow Template
 
-List workflows:
+| Action | Command |
+|---|---|
+| Create a template | `argo template create container-template.yaml -n argo` |
+| List templates | `argo template list -n argo` |
+| Delete a template | `argo template delete template-name -n argo` |
+| Get a template | `argo template get template-name -n argo` |
+| Update a template | `argo template update container-template.yaml -n argo` |
 
-```bash
-argo list -n argo
-```
+### cronWorkflow
+
+| Action | Command |
+|---|---|
+| Create a CronWorkflow | `argo cron create cron-workflow.yaml -n argo` |
+| List CronWorkflows | `argo cron list -n argo` |
+| Get a CronWorkflow | `argo cron get cron -n argo` |
