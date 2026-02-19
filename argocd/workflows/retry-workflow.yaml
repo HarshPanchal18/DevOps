@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: argo-wf-retry
+  namespace: argo
+spec:
+  entrypoint: retry-container-template
+  templates:
+    - name: retry-container-template
+      retryStrategy:
+        limit: "2"          # (limit + 1 retries: 0, 1, 2)
+        retryPolicy: Always # Retry on failure + error. Can be OnFailure, OnError
+        # OnFailure - Retry steps whose main container is marked as failed in Kubernetes
+        # OnError   - Retry steps that encounter Argo controller errors, or whose init or wait containers fail
+      container:
+        image: alpine
+        command: ["/bin/sh", "-c"]
+        args: ["echo 'Running...' && exit 1"]

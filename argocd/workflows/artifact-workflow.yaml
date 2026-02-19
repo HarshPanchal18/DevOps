@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: argo-wf-artifact-pass-
+  namespace: argo
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      steps:
+        - - name: produce-file
+            template: producer
+        - - name: consume-file
+            template: consumer
+            arguments:
+              artifacts:
+                - name: out-file
+                  from: "{{steps.produce-file.outputs.artifacts.out-file}}"
+    - name: producer
+      container:
+        image: alpine
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "hello from producer!" > /tmp/out-file.txt
+            echo 'Message is written into file...'
+            cat /tmp/out-file.txt
+      outputs:
+        artifacts:
+          - name: out-file
+            path: /tmp/out-file.txt
+    - name: consumer
+      inputs:
+        artifacts:
+          - name: out-file
+            path: /tmp/in-file.txt
+      container:
+        image: alpine
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo 'Consumer Got: '
+            cat /tmp/in-file.txt
