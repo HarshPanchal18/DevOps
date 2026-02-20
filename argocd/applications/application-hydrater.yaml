@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-kustomize-app
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/HarshPanchal18/argocd-application.git
+      path: kustomize/base
+      targetRevision: HEAD
+      # kustomize:
+      #   namePrefix: prod-
+      #   nameSuffix: -v1
+      #   images:
+      #     - gcr.io/heptio-images/ks-guestbook-demo:0.2
+    syncSource:
+      targetBranch: default
+      path: kustomize/base
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true
