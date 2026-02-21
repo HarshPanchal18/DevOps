@@ -91,7 +91,7 @@ The typical Helm workflow follows these stages:
 brew install helm
 
 # Using installer script
-curl -fsSL -o get_helm.sh <https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3>
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
 chmod 700 get_helm.sh
 ./get_helm.sh
 ```
@@ -103,13 +103,19 @@ chmod 700 get_helm.sh
 sudo snap install helm --classic
 
 # Using installer script
-curl <https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3> | bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 # Using package managers
 # Debian/Ubuntu
-curl <https://baltocdn.com/helm/signing.asc> | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
 sudo apt-get update
 sudo apt-get install helm
+
+# Or
+curl -o /tmp/helm.tar.gz -LO https://get.helm.sh/helm-v4.0.0-linux-amd64.tar.gz
+tar -C /tmp/ -zxvf /tmp/helm.tar.gz
+mv /tmp/linux-amd64/helm /usr/local/bin/helm
+chmod +x /usr/local/bin/helm
 ```
 
 ### Windows
@@ -198,7 +204,7 @@ After installation, verify Helm is working correctly:
 helm version
 
 # Add the official stable repository
-helm repo add stable <https://charts.helm.sh/stable>
+helm repo add stable https://charts.helm.sh/stable
 
 # Update repository information
 helm repo update
