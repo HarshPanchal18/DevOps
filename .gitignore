@@ -8,15 +8,15 @@
 /kafka/impl/practise/environment
 *key*
 *cred*
-*key*
-*token*
-*secret*
+*.crt*
 *backup*
 *.terraform*
 *.tfstate*
 *LICENSE.txt*
 *tyv*
 *.zip*
+
+*secret*.tf
 
 # Python env
 /kafka/impl/another-python/env/bin
