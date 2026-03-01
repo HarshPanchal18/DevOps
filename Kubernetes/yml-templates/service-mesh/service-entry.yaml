@@ -1,0 +1,26 @@
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: external-svc-google
+spec:
+  hosts:
+    - google.com
+  location: MESH_EXTERNAL
+  ports:
+    - number: 80
+      name: http
+      protocol: HTTP
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: my-google-rule
+spec:
+  hosts:
+  - google.com
+  http:
+  - timeout: 5s
+    route:
+    - destination:
+        host: google.com
