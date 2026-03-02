@@ -377,3 +377,58 @@ Docker logs are grouped by severity. These levels help you decide what to look a
 * FATAL – The daemon itself has stopped working. This is rare but critical to address right away.
 
 A good habit is to start with ERROR and FATAL, then review WARN for additional context. Drop into INFO or DEBUG when you need a fuller picture.
+
+## Docker Model Runner
+
+Docker Model Runner (DMR) makes it easy to manage, run, and deploy AI models using Docker.
+
+You can serve models via OpenAI and Ollama-compatible APIs, package GGUF files as OCI Artifacts, and interact with models from both the command line and graphical interface.
+
+### How Docker Model Runner works
+
+Models are pulled from Docker Hub, an OCI-compliant registry, or Hugging Face the first time you use them and are stored locally. They load into memory only at runtime when a request is made, and unload when not in use to optimize resources. Because models can be large, the initial pull may take some time. After that, they're cached locally for faster access.
+
+You can interact with the model using [OpenAI and Ollama-compatible APIs](https://docs.docker.com/ai/model-runner/api-reference/).
+
+### Enable Docker Model Runner
+
+Ubuntu/Debian based:
+
+```bash
+sudo apt-get update
+sudo apt-get install docker-model-plugin
+```
+
+RPM-based
+
+```bash
+sudo dnf update
+sudo dnf install docker-model-plugin
+```
+
+Test installation
+
+```bash
+docker model version
+docker model run ai/smollm2
+```
+
+Pull a model
+
+```bash
+# Pull from dockerhub
+docker model pull ai/smollm2:360M-Q4_K_M
+
+# Pull from Hugging face
+docker model pull hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF
+```
+
+Push a model
+
+```bash
+# Tag a pulled model under a new name
+docker model tag ai/smollm2 myorg/smollm2
+
+# Push it to Docker Hub
+docker model push myorg/smollm2
+```
