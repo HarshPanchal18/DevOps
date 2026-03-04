@@ -1,4 +1,4 @@
-resource "kubernetes_pod" "nginx" {
+resource "kubernetes_pod_v1" "nginx" {
     metadata {
         name    = var.pod_name
         labels  = {
