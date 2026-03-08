@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-timoni
+  namespace: ns-argocd
+  annotations:
+    link.argocd.argoproj.io/external-link: https://github.com/HarshPanchal18  # External Live project link
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: timoni-module
+    repoURL: https://github.com/HarshPanchal18/argocd-application.git
+    targetRevision: main
+    plugin:
+      name: argo-cmp-timoni-v0.1.0
+      env:
+        - name: ARGOCD_ENV_APP_NAME
+          value: '{{repository}}'
+        - name: ARGOCD_ENV_NAMESPACE
+          value: '{{values.namespace}}'    # per-stage namespace
+        - name: ARGOCD_ENV_VALUES_FILENAME
+          value: '{{values-yaml}}'  # values file per stage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
