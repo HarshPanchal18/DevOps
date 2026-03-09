@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: argo-cmp-timoni
+spec:
+  init:
+    command: []
+    args: []
+  generate:
+    command: ["/bin/sh", "-c"]
+    args:
+      - |
+        /usr/local/bin/timoni build ${ARGOCD_ENV_APP_NAME} -n ${ARGOCD_ENV_NAMESPACE} . -f ${ARGOCD_ENV_VALUES_FILENAME}.yaml
