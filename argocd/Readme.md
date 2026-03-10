@@ -16,6 +16,10 @@
 - [SyncOptions for Application](#sync-options-for-application)
 - [ArgoCD Hooks](#argocd-hooks---run-kubernetes-jobs-around-the-argocd-application-sync)
 - [Resource creation order](#create-resources-in-order)
+- [Configure GitHub webhook with ArgoCD](#configure-github-webhook-with-argocd)
+- [Authenticating with OAuth App in GitHub](#authenticating-with-oauth-apps-in-github)
+- [GitHub Authorization with GitHub App](#github-authorization-with-github-app)
+- [ArgoCD ApplicationSet - Managed Applications modification Policies](#argocd-applicationset---managed-applications-modification-policies)
 
 ## Problem
 
@@ -913,7 +917,7 @@ To apply deletion policy, annotate the hook-job with `argocd.argoproj.io/hook-de
 
 - The priority is considered as **High to Low**. (Resource with smaller value has high priority).
 
-- If all resource has same priority, it is created on **`Kind`** order [more info](https://github.com/argoproj/argo-cd/blob/b137439c076f1f5da45edfb9b719504892e3ee7e/gitops-engine/pkg/sync/sync_tasks.go#L26).
+- If all resource has same priority, it is created on **`Kind`** order [more info](https://github.com/argoproj/argo-cd/blob/master/gitops-engine/pkg/sync/sync_tasks.go#L26).
 
 ### Priorities
 
@@ -1094,7 +1098,7 @@ in secret under `stringData`:
                 ...
     ```
 
-## Managed Applications modification Policies
+## ArgoCD ApplicationSet - Managed Applications modification Policies
 
 The ApplicationSet controller supports a parameter `--policy`, which restricts what types of modifications will be made to managed Argo CD Application resources.
 
@@ -1103,6 +1107,7 @@ You can enforce this parameter by providing argument within the Controller Deplo
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
+# ...
 spec:
     # ...
     syncPolicy:
@@ -1117,3 +1122,17 @@ Enumerated values for `applicationsSync`:
 | `create-update` | **Create** or **Modify** Application resources | **Deletion** |
 | `create-delete` | **Create** or **Delete** Application resources | **Modification** |
 | `sync` | **Create**, **Modification** and **Delete** | Nothing |
+
+### Prevent an Application's child resources from being deleted, when the parent Application is deleted
+
+By default, when an Application resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well (such as, all of the Application's Deployments, Services, etc).
+
+To prevent an Application's child resources from being deleted when the parent Application is deleted, add the preserveResourcesOnDeletion: true field to the syncPolicy of the ApplicationSet:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+    syncPolicy:
+        preserveResourcesOnDeletion: true
+```
