@@ -20,6 +20,9 @@
 - [Authenticating with OAuth App in GitHub](#authenticating-with-oauth-apps-in-github)
 - [GitHub Authorization with GitHub App](#github-authorization-with-github-app)
 - [ArgoCD ApplicationSet - Managed Applications modification Policies](#argocd-applicationset---managed-applications-modification-policies)
+- [Configuration Tweaks](#configuration-tweaks)
+- [Sync ArgoCD Application from Kubernetes cluster](#sync-argocd-application-from-kubernetes-cluster)
+- [Disaster Recovery](#disaster-recovery)
 
 ## Problem
 
@@ -1136,3 +1139,55 @@ spec:
     syncPolicy:
         preserveResourcesOnDeletion: true
 ```
+
+## Configuration tweaks
+
+### Repo Server
+
+#### Reduce cache expiration time
+
+- Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for `24h` by default). To reduce cache expiration time,
+  - Supply argument `--repo-cache-expiration <duration>` to the `repo-server`, Or
+  - Supply configuration `reposerver.repo.cache.expiration: <duration>` in `configmap/argocd-cmd-params-cm`.
+
+  See **ARGOCD_REPO_CACHE_EXPIRATION** inside repo-server deployment.
+
+  [Reference](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/high_availability.md#argocd-repo-server)
+
+### Controller
+
+#### Number of queue processors
+
+- Each `application-controller` replica uses two separate queues to process application reconciliation (milliseconds) and app syncing (seconds).
+
+  The number of queue processors for each queue is controlled by `--status-processors`(default 20) and `--operation-processors`(default 10) flags.
+
+#### Cluster info timeout
+
+- By default, the controller will update the cluster information every 10 seconds.
+
+  Set `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (in seconds) while in case of network issues
+
+## Sync ArgoCD Application from Kubernetes cluster
+
+[Reference](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-kubectl)
+
+Patch ArgoCD application with following block to invoke sync for resources (deployments, services, etc...):
+
+```yaml
+operation:
+    initiatedBy:
+        username: <username> # unrelated custom values
+    sync:
+        syncStrategy:
+            hook: {}
+```
+
+## Disaster Recovery
+
+You can use `argocd admin` to import and export all Argo CD data.
+
+Exported Data contains: (Applications, ApplicationSets, Configmaps, Secrets, Projects, etc...)
+
+- To export all ArgoCD data to a file: `argocd admin export > argo-data.yaml`
+- To import all ArgoCD data from a file: `argocd admin import - < argo-data.yaml`
