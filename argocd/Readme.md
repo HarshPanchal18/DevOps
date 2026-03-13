@@ -1144,6 +1144,8 @@ spec:
 
 ### Repo Server
 
+- [Reference](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/high_availability.md#argocd-repo-server)
+
 #### Reduce cache expiration time
 
 - Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for `24h` by default). To reduce cache expiration time,
@@ -1152,21 +1154,102 @@ spec:
 
   See **ARGOCD_REPO_CACHE_EXPIRATION** inside repo-server deployment.
 
-  [Reference](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/high_availability.md#argocd-repo-server)
+---
 
-### Controller
+### Application Controller
 
-#### Number of queue processors
+#### Application Processing Queues
 
-- Each `application-controller` replica uses two separate queues to process application reconciliation (milliseconds) and app syncing (seconds).
+Each controller replica processes applications using two separate queues to process application reconciliation and app syncing
 
-  The number of queue processors for each queue is controlled by `--status-processors`(default 20) and `--operation-processors`(default 10) flags.
+| Types of Queue | Purpose | Running Frequency | Argument to set | Default Value | Preferred value (1000 applications) |
+|---|---|---|---|---|---|
+| Status Queue | To check application health status. | Very frequently (ms) | --status-processors | 20 | 50 |
+| Operation Queue | Application operations. Sync, Delete, Rollback | Runs slower (seconds) | --operation-processors | 10 | 25 |
+
+---
 
 #### Cluster info timeout
 
 - By default, the controller will update the cluster information every 10 seconds.
 
   Set `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (in seconds) while in case of network issues
+
+---
+
+#### Controller Sharding (Alpha) [Configuration Reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/feature-maturity/#configuration)
+
+If ArgoCD manages many clusters or applications, the single controller may consume large amounts of memory.
+ To solve this, you can split workload across multiple controllers.
+  Increase controller replica 2
+  set ARGOCD_CONTROLLER_REPLICAS 2
+
+##### Sharding Distribution Methods
+
+| Method | Description | Balancing | Value |
+|---|---|---|---|
+| Legacy Mode | Uses UID-based distribution | Not evenly balanced | legacy |
+| Round-Robin | Equal distribution across all shards | Distributes clusters evenly | round-robin |
+| Consistent Hashing | Minimizes reshuffling when add/remove shards | Provides balanced distribution | consistent-hashing |
+
+Configured in argocd-cmd-params-cm configmap controller.sharding.algorithm
+
+OR
+Setting ENV in Controller `ARGOCD_CONTROLLER_SHARDING_ALGORITHM`
+
+###### Manually/Forcefully Assigning Clusters to Shards
+
+Set shard value in the cluster secret
+
+```yaml
+stringData:
+  shard: 1
+```
+
+---
+
+#### Cluster Cache Optimization Settings
+
+| Setting | Reason | ENV Configuration | Default |
+|---|---|---|---|
+| Cache Page Buffer | Number of pages to buffer when making a K8s query to LIST resources. Helps when clusters contain very large numbers of resources. | ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE | Not defined |
+| Event Batch Processing | To collect/process Kubernetes events in batches. Reduces controller overload. | ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING | TRUE |
+| Event Processing Interval | Controlling the interval for processing events in a batch. Used only when batch event processing is enabled. | ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL | 100ms |
+| Split Application Resource Tree in multiple Redis key | Max number of resources stored in one Redis key. Split application tree into multiple keys. To reduce the traffic between the controller and Redis. | ARGOCD_APPLICATION_TREE_SHARD_SIZE | 0 |
+
+---
+
+#### Client connection settings
+
+- [Reference](https://argo-cd.readthedocs.io/en/latest/operator-manual/argocd-cmd-params-cm-yaml/)
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| controller.k8s.client.qps | ARGOCD_K8S_CLIENT_QPS | QPS limit for K8s API client request | 50 |
+| controller.k8s.client.burst | ARGOCD_K8S_CLIENT_BURST | Burst value for K8s API client request | 100 |
+| controller.k8s.client.max.idle.connections | ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS | Maximum number of idle connections in K8s client | 500 |
+
+---
+
+#### Network Timeout settings
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| controller.k8s.tcp.timeout | ARGOCD_K8S_TCP_TIMEOUT | TCP connection timeout for K8s client | 30s |
+| controller.k8s.tcp.keepalive | ARGOCD_K8S_TCP_KEEPALIVE | TCP keep-alive interval for K8s client | 30s |
+| controller.k8s.tls.handshake.timeout | ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT | TCP handshake timeout for K8s client | 10s |
+| controller.k8s.tcp.idle.timeout | ARGOCD_K8S_TCP_IDLE_TIMEOUT | TCP idle timeout for K8s client | 90s |
+
+---
+
+#### Retry Configuration
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| controller.k8sclient.retry.max | ARGOCD_K8SCLIENT_RETRY_MAX | Max number of retry attempts for each request | 5 |
+| controller.k8sclient.retry.base.backoff | ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF | Initial backoff delay(ms) first retry attempt. Subsequent retries will double this backoff time | 100 |
+
+---
 
 ## Sync ArgoCD Application from Kubernetes cluster
 
