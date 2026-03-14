@@ -23,6 +23,7 @@
 - [Configuration Tweaks](#configuration-tweaks)
 - [Sync ArgoCD Application from Kubernetes cluster](#sync-argocd-application-from-kubernetes-cluster)
 - [Disaster Recovery](#disaster-recovery)
+- [ArgoCD API Exposure](#argocd-api-exposure)
 
 ## Problem
 
@@ -1274,3 +1275,193 @@ Exported Data contains: (Applications, ApplicationSets, Configmaps, Secrets, Pro
 
 - To export all ArgoCD data to a file: `argocd admin export > argo-data.yaml`
 - To import all ArgoCD data from a file: `argocd admin import - < argo-data.yaml`
+
+## ArgoCD API Exposure
+
+ArgoCD provide API endpoints to make it accessible. All endpoints with its schema are listed is Swagger UI at `argocd.example.com/swagger-ui`.
+
+### Generate session token
+
+```bash
+curl -H "Content-Type: application/json" argocd.example.com/api/v1/session -d $'{"username":"user","password":"password"}' | jq .token
+curl -H "Content-Type: application/json" http://172.20.0.3:30080/api/v1/session -d $'{"username":"user","password":"password"}' | jq .token
+curl -H "Content-Type: application/json" argocd-server.argocd.svc/api/v1/session -d $'{"username":"admin","password":"admin@1234"}'
+```
+
+Request Response:
+
+```json
+{"token":"GENERATED-SESSION-TOKEN-VALID-FOR-24H"}
+```
+
+### Session Error as no bearer token is provided
+
+```bash
+curl https://argocd.example.com/api/v1/applications
+```
+
+Request Response:
+
+```json
+{"error":"no session information","code":16,"message":"no session information"}
+```
+
+### ArgoCD Projects
+
+#### Get ArgoCD Projects
+
+```bash
+curl -H "Authorization: Bearer <session-token>" argocd.example.com/api/v1/projects
+```
+
+Request Response:
+
+```json
+{
+  "metadata": { "resourceVersion": "10710177" },
+  "items": [
+    {
+      "metadata": {
+        "name": "default",
+        "namespace": "argocd",
+        "uid": "419e01d3-d8f0-44b6-af39-40624c32778d",
+        "resourceVersion": "5967078",
+        "generation": 10,
+        "creationTimestamp": "2026-01-02T07:25:55Z",
+        "managedFields": [
+          {
+            "manager": "argocd-server",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-01-07T07:05:15Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {
+              "f:spec": {
+                ".": {},
+                "f:clusterResourceWhitelist": {},
+                "f:sourceRepos": {}
+              },
+              "f:status": {}
+            }
+          },
+          {
+            "manager": "kubectl-edit",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-01-07T07:09:28Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": { "f:spec": { "f:destinations": {} } }
+          }
+        ]
+      },
+      "spec": {
+        "sourceRepos": ["*"],
+        "destinations": [{ "server": "*", "namespace": "*", "name": "*" }],
+        "clusterResourceWhitelist": [{ "group": "*", "kind": "*" }]
+      },
+      "status": {}
+    },
+    {
+      "metadata": {
+        "name": "samples",
+        "namespace": "argocd",
+        "uid": "33aab2ee-d4bd-4d8b-ab89-90f4f7b0145a",
+        "resourceVersion": "8014780",
+        "generation": 13,
+        "creationTimestamp": "2026-01-02T08:37:42Z",
+        "annotations": {
+          "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"AppProject\",\"metadata\":{\"annotations\":{},\"creationTimestamp\":\"2026-01-02T08:37:42Z\",\"generation\":4,\"name\":\"samples\",\"namespace\":\"argocd\",\"resourceVersion\":\"5963511\",\"uid\":\"33aab2ee-d4bd-4d8b-ab89-90f4f7b0145a\"},\"spec\":{\"clusterResourceWhitelist\":[{\"group\":\"*\",\"kind\":\"*\"}],\"description\":\"Experimental space.\",\"destinations\":[{\"name\":\"*\",\"namespace\":\"*\",\"server\":\"*\"}],\"sourceRepos\":[\"*\"],\"syncWindows\":[{\"applications\":[\"application*\"],\"duration\":\"1h\",\"kind\":\"allow\",\"schedule\":\"* * * * *\"}]}}\n"
+        },
+        "managedFields": [
+          {
+            "manager": "kubectl-client-side-apply",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-02-02T08:28:14Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {
+              "f:metadata": {
+                "f:annotations": {
+                  ".": {},
+                  "f:kubectl.kubernetes.io/last-applied-configuration": {}
+                }
+              }
+            }
+          },
+          {
+            "manager": "argocd-server",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-02-02T08:42:49Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {
+              "f:spec": {
+                ".": {},
+                "f:clusterResourceWhitelist": {},
+                "f:description": {},
+                "f:destinations": {},
+                "f:sourceRepos": {}
+              },
+              "f:status": {}
+            }
+          }
+        ]
+      },
+      "spec": {
+        "sourceRepos": ["*"],
+        "destinations": [{ "server": "*", "namespace": "*", "name": "*" }],
+        "description": "Experimental space.",
+        "clusterResourceWhitelist": [{ "group": "*", "kind": "*" }]
+      },
+      "status": {}
+    }
+  ]
+}
+```
+
+#### Create an ArgoCD Project
+
+**`create-argocd-project-payload.json`**
+
+```json
+{
+  "project": {
+    "metadata": {
+      "name": "project-for-disaster",
+      "namespace": "argocd",
+      "uid": "f4f07aeb-001d-4950-add0-09de8bf0ef61",
+      "generation": 6,
+      "creationTimestamp": "2026-01-28T13:29:08Z",
+      "managedFields": [
+        {
+          "manager": "argocd-server",
+          "operation": "Update",
+          "apiVersion": "argoproj.io/v1alpha1",
+          "time": "2026-03-06T08:18:57Z",
+          "fieldsType": "FieldsV1",
+          "fieldsV1": {
+            "f:spec": {
+              ".": {},
+              "f:clusterResourceWhitelist": {},
+              "f:destinations": {}
+            },
+            "f:status": {}
+          }
+        }
+      ]
+    },
+    "spec": {
+      "destinations": [{ "server": "*", "namespace": "*" }],
+      "clusterResourceWhitelist": [{ "group": "*", "kind": "*" }]
+    },
+    "status": {}
+  }
+}
+
+```
+
+Create a new project in Failover cluster by passing above JSON payload
+
+```bash
+curl -X POST -d @create-argocd-project-payload.json -H "Authorization: Bearer <session-token>" -H "Content-Type: application/json" https://argocd.example.com/api/v1/projects
+```
