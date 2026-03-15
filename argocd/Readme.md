@@ -1465,3 +1465,197 @@ Create a new project in Failover cluster by passing above JSON payload
 ```bash
 curl -X POST -d @create-argocd-project-payload.json -H "Authorization: Bearer <session-token>" -H "Content-Type: application/json" https://argocd.example.com/api/v1/projects
 ```
+
+### ArgoCD Applications
+
+#### Get all ArgoCD Applications
+
+```bash
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/applications
+```
+
+Request Response:
+
+```json
+{
+  "metadata": { "resourceVersion": "95396127" },
+  "items": [
+    {
+      "metadata": {
+        "name": "nodejs",
+        "namespace": "argocd",
+        "resourceVersion": "95395092",
+        "creationTimestamp": "2026-02-09T09:30:26Z"
+      },
+      "spec": {
+        "source": {
+          "repoURL": "https://github.com/argoproj/argocd-example-apps",
+          "path": "kustomize-guestbook",
+          "targetRevision": "HEAD"
+        },
+        "destination": {
+          "server": "https://kubernetes.default.svc",
+          "namespace": "default"
+        },
+        "project": "default",
+        "syncPolicy": { "automated": { "enabled": true } }
+      },
+      "status": {}
+    }
+  ]
+}
+```
+
+#### Create an ArgoCD Application
+
+**`create-argocd-application.json`**
+
+```json
+{
+  "application": {
+    "metadata": {
+      "name": "kustomize-prod",
+      "namespace": "argocd",
+      "uid": "fd8d6686-af1f-4fde-9800-fd8618b66f13",
+      "resourceVersion": "95395092",
+      "creationTimestamp": "2026-02-09T09:30:26Z"
+    },
+    "spec": {
+      "source": {
+        "repoURL": "https://github.com/HarshPanchal18/argocd-application.git",
+        "path": "k8s/overlays/production",
+        "targetRevision": "HEAD"
+      },
+      "destination": {
+        "server": "https://kubernetes.default.svc",
+        "namespace": "default"
+      },
+      "project": "default",
+      "syncPolicy": { "automated": { "enabled": true } }
+    },
+    "status": {}
+  }
+}
+```
+
+Create a new project in Failover cluster by passing above JSON payload
+
+```bash
+curl -X POST -d @create-argocd-application.json -H "Authorization: Bearer <session-token>" -H "Content-Type: application/json" https://argocd.example.com/api/v1/applications
+```
+
+### Kubernetes Cluster
+
+#### Get clusters attached in ArgoCD
+
+```bash
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters
+```
+
+Request Response:
+
+```json
+{
+  "metadata": {},
+  "items": [
+    {
+      "server": "https://kubernetes.default.svc",
+      "name": "in-cluster",
+      "config": { "tlsClientConfig": { "insecure": false } },
+      "connectionState": {
+        "status": "Unknown",
+        "message": "",
+        "attemptedAt": "2026-03-12T12:48:11Z"
+      },
+      "info": {
+        "connectionState": {
+          "status": "Unknown",
+          "message": "",
+          "attemptedAt": "2026-03-12T12:48:11Z"
+        },
+        "cacheInfo": {},
+        "applicationsCount": 3
+      },
+      "-": {}
+    }
+  ]
+}
+```
+
+#### Get cluster by server name and server address
+
+```bash
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters?name=<server-name>
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters?server=https://<server-url>
+# e.x. curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters?server=https://kubernetes.default.svc
+```
+
+#### Create a cluster
+
+**`create-cluster.json`**
+
+```json
+{
+  "server": "https://kubernetes.default.svc",
+  "name": "in-clusterr",
+  "config": {
+    "tlsClientConfig": {
+      "insecure": false
+    }
+  },
+  "connectionState": {
+    "status": "Successful",
+    "message": "",
+    "attemptedAt": "2026-03-10T11:44:36Z"
+  },
+  "serverVersion": "1.34",
+  "info": {
+    "connectionState": {
+      "status": "Successful",
+      "message": "",
+      "attemptedAt": "2026-03-10T11:44:36Z"
+    },
+    "serverVersion": "1.34",
+    "cacheInfo": {
+      "resourcesCount": 3935,
+      "apisCount": 217,
+      "lastCacheSyncTime": "2026-03-10T08:11:34Z"
+    },
+    "applicationsCount": 1,
+    "apiVersions": [
+      "v1",
+      "v1/ConfigMap",
+      "v1/Endpoints",
+      "v1/Event",
+      "v1/LimitRange",
+      "v1/Namespace",
+      "v1/Node",
+      "v1/PersistentVolume",
+      "v1/PersistentVolumeClaim",
+      "v1/Pod",
+      "v1/PodTemplate",
+      "v1/ReplicationController",
+      "v1/ResourceQuota",
+      "v1/Secret",
+      "v1/Service",
+      "v1/ServiceAccount"
+      // Include all other api versions...
+    ]
+  },
+  "-": {}
+}
+```
+
+Create a new cluster by passing above JSON payload
+
+```bash
+curl -X POST -d @create-cluster.json -H "Authorization: Bearer <session-token>" -H "Content-Type: application/json" https://argocd.example.com/api/v1/clusters
+```
+
+#### Rotate Bearer Token used for a cluster
+
+> Make sure you have permission to perform this task.
+
+```bash
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters/in-cluster/rotate-auth
+```
