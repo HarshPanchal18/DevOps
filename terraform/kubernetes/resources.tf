@@ -82,8 +82,9 @@ resource "kubernetes_secret_v1" "example_secret" {
 }
 
 module "pod" {
-  source = "./pod-module"
+  # source = "./pod-module"
+  source = "github.com/HarshPanchal18/terraform-pod-module"
 
   container_image = "nginx:1.25.4"
-  pod_name        = "nginx-1-25"
+  pod_name        = "nginx-1-25-4"
 }

@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: timoni-scm-prod
+spec:
+  generators:
+    - scmProvider:
+        github:
+          organization: github-org
+          allBranches: false
+        filters:
+          - repositoryMatch: ^timoni-manifest-*
+            labelMatch: prod             # filter repository of having topics in it's "About" section
+        values:
+          namespace: prod  # or derive from repo labels/branch
+          values-yaml: values-prod
+  template:
+    metadata:
+      name: 'argo-app-{{repository}}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{url}}'
+        targetRevision: '{{branch}}'
+        path: '.'
+        plugin:
+          name: argo-cmp-timoni-v0.1.0
+          env:
+            - name: ARGOCD_ENV_APP_NAME
+              value: '{{repository}}'
+            - name: ARGOCD_ENV_NAMESPACE
+              value: '{{values.namespace}}'    # per-stage namespace
+            - name: ARGOCD_ENV_VALUES_FILENAME
+              value: '{{values.values-yaml}}'  # values file per stage
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{values.namespace}}'

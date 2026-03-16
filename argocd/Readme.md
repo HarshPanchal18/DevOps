@@ -16,6 +16,14 @@
 - [SyncOptions for Application](#sync-options-for-application)
 - [ArgoCD Hooks](#argocd-hooks---run-kubernetes-jobs-around-the-argocd-application-sync)
 - [Resource creation order](#create-resources-in-order)
+- [Configure GitHub webhook with ArgoCD](#configure-github-webhook-with-argocd)
+- [Authenticating with OAuth App in GitHub](#authenticating-with-oauth-apps-in-github)
+- [GitHub Authorization with GitHub App](#github-authorization-with-github-app)
+- [ArgoCD ApplicationSet - Managed Applications modification Policies](#argocd-applicationset---managed-applications-modification-policies)
+- [Configuration Tweaks](#configuration-tweaks)
+- [Sync ArgoCD Application from Kubernetes cluster](#sync-argocd-application-from-kubernetes-cluster)
+- [Disaster Recovery](#disaster-recovery)
+- [ArgoCD API Exposure](#argocd-api-exposure)
 
 ## Problem
 
@@ -913,7 +921,7 @@ To apply deletion policy, annotate the hook-job with `argocd.argoproj.io/hook-de
 
 - The priority is considered as **High to Low**. (Resource with smaller value has high priority).
 
-- If all resource has same priority, it is created on **`Kind`** order [more info](https://github.com/argoproj/argo-cd/blob/b137439c076f1f5da45edfb9b719504892e3ee7e/gitops-engine/pkg/sync/sync_tasks.go#L26).
+- If all resource has same priority, it is created on **`Kind`** order [more info](https://github.com/argoproj/argo-cd/blob/master/gitops-engine/pkg/sync/sync_tasks.go#L26).
 
 ### Priorities
 
@@ -1094,7 +1102,7 @@ in secret under `stringData`:
                 ...
     ```
 
-## Managed Applications modification Policies
+## ArgoCD ApplicationSet - Managed Applications modification Policies
 
 The ApplicationSet controller supports a parameter `--policy`, which restricts what types of modifications will be made to managed Argo CD Application resources.
 
@@ -1103,6 +1111,7 @@ You can enforce this parameter by providing argument within the Controller Deplo
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
+# ...
 spec:
     # ...
     syncPolicy:
@@ -1117,3 +1126,536 @@ Enumerated values for `applicationsSync`:
 | `create-update` | **Create** or **Modify** Application resources | **Deletion** |
 | `create-delete` | **Create** or **Delete** Application resources | **Modification** |
 | `sync` | **Create**, **Modification** and **Delete** | Nothing |
+
+### Prevent an Application's child resources from being deleted, when the parent Application is deleted
+
+By default, when an Application resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well (such as, all of the Application's Deployments, Services, etc).
+
+To prevent an Application's child resources from being deleted when the parent Application is deleted, add the preserveResourcesOnDeletion: true field to the syncPolicy of the ApplicationSet:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+    syncPolicy:
+        preserveResourcesOnDeletion: true
+```
+
+## Configuration tweaks
+
+### Repo Server
+
+- [Reference](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/high_availability.md#argocd-repo-server)
+
+#### Reduce cache expiration time
+
+- Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for `24h` by default). To reduce cache expiration time,
+  - Supply argument `--repo-cache-expiration <duration>` to the `repo-server`, Or
+  - Supply configuration `reposerver.repo.cache.expiration: <duration>` in `configmap/argocd-cmd-params-cm`.
+
+  See **ARGOCD_REPO_CACHE_EXPIRATION** inside repo-server deployment.
+
+---
+
+### Application Controller
+
+#### Application Processing Queues
+
+Each controller replica processes applications using two separate queues to process application reconciliation and app syncing
+
+| Types of Queue | Purpose | Running Frequency | Argument to set | Default Value | Preferred value (1000 applications) |
+|---|---|---|---|---|---|
+| Status Queue | To check application health status. | Very frequently (ms) | --status-processors | 20 | 50 |
+| Operation Queue | Application operations. Sync, Delete, Rollback | Runs slower (seconds) | --operation-processors | 10 | 25 |
+
+---
+
+#### Cluster info timeout
+
+- By default, the controller will update the cluster information every 10 seconds.
+
+  Set `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (in seconds) while in case of network issues
+
+---
+
+#### Controller Sharding (Alpha) [Configuration Reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/feature-maturity/#configuration)
+
+If ArgoCD manages many clusters or applications, the single controller may consume large amounts of memory.
+ To solve this, you can split workload across multiple controllers.
+  Increase controller replica 2
+  set ARGOCD_CONTROLLER_REPLICAS 2
+
+##### Sharding Distribution Methods
+
+| Method | Description | Balancing | Value |
+|---|---|---|---|
+| Legacy Mode | Uses UID-based distribution | Not evenly balanced | legacy |
+| Round-Robin | Equal distribution across all shards | Distributes clusters evenly | round-robin |
+| Consistent Hashing | Minimizes reshuffling when add/remove shards | Provides balanced distribution | consistent-hashing |
+
+Configured in argocd-cmd-params-cm configmap controller.sharding.algorithm
+
+OR
+Setting ENV in Controller `ARGOCD_CONTROLLER_SHARDING_ALGORITHM`
+
+###### Manually/Forcefully Assigning Clusters to Shards
+
+Set shard value in the cluster secret
+
+```yaml
+stringData:
+  shard: 1
+```
+
+---
+
+#### Cluster Cache Optimization Settings
+
+| Setting | Reason | ENV Configuration | Default |
+|---|---|---|---|
+| Cache Page Buffer | Number of pages to buffer when making a K8s query to LIST resources. Helps when clusters contain very large numbers of resources. | ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE | Not defined |
+| Event Batch Processing | To collect/process Kubernetes events in batches. Reduces controller overload. | ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING | TRUE |
+| Event Processing Interval | Controlling the interval for processing events in a batch. Used only when batch event processing is enabled. | ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL | 100ms |
+| Split Application Resource Tree in multiple Redis key | Max number of resources stored in one Redis key. Split application tree into multiple keys. To reduce the traffic between the controller and Redis. | ARGOCD_APPLICATION_TREE_SHARD_SIZE | 0 |
+
+---
+
+#### Client connection settings
+
+- [Reference](https://argo-cd.readthedocs.io/en/latest/operator-manual/argocd-cmd-params-cm-yaml/)
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| controller.k8s.client.qps | ARGOCD_K8S_CLIENT_QPS | QPS limit for K8s API client request | 50 |
+| controller.k8s.client.burst | ARGOCD_K8S_CLIENT_BURST | Burst value for K8s API client request | 100 |
+| controller.k8s.client.max.idle.connections | ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS | Maximum number of idle connections in K8s client | 500 |
+
+---
+
+#### Network Timeout settings
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| controller.k8s.tcp.timeout | ARGOCD_K8S_TCP_TIMEOUT | TCP connection timeout for K8s client | 30s |
+| controller.k8s.tcp.keepalive | ARGOCD_K8S_TCP_KEEPALIVE | TCP keep-alive interval for K8s client | 30s |
+| controller.k8s.tls.handshake.timeout | ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT | TCP handshake timeout for K8s client | 10s |
+| controller.k8s.tcp.idle.timeout | ARGOCD_K8S_TCP_IDLE_TIMEOUT | TCP idle timeout for K8s client | 90s |
+
+---
+
+#### Retry Configuration
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| controller.k8sclient.retry.max | ARGOCD_K8SCLIENT_RETRY_MAX | Max number of retry attempts for each request | 5 |
+| controller.k8sclient.retry.base.backoff | ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF | Initial backoff delay(ms) first retry attempt. Subsequent retries will double this backoff time | 100 |
+
+---
+
+## Sync ArgoCD Application from Kubernetes cluster
+
+[Reference](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-kubectl)
+
+Patch ArgoCD application with following block to invoke sync for resources (deployments, services, etc...):
+
+```yaml
+operation:
+    initiatedBy:
+        username: <username> # unrelated custom values
+    sync:
+        syncStrategy:
+            hook: {}
+```
+
+## Disaster Recovery
+
+You can use `argocd admin` to import and export all Argo CD data.
+
+Exported Data contains: (Applications, ApplicationSets, Configmaps, Secrets, Projects, etc...)
+
+- To export all ArgoCD data to a file: `argocd admin export > argo-data.yaml`
+- To import all ArgoCD data from a file: `argocd admin import - < argo-data.yaml`
+
+## ArgoCD API Exposure
+
+ArgoCD provide API endpoints to make it accessible. All endpoints with its schema are listed is Swagger UI at `argocd.example.com/swagger-ui`.
+
+### Generate session token
+
+```bash
+curl -H "Content-Type: application/json" argocd.example.com/api/v1/session -d $'{"username":"user","password":"password"}' | jq .token
+curl -H "Content-Type: application/json" http://172.20.0.3:30080/api/v1/session -d $'{"username":"user","password":"password"}' | jq .token
+curl -H "Content-Type: application/json" argocd-server.argocd.svc/api/v1/session -d $'{"username":"admin","password":"admin@1234"}'
+```
+
+Request Response:
+
+```json
+{"token":"GENERATED-SESSION-TOKEN-VALID-FOR-24H"}
+```
+
+### Session Error as no bearer token is provided
+
+```bash
+curl https://argocd.example.com/api/v1/applications
+```
+
+Request Response:
+
+```json
+{"error":"no session information","code":16,"message":"no session information"}
+```
+
+### ArgoCD Projects
+
+#### Get ArgoCD Projects
+
+```bash
+curl -H "Authorization: Bearer <session-token>" argocd.example.com/api/v1/projects
+```
+
+Request Response:
+
+```json
+{
+  "metadata": { "resourceVersion": "10710177" },
+  "items": [
+    {
+      "metadata": {
+        "name": "default",
+        "namespace": "argocd",
+        "uid": "419e01d3-d8f0-44b6-af39-40624c32778d",
+        "resourceVersion": "5967078",
+        "generation": 10,
+        "creationTimestamp": "2026-01-02T07:25:55Z",
+        "managedFields": [
+          {
+            "manager": "argocd-server",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-01-07T07:05:15Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {
+              "f:spec": {
+                ".": {},
+                "f:clusterResourceWhitelist": {},
+                "f:sourceRepos": {}
+              },
+              "f:status": {}
+            }
+          },
+          {
+            "manager": "kubectl-edit",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-01-07T07:09:28Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": { "f:spec": { "f:destinations": {} } }
+          }
+        ]
+      },
+      "spec": {
+        "sourceRepos": ["*"],
+        "destinations": [{ "server": "*", "namespace": "*", "name": "*" }],
+        "clusterResourceWhitelist": [{ "group": "*", "kind": "*" }]
+      },
+      "status": {}
+    },
+    {
+      "metadata": {
+        "name": "samples",
+        "namespace": "argocd",
+        "uid": "33aab2ee-d4bd-4d8b-ab89-90f4f7b0145a",
+        "resourceVersion": "8014780",
+        "generation": 13,
+        "creationTimestamp": "2026-01-02T08:37:42Z",
+        "annotations": {
+          "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"argoproj.io/v1alpha1\",\"kind\":\"AppProject\",\"metadata\":{\"annotations\":{},\"creationTimestamp\":\"2026-01-02T08:37:42Z\",\"generation\":4,\"name\":\"samples\",\"namespace\":\"argocd\",\"resourceVersion\":\"5963511\",\"uid\":\"33aab2ee-d4bd-4d8b-ab89-90f4f7b0145a\"},\"spec\":{\"clusterResourceWhitelist\":[{\"group\":\"*\",\"kind\":\"*\"}],\"description\":\"Experimental space.\",\"destinations\":[{\"name\":\"*\",\"namespace\":\"*\",\"server\":\"*\"}],\"sourceRepos\":[\"*\"],\"syncWindows\":[{\"applications\":[\"application*\"],\"duration\":\"1h\",\"kind\":\"allow\",\"schedule\":\"* * * * *\"}]}}\n"
+        },
+        "managedFields": [
+          {
+            "manager": "kubectl-client-side-apply",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-02-02T08:28:14Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {
+              "f:metadata": {
+                "f:annotations": {
+                  ".": {},
+                  "f:kubectl.kubernetes.io/last-applied-configuration": {}
+                }
+              }
+            }
+          },
+          {
+            "manager": "argocd-server",
+            "operation": "Update",
+            "apiVersion": "argoproj.io/v1alpha1",
+            "time": "2026-02-02T08:42:49Z",
+            "fieldsType": "FieldsV1",
+            "fieldsV1": {
+              "f:spec": {
+                ".": {},
+                "f:clusterResourceWhitelist": {},
+                "f:description": {},
+                "f:destinations": {},
+                "f:sourceRepos": {}
+              },
+              "f:status": {}
+            }
+          }
+        ]
+      },
+      "spec": {
+        "sourceRepos": ["*"],
+        "destinations": [{ "server": "*", "namespace": "*", "name": "*" }],
+        "description": "Experimental space.",
+        "clusterResourceWhitelist": [{ "group": "*", "kind": "*" }]
+      },
+      "status": {}
+    }
+  ]
+}
+```
+
+#### Create an ArgoCD Project
+
+**`create-argocd-project-payload.json`**
+
+```json
+{
+  "project": {
+    "metadata": {
+      "name": "project-for-disaster",
+      "namespace": "argocd",
+      "uid": "f4f07aeb-001d-4950-add0-09de8bf0ef61",
+      "generation": 6,
+      "creationTimestamp": "2026-01-28T13:29:08Z",
+      "managedFields": [
+        {
+          "manager": "argocd-server",
+          "operation": "Update",
+          "apiVersion": "argoproj.io/v1alpha1",
+          "time": "2026-03-06T08:18:57Z",
+          "fieldsType": "FieldsV1",
+          "fieldsV1": {
+            "f:spec": {
+              ".": {},
+              "f:clusterResourceWhitelist": {},
+              "f:destinations": {}
+            },
+            "f:status": {}
+          }
+        }
+      ]
+    },
+    "spec": {
+      "destinations": [{ "server": "*", "namespace": "*" }],
+      "clusterResourceWhitelist": [{ "group": "*", "kind": "*" }]
+    },
+    "status": {}
+  }
+}
+
+```
+
+Create a new project in Failover cluster by passing above JSON payload
+
+```bash
+curl -X POST -d @create-argocd-project-payload.json -H "Authorization: Bearer <session-token>" -H "Content-Type: application/json" https://argocd.example.com/api/v1/projects
+```
+
+### ArgoCD Applications
+
+#### Get all ArgoCD Applications
+
+```bash
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/applications
+```
+
+Request Response:
+
+```json
+{
+  "metadata": { "resourceVersion": "95396127" },
+  "items": [
+    {
+      "metadata": {
+        "name": "nodejs",
+        "namespace": "argocd",
+        "resourceVersion": "95395092",
+        "creationTimestamp": "2026-02-09T09:30:26Z"
+      },
+      "spec": {
+        "source": {
+          "repoURL": "https://github.com/argoproj/argocd-example-apps",
+          "path": "kustomize-guestbook",
+          "targetRevision": "HEAD"
+        },
+        "destination": {
+          "server": "https://kubernetes.default.svc",
+          "namespace": "default"
+        },
+        "project": "default",
+        "syncPolicy": { "automated": { "enabled": true } }
+      },
+      "status": {}
+    }
+  ]
+}
+```
+
+#### Create an ArgoCD Application
+
+**`create-argocd-application.json`**
+
+```json
+{
+  "application": {
+    "metadata": {
+      "name": "kustomize-prod",
+      "namespace": "argocd",
+      "uid": "fd8d6686-af1f-4fde-9800-fd8618b66f13",
+      "resourceVersion": "95395092",
+      "creationTimestamp": "2026-02-09T09:30:26Z"
+    },
+    "spec": {
+      "source": {
+        "repoURL": "https://github.com/HarshPanchal18/argocd-application.git",
+        "path": "k8s/overlays/production",
+        "targetRevision": "HEAD"
+      },
+      "destination": {
+        "server": "https://kubernetes.default.svc",
+        "namespace": "default"
+      },
+      "project": "default",
+      "syncPolicy": { "automated": { "enabled": true } }
+    },
+    "status": {}
+  }
+}
+```
+
+Create a new project in Failover cluster by passing above JSON payload
+
+```bash
+curl -X POST -d @create-argocd-application.json -H "Authorization: Bearer <session-token>" -H "Content-Type: application/json" https://argocd.example.com/api/v1/applications
+```
+
+### Kubernetes Cluster
+
+#### Get clusters attached in ArgoCD
+
+```bash
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters
+```
+
+Request Response:
+
+```json
+{
+  "metadata": {},
+  "items": [
+    {
+      "server": "https://kubernetes.default.svc",
+      "name": "in-cluster",
+      "config": { "tlsClientConfig": { "insecure": false } },
+      "connectionState": {
+        "status": "Unknown",
+        "message": "",
+        "attemptedAt": "2026-03-12T12:48:11Z"
+      },
+      "info": {
+        "connectionState": {
+          "status": "Unknown",
+          "message": "",
+          "attemptedAt": "2026-03-12T12:48:11Z"
+        },
+        "cacheInfo": {},
+        "applicationsCount": 3
+      },
+      "-": {}
+    }
+  ]
+}
+```
+
+#### Get cluster by server name and server address
+
+```bash
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters?name=<server-name>
+curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters?server=https://<server-url>
+# e.x. curl -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters?server=https://kubernetes.default.svc
+```
+
+#### Create a cluster
+
+**`create-cluster.json`**
+
+```json
+{
+  "server": "https://kubernetes.default.svc",
+  "name": "in-clusterr",
+  "config": {
+    "tlsClientConfig": {
+      "insecure": false
+    }
+  },
+  "connectionState": {
+    "status": "Successful",
+    "message": "",
+    "attemptedAt": "2026-03-10T11:44:36Z"
+  },
+  "serverVersion": "1.34",
+  "info": {
+    "connectionState": {
+      "status": "Successful",
+      "message": "",
+      "attemptedAt": "2026-03-10T11:44:36Z"
+    },
+    "serverVersion": "1.34",
+    "cacheInfo": {
+      "resourcesCount": 3935,
+      "apisCount": 217,
+      "lastCacheSyncTime": "2026-03-10T08:11:34Z"
+    },
+    "applicationsCount": 1,
+    "apiVersions": [
+      "v1",
+      "v1/ConfigMap",
+      "v1/Endpoints",
+      "v1/Event",
+      "v1/LimitRange",
+      "v1/Namespace",
+      "v1/Node",
+      "v1/PersistentVolume",
+      "v1/PersistentVolumeClaim",
+      "v1/Pod",
+      "v1/PodTemplate",
+      "v1/ReplicationController",
+      "v1/ResourceQuota",
+      "v1/Secret",
+      "v1/Service",
+      "v1/ServiceAccount"
+      // Include all other api versions...
+    ]
+  },
+  "-": {}
+}
+```
+
+Create a new cluster by passing above JSON payload
+
+```bash
+curl -X POST -d @create-cluster.json -H "Authorization: Bearer <session-token>" -H "Content-Type: application/json" https://argocd.example.com/api/v1/clusters
+```
+
+#### Rotate Bearer Token used for a cluster
+
+> Make sure you have permission to perform this task.
+
+```bash
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters/in-cluster/rotate-auth
+```
