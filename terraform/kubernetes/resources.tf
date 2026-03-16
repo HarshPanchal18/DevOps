@@ -1,4 +1,4 @@
-resource "kubernetes_pod" "nginx" {
+resource "kubernetes_pod_v1" "nginx" {
   metadata {
     name = "nginx-example"
     labels = {
@@ -13,15 +13,15 @@ resource "kubernetes_pod" "nginx" {
   }
 }
 
-resource "kubernetes_deployment" "nginx-deploy" {
+resource "kubernetes_deployment_v1" "nginx-deploy" {
   metadata {
-    name = "nginx-deployment"
+    name = var.nginx-deploy-name
     labels = {
       app = "nginx-deploy"
     }
   }
   spec {
-    replicas = 3
+    replicas = var.nginx-replicas
     selector {
       match_labels = {
         app = "nginx-deploy"
@@ -35,7 +35,7 @@ resource "kubernetes_deployment" "nginx-deploy" {
       }
       spec {
         container {
-          image = "nginx:1.19"
+          image = var.nginx-image
           name  = "nginx"
         }
       }
@@ -43,7 +43,7 @@ resource "kubernetes_deployment" "nginx-deploy" {
   }
 }
 
-resource "kubernetes_service" "nginx" {
+resource "kubernetes_service_v1" "nginx" {
   metadata {
     name = "svc-nginx"
   }
@@ -59,7 +59,7 @@ resource "kubernetes_service" "nginx" {
   }
 }
 
-resource "kubernetes_config_map" "example_cm" {
+resource "kubernetes_config_map_v1" "example_cm" {
   metadata {
     name = "example-cm"
   }
@@ -68,7 +68,7 @@ resource "kubernetes_config_map" "example_cm" {
   }
 }
 
-resource "kubernetes" "example_secret" {
+resource "kubernetes_secret_v1" "example_secret" {
   metadata {
     name = "example-secret"
   }
@@ -84,6 +84,6 @@ resource "kubernetes" "example_secret" {
 module "pod" {
   source = "./pod-module"
 
-  container_image = "nginx"
-  pod_name        = "nginx"
+  container_image = "nginx:1.25.4"
+  pod_name        = "nginx-1-25"
 }
