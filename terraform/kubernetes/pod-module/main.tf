@@ -3,6 +3,7 @@ resource "kubernetes_pod_v1" "nginx" {
         name    = var.pod_name
         labels  = {
             app = "nginx"
+            env = format("%s", terraform.workspace)
         }
     }
     spec {
