@@ -23,6 +23,7 @@
 - [Configuration Tweaks](#configuration-tweaks)
 - [Sync ArgoCD Application from Kubernetes cluster](#sync-argocd-application-from-kubernetes-cluster)
 - [Disaster Recovery](#disaster-recovery)
+- [Auditing in ArgoCD](#auditing-in-argocd)
 - [ArgoCD API Exposure](#argocd-api-exposure)
 
 ## Problem
@@ -1275,6 +1276,37 @@ Exported Data contains: (Applications, ApplicationSets, Configmaps, Secrets, Pro
 
 - To export all ArgoCD data to a file: `argocd admin export > argo-data.yaml`
 - To import all ArgoCD data from a file: `argocd admin import - < argo-data.yaml`
+
+## Auditing in ArgoCD
+
+> **"Git commit history provides a natural audit log of what changes were made to application configuration, when they were made, and by whom. To complement the Git revision history, Argo CD emits Kubernetes Events of application activity, indicating the responsible actor when applicable."**
+~ [Documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/security/#auditing)
+
+View event in Kubernetes with:
+
+```bash
+kubectl get events -n argocd --field-selector involvedObject.kind=Application
+```
+
+Output similar to:
+
+```text
+NAMESPACE  LAST SEEN  TYPE    REASON           OBJECT                        MESSAGE
+argocd     13m        Normal  ResourceDeleted  application/my-kustomize-app  admin deleted application
+argocd     13m        Normal  ResourceUpdated  application/my-kustomize-app  Updated health status: Healthy -> Progressing
+argocd     13m        Normal  ResourceUpdated  application/my-kustomize-app  Updated health status: Progressing -> Healthy
+```
+
+### API Endpoints for Auditing
+
+There are API endpoints of ArgoCD which give response of resource events. You can bind these endpoints to your logging system to aggregate event logs in one place.
+
+| Endpoint | Response |
+|---|---|
+| **/api/v1/applications/nodejs/events**               | events of given application         |
+| **/api/v1/projects/tax/events**                      | events of given project             |
+| **/api/v1/stream/applications**                      | stream of application change events |
+| **/api/v1/stream/applications/nodejs/resource-tree** | stream of application resource tree |
 
 ## ArgoCD API Exposure
 
