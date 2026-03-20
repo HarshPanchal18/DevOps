@@ -5,7 +5,7 @@
 - [Problem](#problem)
 - [Solution](#solution)
 - [Introduction](#argocd---a-declarative-gitops-cd-tool-based-on-kubernetes)
-- [Application Restrictions](#restricting-applications-using-projects-in-different-ways)
+- [ArgoCD Projects - A logical grouping of ArgoCD Applications](#argocd-projects---a-logical-grouping-of-argocd-applications)
 - [Cluster Management](#cluster-management)
 - [Add New Cluster](#add-a-kubernetes-cluster-to-deploy-applications-through-argocd)
 - [Local User Management](#local-user-management)
@@ -67,7 +67,136 @@ Creates a `controller` which continuously monitors running application and compa
 - **Repository Service** - An internal service maintains cache of manifest. Stored in Redis
 - **Application controller** - Compare the TARGET state and LIVE state. Optionally take corrective action.
 
-## Restricting Applications using Projects in different ways
+## ArgoCD Projects - A logical grouping of ArgoCD Applications
+
+- [Documentation Link](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/)
+
+Default created project in ArgoCD: `default`
+
+### High level usecase
+
+| Topic | Description |
+|---|---|
+| Repository Whitelisting | Allow/Deny ArgoCD to deploy YAMLs from the given GitHub Repo format only |
+| Cluster scoped Resource Whitelisting/Blacklisting | Allow/Deny kubernetes cluster scoped object creation via ArgoCD Applications |
+| Namespace scoped Resource Whitelisting/Blacklisting | Allow/Deny kubernetes namespace scoped object creation via ArgoCD Applications |
+| Target namespace Whitelisting | Allow/Deny object creation in given namespace in given clusters via ArgoCD Applications |
+| Project Scoped Roles | To define project scoped roles for RBAC |
+| Orphan Resource Monitoring | To display orphan resources which are not handled via ArgoCD |
+| Sync Windows | Suspending Auto/Manual sync for one or more ArgoCD Applications on given time frame |
+
+### Detailed Configuration for ArgoCD Project
+
+Detailed Configuration of ArgoCD Project
+
+- Ensures that project is not deleted until it is not referenced by any application
+
+```yaml
+  metadata:
+    finalizers:
+    - resources-finalizer.argocd.argoproj.io
+```
+
+---
+
+Set following configuration under `AppProject.spec`
+
+- Project Description
+
+```yaml
+description: "Project Description"
+```
+
+- Allow manifests to deploy from the given GitHub Profile only
+
+```yaml
+sourceRepos:
+- 'https://github.com/your-org/*'
+```
+
+- Deny applications to deploy resources in kube-system namespace and argocd namespace in any cluster
+
+```yaml
+destinations:
+- namespace: "!kube-system"
+    server: "*"
+- namespace: "!ns-argocd"
+    server: "*"
+```
+
+- Allow creation of ClusterRole via ArgoCD Application
+
+```yaml
+clusterResourceWhitelist:
+- group: ''
+  kind: ClusterRole
+  name: '*'
+```
+
+- Deny creation of Gateway resources via ArgoCD Application
+
+```yaml
+clusterResourceBlacklist:
+- group: ''
+  kind: Gateway
+  name: '*'
+```
+
+- Allow creation of Deployments and Statefulesets via Application
+
+```yaml
+namespaceResourceWhitelist:
+- group: 'apps'
+  kind: Deployment
+- group: 'apps'
+  kind: StatefulSet
+  name: '*'
+```
+
+- Deny creation of Secrets via Application
+
+```yaml
+namespaceResourceBlacklist:
+- group: ''
+  kind: Secret
+  name: '*'"
+```
+
+- Detect ArgoCD application created in ns-prod namespace and argocd namespace (if Applications in Any namespace is enabled)
+
+```yaml
+sourceNamespaces:
+- ns-prod
+```
+
+- Create roles scoped to the project. Not ArgoCD Global scope
+
+```yaml
+roles:
+- name: read-only
+  policies:
+  - p, proj:my-project:read-only, applications, get, my-project/*, allow
+```
+
+- Deny Application sync for given application from 10am to 11am everyday
+
+```yaml
+syncWindows:
+- kind: deny
+  schedule: '* 10 * * *'
+  duration: 1h
+  applications:
+  - 'application*'
+```
+
+- Detecting orphaned resources, inspecting/removing resources using the Argo CD UI, and generating a warning.
+
+```yaml
+orphanedResources:
+  warn: true
+```
+
+### Restricting Applications using Projects in different ways
 
 1. `sourceRepos`: White listing repository to deploy from only given repository.
 
@@ -101,6 +230,63 @@ Creates a `controller` which continuously monitors running application and compa
     ```
 
 After applying these conditions (e.x. `sourceRepo`), the status of the deployed application would be of **Unknown** status and errors in the conditiions saying "_InvalidSpecError: application repo is not permitted in project_" if an application violates any whitelist or conditions.
+
+### `SyncWindows` in ArgoCD Projects
+
+A configurable windows of time where syncs will either be **blocked** or **allowed**
+
+Three ways for selecting the Application resources to which a Sync Window applies
+
+| No. | Entity | Location |
+|---|---|---|
+| 1 | By Application name | AppProject.spec.syncWindows[*].applications |
+| 2 | By Cluster name into which Applications are created | AppProject.spec.syncWindows[*].clusters |
+| 3 | By Namespace into which Applications are created | AppProject.spec.syncWindows[*].namespaces |
+
+- All above three fields support wildcards
+- Selection conditions are evaluated as OR condition by default
+- These condition(s) affect the matching applications whether they are configured to Auto Sync or Manual Sync
+
+**Example**: Deny sync for every "application*" from 10am to 11am everyday
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: project1
+  namespace: ns-argocd
+spec:
+  # ...
+  syncWindows:
+    - kind: deny # or allow
+      schedule: '* 10 * * *'
+      duration: 1h
+      applications:
+        - 'application*'
+```
+
+#### Configurations for syncWindows
+
+| Configuration | Meaning | Importance |
+|---|---|---|
+| **kind** | action to enforce (deny/allow) | _required_ |
+| **schedule** | cronjob to enforce deny or allow | _required_ |
+| **duration** | duration of time window | _required_ |
+| **applications** | list of application on which it is applied | _required_ |
+| **namespaces** | list of namespace to look for application | _optional_ |
+| **clusters** | list of cluster to look for application | _optional_ |
+| **andOperator** | evaluate conditions as AND for (applications, namespaces, and clusters) | _optional_ |
+| **manualSync** | whether to allow manual sync during the sync window | _optional_ |
+| **timezone** | timezone for the cronjob | _optional_ |
+
+- If no windows match any application: All applications are allowed to sync
+- If any application matched in both `allow` and `deny`: Sync will be denied as deny window overrides allow window
+
+The application UI has a panel which will display different colours depending on the state of window
+
+- **Red** - Sync denied
+- **Orange** - Manual sync allowed only
+- **Green** - Sync allowed
 
 ## Cluster management
 
