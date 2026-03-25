@@ -1,44 +1,30 @@
 # Terraform useful commands
 
-## List active resource(s)
-
 ```bash
+## Pass variable
+terraform apply -var="ec2_instance_name=instance_vm"
+
+## Pass variable files
+terraform apply -var-file="dev.tfvars"
+
+## List active resource(s)
 terraform state list
-```
 
 ## Show the state of particular resource
-
-```bash
 terraform state show <resource-name>
-```
 
 ## Remove a resource from the state only, not on AWS
-
-```bash
 terraform state rm <resource-name>
-```
 
 ## Destroy specific resource
-
-```bash
 terraform destroy --target=aws_instance.example --auto-approve
-```
 
 ## Update resource status inside `.tfstate`
-
-```bash
 terraform refresh
-```
 
 ## Import a resource from the AWS
+terraform import aws_instance.new_instance i-08526dsf8dsf8  # <resource-name> <resource-id>
 
-```bash
-terraform import <resource-name> <resource-id>
-terraform import aws_instance.new_instance i-08526dsf8dsf8
-```
-
-### Verify via
-
-```bash
-terraform state list
+## Grab updated module. Not from cache.
+terraform get -update
 ```
