@@ -5,15 +5,14 @@
 - [Problem](#problem)
 - [Solution](#solution)
 - [Introduction](#argocd---a-declarative-gitops-cd-tool-based-on-kubernetes)
+- [ArgoCD Application - Deploying Resources in a cluster](#argocd-applications---deploying-resources-in-a-cluster)
 - [ArgoCD Projects - A logical grouping of ArgoCD Applications](#argocd-projects---a-logical-grouping-of-argocd-applications)
 - [Cluster Management](#cluster-management)
 - [Add New Cluster](#add-a-kubernetes-cluster-to-deploy-applications-through-argocd)
 - [Local User Management](#local-user-management)
-- [Reset Password](#reset-password)
 - [RBAC Authorization](#rbac-authorization)
 - [Context Switching](#context-switching-troubleshooting)
 - [Rollouts](#rollouts)
-- [SyncOptions for Application](#sync-options-for-application)
 - [ArgoCD Hooks](#argocd-hooks---run-kubernetes-jobs-around-the-argocd-application-sync)
 - [Resource creation order](#create-resources-in-order)
 - [Configure GitHub webhook with ArgoCD](#configure-github-webhook-with-argocd)
@@ -21,7 +20,6 @@
 - [GitHub Authorization with GitHub App](#github-authorization-with-github-app)
 - [ArgoCD ApplicationSet - Managed Applications modification Policies](#argocd-applicationset---managed-applications-modification-policies)
 - [Configuration Tweaks](#configuration-tweaks)
-- [Sync ArgoCD Application from Kubernetes cluster](#sync-argocd-application-from-kubernetes-cluster)
 - [Disaster Recovery](#disaster-recovery)
 - [Auditing in ArgoCD](#auditing-in-argocd)
 - [ArgoCD API Exposure](#argocd-api-exposure)
@@ -66,6 +64,109 @@ Creates a `controller` which continuously monitors running application and compa
 - **API Server** - gRPC/REST server which exposes API consumed by UI, CLI, or CI pipeline
 - **Repository Service** - An internal service maintains cache of manifest. Stored in Redis
 - **Application controller** - Compare the TARGET state and LIVE state. Optionally take corrective action.
+
+## ArgoCD Applications - Deploying Resources in a cluster
+
+ArgoCD Application is a fundamental unit of deployment in ArgoCD.
+
+It represents:
+
+- **what to deploy?** - git repo, helm chart
+- **where to deploy?** - cluster, namespace
+- **how it should be managed?** - sync, rollbacks
+
+Each Application is independent and lifecycle-managed by Argo CD.
+
+### Core components
+
+- `source` - where the manifests come from. (git repo, helm chart or kustomize overlay)
+- `destination` - where the application is deployed. (server, namespace)
+- `project` - in what ArgoCD project to deploy
+- `syncPolicy` - controls how ArgoCD apply changes to the ArgoCD application
+
+### Application Lifecycle
+
+1. Application is created (manually or via ApplicationSet)
+2. ArgoCD fetches manifests from the source
+3. Desired state is compared with live cluster state
+4. Differences are shown as OutOfSync
+5. Sync applies changes to reach Synced state
+6. Continuous reconciliation keeps state consistent
+
+### Sync status
+
+- `Sync` - Current state and desired state of the application are consistent
+- `OutOfSync` - There are differneces in manifest between current and live state
+
+### Health status
+
+- **Healthy** - Resources are 100% healthy
+- **Degraded** - There is a failure while deploying (namespace doesn't exist, image not found, or any other kubernetes error)
+- **Processing** - Calculating health for all the components
+- **Missing** - The resources does not exist in cluster
+- **Suspended** - The resource is paused or in suspended state (a paused deployment, suspended cronjob)
+- **Unknown** - The health calculation has failed
+
+### Sync Options for Application
+
+#### `syncPolicy` - controls when and how a sync will be performed
+
+- `syncPolicy.automated` - keep an application synced to the target revision
+- `syncPolicy.automated.prune` - whether to delete resources from the cluster that are not found in the sources anymore (default: `false`)
+- `syncPolicy.automated.selfHeal` - whether to revert resources back to their desired state upon modification in the cluster (default: `false`)
+
+#### `syncPolicy.syncOptions` - allow to specify whole app **sync-options**
+
+- `syncPolicy.syncOptions.CreateNamespace=true` - Creates namespace if it doesn't exist.
+- `syncPolicy.syncOptions.ApplyOutOfSyncOnly=true` - To sync only **OutOfSync** resources. By default ArgoCD syncs all the resources. This may fill up API Server if there are large number of resources.
+  - You can check **Result** of which resources are synced by clicking on **SYNC STATUS**.
+- `syncPolicy.syncOptions.Replace=true` - Replace the changes instead of **Apply**ing.
+  - `kubectl apply` is limited to smaller changes relatively.
+  - To make this apply for selective resource(s), prefer passing annotations to each resources.
+- `syncPolicy.syncOptions.FailOnSharedResource=true` - If a resource is already deployed in same namespace via other application, mark `application` as **OutOfSync** with warnings such as "_Service/nginx is a part of applications argocd/ application1 and application2_".
+- `syncPolicy.syncOptions.PruneLast=true` - To prune resource/application after all other resources/applications are pruned.
+
+#### Resource Level
+
+Annotate resource(s) with:
+
+- `argocd.argoproj.io/sync-options: Prune=false` - to prevent from being delete by **syncPolicy.automated.prune**.
+- `argocd.argoproj.io/sync-options: Validate=false` - to disable schema validation of resource, silently dropping any unknown or duplicate fields.
+  - Similar to `kubectl apply -f resource.yaml --validate='ignore'`.
+- `argocd.argoproj.io/sync-options: Delete=false` - to retain resources even after application is deleted. (e.g. PersistentVolumeClaim)
+- `argocd.argoproj.io/sync-options: Delete=confirm` - to require manual confirmation before deletion.
+  - To confirm the deletion, annotate the application with `argocd.argoproj.io/deletion-approved: ISO-Timestamp`
+
+#### Formation
+
+```yaml
+syncPolicy:
+  automated:                   #  Sync autmatically based on refresh timeout or manually. Default timeout: 3min
+    prune: true                #  Delete resources if it's manifest is deleted from the source
+    selfHeal: true             #  Revert changes made in the cluster manually
+    syncOptions:
+      CreateNamespace=True     #  Create namespace if it doesn't exist
+      ApplyOutOfSyncOnly=True  #  Sync OutOfSync resources only.
+      ServerSideApply=True     #  Apply changes as kubectl apply --server-side. For applying larger resource ( >262.14KB)
+      PruneLast=True           #  Prune the resource at very last (after healthy status)
+      Replace=True             #  Replace the resource with kubectl replace or kubectl create.
+      Validate=True            #  If need to validate schema or silently dropping any unknown or duplicate fields
+```
+
+### Sync ArgoCD Application from Kubernetes cluster
+
+[Reference](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-kubectl)
+
+Patch ArgoCD application with following block to invoke sync for resources (deployments, services, etc...):
+
+```yaml
+operation:
+    initiatedBy:
+        username: <username> # unrelated custom values
+    sync:
+        syncStrategy:
+            hook: {}
+```
 
 ## ArgoCD Projects - A logical grouping of ArgoCD Applications
 
@@ -573,7 +674,7 @@ argocd account generate-token --account local-user
 
 Encode the generated token and put inside `argocd-secret` secret as `accounts.local-user.
 
-## Reset password
+### Reset password
 
 ```bash
 # Generate token
@@ -584,7 +685,7 @@ $ htpasswd -nbBC 10 "" new-password | tr -d ':\n' | sed 's/$2y/$2a/'
 # Patch secret/argocd-secret to update value
 kubectl -n argocd patch secret argocd-secret -p '{"data": {"local-user.password": "$2a$10$UAJR/PVjG9UcjVhQSLNike1j9LilJA6vYlJw/yuZ6/kJ3903N/dm6" }}'
 
-# Restart pod/argocd-server
+# Restart pod/argocd-server (optional)
 kubectl -n argocd delete pods -l app.kubernetes.io/name=argocd-server
 ```
 
@@ -1036,26 +1137,6 @@ If you tell me exactly how you normally access Argo CD (e.g., the URL in your br
 
     - When a Rollout has not yet reached its desired state (e.g. it was aborted, or in the middle of an update), and the stable manifest were re-applied, the Rollout detects this as a rollback and not a update, and will fast-track the deployment of the stable ReplicaSet by skipping analysis, and the steps.
 
-## Sync Options for Application
-
-### `syncPolicy` - controls when and how a sync will be performed
-
-- `syncPolicy.automated` - keep an application synced to the target revision
-- `syncPolicy.automated.prune` - whether to delete resources from the cluster that are not found in the sources anymore (default: `false`)
-- `syncPolicy.automated.selfHeal` - whether to revert resources back to their desired state upon modification in the cluster (default: `false`)
-
-### `syncPolicy.syncOptions` - allow to specify whole app **sync-options**
-
-- `syncPolicy.syncOptions.CreateNamespace=true` - Creates namespace if it doesn't exist.
-- `syncPolicy.syncOptions.ApplyOutOfSyncOnly=true` - To sync only **OutOfSync** resources. By default ArgoCD syncs all the resources. This may fill up API Server if there are large number of resources.
-  - You can check **Result** of which resources are synced by clicking on **SYNC STATUS**.
-- `syncPolicy.syncOptions.Replace=true` - Replace the changes instead of **Apply**ing.
-  - `kubectl apply` is limited to smaller changes relatively.
-  - To make this apply for selective resource(s), prefer passing annotations to each resources.
-- `syncPolicy.syncOptions.FailOnSharedResource=true` - If a resource is already deployed in same namespace via other application, mark `application` as **OutOfSync** with warnings such as "_Service/nginx is a part of applications argocd/ application1 and application2_".
-- `syncPolicy.syncOptions.PruneLast=true` - To prune resource/application after all other resources/applications are pruned.
-
-### Resource Level
 
 Annotate resource(s) with:
 
@@ -1438,21 +1519,6 @@ stringData:
 | controller.k8sclient.retry.base.backoff | ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF | Initial backoff delay(ms) first retry attempt. Subsequent retries will double this backoff time | 100 |
 
 ---
-
-## Sync ArgoCD Application from Kubernetes cluster
-
-[Reference](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-kubectl)
-
-Patch ArgoCD application with following block to invoke sync for resources (deployments, services, etc...):
-
-```yaml
-operation:
-    initiatedBy:
-        username: <username> # unrelated custom values
-    sync:
-        syncStrategy:
-            hook: {}
-```
 
 ## Disaster Recovery
 
