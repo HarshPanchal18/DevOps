@@ -746,6 +746,49 @@ argocd account update-password --server argocd-server.argocd.svc --insecure --ac
 
 ## RBAC Authorization
 
+A role is an RBAC entity, defines a set permissions for accessing ArgoCD resources.
+It provides Access Control for users and groups.
+
+### What is Role in ArgoCD?
+
+A role is an RBAC entity, defines a set permissions for accessing ArgoCD resources.
+It provides Access Control for users and groups.
+
+#### Types of Roles
+
+##### Global Scoped
+
+- Provide access control over all ArgoCD resources
+- Defined within argocd-rbac-cm configmap
+- Supported Resources for the policy:  **Applications**, **ApplicationSet**, **Repository**, **Cluster**, **Accounts**, **Logs**, **Exec**, **GpgKey**, **Certificates**
+
+##### Project Scoped [Read more](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/#project-roles)
+
+- Provide access control scoped to the specific ArgoCD Project
+- Defined within ArgoCD Project
+- Supported Resources for the policy:  **Applications**, **ApplicationSet**, **Repository**, **Cluster**, **Logs**, **Exec**
+
+##### Default Roles
+
+There are two roles comes inbuilt with ArgoCD
+
+- `role:admin` : unrestricted access to all resources
+- `role:readonly` : read-only access to all resources
+
+These role's policies are described in [this](https://github.com/argoproj/argo-cd/blob/master/assets/builtin-policy.csv) file
+
+#### Custom Roles
+
+- We can create new role and can bind with one or more Groups and Users
+- If a role has not assigned any policy, then `policy.default` defined in `argocd-rbac-cm` is applied for that role.
+- If a role has permissions defined **Global-scope** and **Project-scope**, both will combined with `deny` policy taking precedence over `allow`.
+
+### Default local User
+
+- Default local `admin` user is created by default. We can set password for it during/after ArgoCD installation.
+- It is assigned with `admin` Role.
+- We can disable this account after the installation.
+
 ArgoCD RBAC configuration can be found inside `argocd-rbac-cm` configmap.
 
 _Default:_
@@ -782,14 +825,14 @@ data:
 
 | Action   | Meaning                  |
 | -------- | --------------------     |
-| get      | View                     |
-| create   | Create                   |
-| update   | Modify                   |
-| delete   | Delete                   |
-| sync     | Sync app                 |
-| override | Change params            |
-| action   | Run resource actions     |
-| invoke   | Invoke ArgoCD extensions |
+| get      | View ArgoCD Resources                     |
+| create   | Create ArgoCD Resources                   |
+| update   | Modify ArgoCD Resources                   |
+| delete   | Delete ArgoCD Resources                   |
+| sync     | Sync applications                         |
+| override | Change Application params                 |
+| action   | Perform [actions](https://argo-cd.readthedocs.io/en/stable/operator-manual/resource_actions/#built-in-actions) on resource      |
+| invoke   | Invoke proxy extensions (alpha feature)   |
 
 Design policies to provide **least required** privileges.
 
@@ -1136,7 +1179,6 @@ If you tell me exactly how you normally access Argo CD (e.g., the URL in your br
     ```
 
     - When a Rollout has not yet reached its desired state (e.g. it was aborted, or in the middle of an update), and the stable manifest were re-applied, the Rollout detects this as a rollback and not a update, and will fast-track the deployment of the stable ReplicaSet by skipping analysis, and the steps.
-
 
 Annotate resource(s) with:
 
