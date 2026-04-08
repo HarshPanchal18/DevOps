@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: project-2
+spec:
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  destinations:
+    - namespace: "dev"                        # Allow deploying applications in "dev" namespace only
+      server: "*"
+  sourceRepos:
+    - "*"
+  destinationServerAccounts:
+    defaultServiceAccount: "sa-argocd"        # Using this SA for sync on target cluster
+    server: "https://kubernetes.default.svc"  # Target cluster URL
+  signatureKeys:                              # A list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
+    - keyID: ABC123456789DEF0
+  orphanedResources:
+    warn: false                               # Disable orphan warnings, rr ignore specific resources:
+    ignore:
+      - group: rbac.authorization.k8s.io
+        kind: Role
+      - group: rbac.authorization.k8s.io
+        kind: RoleBinding
+      - group: scheduling.k8s.io
+        kind: PriorityClass
