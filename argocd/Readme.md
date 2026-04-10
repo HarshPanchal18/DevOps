@@ -694,7 +694,7 @@ kubectl -n argocd delete pods -l app.kubernetes.io/name=argocd-server
 To reset the ArgoCD admin password it is required to delete the values of admin.password and admin.passwordMtime that are stored as K8s secret object argocd-secret in the namespace in which ArgoCD is installed (default argocd)
 
 ```bash
-$ kubectl patch secret argocd-secret -p '{"data": {"admin.password": null, "admin.passwordMtime": null}}'
+$ kubectl patch secret -n argocd argocd-secret -p '{"data": {"admin.password": null, "admin.passwordMtime": null}}'
 - sample output -
 secret/argocd-secret patched
 ```
@@ -702,7 +702,7 @@ secret/argocd-secret patched
 Restart ArgoCD server to generate the new admin password
 
 ```bash
-$ kubectl rollout restart deployment.apps/argocd-server
+$ kubectl rollout restart deployment.apps/argocd-server -n argocd
 - sample output -
 deployment.apps/argocd-poc-server restarted
 
@@ -1465,6 +1465,14 @@ spec:
 
   See **ARGOCD_REPO_CACHE_EXPIRATION** inside repo-server deployment.
 
+#### Git related configuration
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| reposerver.parallelism.limit | ARGOCD_REPO_SERVER_PARALLELISM_LIMIT | Limit on number of concurrent manifests generate requests | "0" (No limit) |
+| reposerver.git.lsremote.parallelism.limit | ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT | Number of concurrent git ls-remote requests | "0" (No limit) |
+| reposerver.git.request.timeout | ARGOCD_GIT_REQUEST_TIMEOUT | Git requests timeout for auth, clone, fetch, ls-remote | "15s" |
+
 ---
 
 ### Application Controller
@@ -1480,7 +1488,7 @@ Each controller replica processes applications using two separate queues to proc
 
 ---
 
-#### Cluster info timeout
+#### Cluster update info timeout
 
 - By default, the controller will update the cluster information every 10 seconds.
 
@@ -1491,9 +1499,9 @@ Each controller replica processes applications using two separate queues to proc
 #### Controller Sharding (Alpha) [Configuration Reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/feature-maturity/#configuration)
 
 If ArgoCD manages many clusters or applications, the single controller may consume large amounts of memory.
- To solve this, you can split workload across multiple controllers.
-  Increase controller replica 2
-  set ARGOCD_CONTROLLER_REPLICAS 2
+
+  To solve this, you can split workload across multiple controllers.
+  Increase **controller replica** to 2 OR set **ARGOCD_CONTROLLER_REPLICAS** to 2
 
 ##### Sharding Distribution Methods
 
@@ -1503,10 +1511,7 @@ If ArgoCD manages many clusters or applications, the single controller may consu
 | Round-Robin | Equal distribution across all shards | Distributes clusters evenly | round-robin |
 | Consistent Hashing | Minimizes reshuffling when add/remove shards | Provides balanced distribution | consistent-hashing |
 
-Configured in argocd-cmd-params-cm configmap controller.sharding.algorithm
-
-OR
-Setting ENV in Controller `ARGOCD_CONTROLLER_SHARDING_ALGORITHM`
+Configured in **argocd-cmd-params-cm** configmap under `controller.sharding.algorithm` OR Setting ENV in Controller `ARGOCD_CONTROLLER_SHARDING_ALGORITHM`
 
 ###### Manually/Forcefully Assigning Clusters to Shards
 
@@ -1523,10 +1528,13 @@ stringData:
 
 | Setting | Reason | ENV Configuration | Default |
 |---|---|---|---|
-| Cache Page Buffer | Number of pages to buffer when making a K8s query to LIST resources. Helps when clusters contain very large numbers of resources. | ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE | Not defined |
+| Cache Page Size | The LIST operation is performed in pagination. Number of resources a single page contains | ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE | 500 |
+| Cache Page Buffer | Number of pages to buffer when making a K8s query to LIST resources. Helps when clusters contain very large numbers of resources. | ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE | 1 |
 | Event Batch Processing | To collect/process Kubernetes events in batches. Reduces controller overload. | ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING | TRUE |
 | Event Processing Interval | Controlling the interval for processing events in a batch. Used only when batch event processing is enabled. | ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL | 100ms |
 | Split Application Resource Tree in multiple Redis key | Max number of resources stored in one Redis key. Split application tree into multiple keys. To reduce the traffic between the controller and Redis. | ARGOCD_APPLICATION_TREE_SHARD_SIZE | 0 |
+
+ArgoCD fetches one page (500 resources), processes it, then fetches the next page, and so on. So If we have 10,000 resources: 500 page size * 20 buffer
 
 ---
 
@@ -1536,9 +1544,9 @@ stringData:
 
 | Configuration | ENV | Purpose | Default |
 |---|---|---|---|
-| controller.k8s.client.qps | ARGOCD_K8S_CLIENT_QPS | QPS limit for K8s API client request | 50 |
-| controller.k8s.client.burst | ARGOCD_K8S_CLIENT_BURST | Burst value for K8s API client request | 100 |
-| controller.k8s.client.max.idle.connections | ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS | Maximum number of idle connections in K8s client | 500 |
+| controller.k8s.client.qps | ARGOCD_K8S_CLIENT_QPS | QPS limit for K8s API client request. Rate limit for the K8s API from the controller | 50 |
+| controller.k8s.client.burst | ARGOCD_K8S_CLIENT_BURST | Burst value for K8s API client request. Exceed the QPS temporarily when there's a sudden need for more API requests | 100 |
+| controller.k8s.client.max.idle.connections | ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS | Maximum number of idle connections in K8s client. Max no. of connections kept in the connection pool | 500 |
 
 ---
 
@@ -1546,10 +1554,10 @@ stringData:
 
 | Configuration | ENV | Purpose | Default |
 |---|---|---|---|
-| controller.k8s.tcp.timeout | ARGOCD_K8S_TCP_TIMEOUT | TCP connection timeout for K8s client | 30s |
+| controller.k8s.tcp.timeout | ARGOCD_K8S_TCP_TIMEOUT | TCP connection timeout for K8s client. Send keep-alive packets to maintain connection | 30s |
 | controller.k8s.tcp.keepalive | ARGOCD_K8S_TCP_KEEPALIVE | TCP keep-alive interval for K8s client | 30s |
 | controller.k8s.tls.handshake.timeout | ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT | TCP handshake timeout for K8s client | 10s |
-| controller.k8s.tcp.idle.timeout | ARGOCD_K8S_TCP_IDLE_TIMEOUT | TCP idle timeout for K8s client | 90s |
+| controller.k8s.tcp.idle.timeout | ARGOCD_K8S_TCP_IDLE_TIMEOUT | TCP idle timeout for K8s client. Connection is terminated after 5min of inactivity | 5m |
 
 ---
 
@@ -1559,6 +1567,15 @@ stringData:
 |---|---|---|---|
 | controller.k8sclient.retry.max | ARGOCD_K8SCLIENT_RETRY_MAX | Max number of retry attempts for each request | 5 |
 | controller.k8sclient.retry.base.backoff | ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF | Initial backoff delay(ms) first retry attempt. Subsequent retries will double this backoff time | 100 |
+
+---
+
+#### Timeouts
+
+| Configuration | ENV | Purpose | Default |
+|---|---|---|---|
+| controller.repo.server.timeout.seconds | ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS | Manifest generation timeout | 60 |
+| controller.self.heal.timeout.seconds | ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS | Timeout between application self heal attempts | 0 |
 
 ---
 
