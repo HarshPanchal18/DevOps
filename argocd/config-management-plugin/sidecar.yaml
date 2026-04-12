@@ -1,0 +1,28 @@
+- name: timoni-module-build
+  image: docker.io/harshpanchal18/timoni-build:main
+  imagePullPolicy: Always
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+  env:
+    - name: ARGOCD_ASK_PASS_SOCK  # Provide the same for repo-server container, which tells the repo-server to put the socket in given isolated directory
+      value: /var/run/argocd/askpass/reposerver-ask-pass.sock
+  volumeMounts:
+    - mountPath: /var/run/argocd
+      name: var-files
+    - mountPath: /home/argocd/cmp-server/plugins
+      name: plugins
+    - mountPath: /tmp
+      name: cmp-tmp
+    - mountPath: /var/run/argocd/askpass  # Provide the same for repo-server container
+      name: askpass-sock
+---
+# Configure required volume for Repo Server under spec.template.spec.volumes
+- emptyDir: {}
+  name: cmp-tmp
+- emptyDir: {}
+  name: plugins
+- emptyDir: {}
+  name: var-files
+- emptyDir: {}
+  name: askpass-sock
