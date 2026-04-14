@@ -23,6 +23,7 @@
 - [Disaster Recovery](#disaster-recovery)
 - [Auditing in ArgoCD](#auditing-in-argocd)
 - [ArgoCD API Exposure](#argocd-api-exposure)
+- [Rotate Redis Secrets](#rotate-redis-secret)
 
 ## Problem
 
@@ -1579,6 +1580,160 @@ ArgoCD fetches one page (500 resources), processes it, then fetches the next pag
 
 ---
 
+### Key Improvements
+
+#### 1. **Pagination and Buffering**
+
+For large clusters, use pagination to avoid etcd compaction issues:
+
+- `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE`: Controls page size (default: 500)
+- `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE`: Buffers pages in memory
+
+#### 2. **Semaphore Control**
+
+Limit concurrent list operations to prevent memory spikes:
+
+```go
+clusterCacheListSemaphoreSize int64 = 50
+```
+
+#### 3. **Batch Event Processing**
+
+Process events in batches to reduce lock contention:
+
+```yaml
+controller.cluster.cache.batch.events.processing: "true"
+controller.cluster.cache.events.processing.interval: "100ms"
+```
+
+#### 4. **RBAC Respect Mode**
+
+Automatically skip resources without permissions:
+
+```yaml
+resource.respectRBAC: "strict"  # or "normal"
+```
+
+#### 5. **Retry Logic**
+
+Configure retry behavior for failed operations:
+
+- `ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT`: Number of retries
+- `ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF`: Enable backoff strategy
+
+#### 6. **Resource Exclusions**
+
+Pre-filter problematic resources:
+
+```yaml
+resource.exclusions: |
+  - apiGroups: ["projectcalico.org"]
+    kinds: ["BGPFilter"]
+```
+
+#### 7. **Sharding**
+
+Distribute clusters across multiple controllers:
+
+```yaml
+controller.sharding.algorithm: "consistent-hashing"
+```
+
+#### Notes
+
+- The actual sequence includes OpenAPI schema loading for proper resource conversion
+- Permission checks happen reactively after failed list operations
+- Watch connections restart every 10 minutes by default
+- Cache resyncs every 12 hours to ensure consistency
+
+#### Citations
+
+**File:** controller/cache/cache.go (L97-102)
+
+```go
+// The default limit of 50 is chosen based on experiments.
+clusterCacheListSemaphoreSize int64 = 50
+
+// clusterCacheListPageSize is the page size when performing K8s list requests.
+// 500 is equal to kubectl's size
+clusterCacheListPageSize int64 = 500
+```
+
+**File:** controller/cache/cache.go (L107-112)
+
+```go
+// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
+// If set to 1, retries are disabled.
+clusterCacheAttemptLimit int32 = 1
+
+// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
+clusterCacheRetryUseBackoff = false
+```
+
+**File:** controller/cache/cache.go (L114-118)
+
+```go
+// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
+clusterCacheBatchEventsProcessing = false
+
+// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
+clusterCacheEventsProcessingInterval = 100 * time.Millisecond
+```
+
+**File:** docs/operator-manual/high_availability.md (L106-140)
+
+```markdown
+* If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
+  controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`
+  `StatefulSet`
+  and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch
+  below demonstrates changes required to configure two controller replicas.
+
+* By default, the controller will update the cluster information every 10 seconds. If there is a problem with your
+  cluster network environment that is causing the update time to take a long time, you can try modifying the environment
+  variable `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (the unit is seconds).
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-application-controller
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: argocd-application-controller
+          env:
+            - name: ARGOCD_CONTROLLER_REPLICAS
+              value: "2"
+```
+
+- In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If
+  not specified, it will be calculated on the fly by the application controller.
+- The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method`
+  parameter. Supported sharding methods are:
+  - `legacy` mode uses an `uid` based distribution (non-uniform).
+  - `round-robin` uses an equal distribution across all shards.
+  - `consistent-hashing` uses the consistent hashing with bounded loads algorithm which tends to equal distribution
+      and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters.
+
+**File:** docs/operator-manual/high_availability.md (L184-194)
+
+```markdown
+* `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
+  buffers in memory when performing a list operation against the K8s api server while syncing the cluster cache. This
+  is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
+  compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
+  may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
+  value for this environment variable configures the controller with a larger buffer in which to store pre-fetched
+  pages which are processed asynchronously, increasing the likelihood that all pages have been pulled before the etcd
+  compaction interval timeout expires. In the most extreme case, operators can set this value such that
+  `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE * ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` exceeds the largest resource
+  count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
+  be buffered in memory -- no api server request will be blocked by processing.
+```
+
 ## Disaster Recovery
 
 You can use `argocd admin` to import and export all Argo CD data.
@@ -2001,4 +2156,32 @@ curl -X POST -d @create-cluster.json -H "Authorization: Bearer <session-token>" 
 
 ```bash
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <session-token>" https://argocd.example.com/api/v1/clusters/in-cluster/rotate-auth
+```
+
+## Rotate Redis Secret
+
+- Delete `argocd-redis` secret in the namespace where Argo CD is installed.
+
+```bash
+kubectl delete secret argocd-redis -n <argocd namespace>
+```
+
+- If you are running Redis in **HA** mode, restart Redis in HA.
+
+```bash
+kubectl rollout restart deployment argocd-redis-ha-haproxy
+kubectl rollout restart statefulset argocd-redis-ha-server
+```
+
+- If you are running Redis in **non-HA** mode, restart Redis.
+
+```bash
+kubectl rollout restart deployment argocd-redis
+```
+
+- Restart other components.
+
+```bash
+kubectl rollout restart deployment argocd-server argocd-repo-server
+kubectl rollout restart statefulset argocd-application-controller
 ```
