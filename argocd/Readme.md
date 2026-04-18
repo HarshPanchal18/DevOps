@@ -11,6 +11,7 @@
 - [Add New Cluster](#add-a-kubernetes-cluster-to-deploy-applications-through-argocd)
 - [Local User Management](#local-user-management)
 - [RBAC Authorization](#rbac-authorization)
+- [ArgoCD ApplicationSet - Manage multiple applications across different environments or clusters](#argocd-applicationset---manage-multiple-applications-across-different-environments-or-clusters)
 - [Context Switching](#context-switching-troubleshooting)
 - [Rollouts](#rollouts)
 - [ArgoCD Hooks](#argocd-hooks---run-kubernetes-jobs-around-the-argocd-application-sync)
@@ -18,7 +19,6 @@
 - [Configure GitHub webhook with ArgoCD](#configure-github-webhook-with-argocd)
 - [Authenticating with OAuth App in GitHub](#authenticating-with-oauth-apps-in-github)
 - [GitHub Authorization with GitHub App](#github-authorization-with-github-app)
-- [ArgoCD ApplicationSet - Managed Applications modification Policies](#argocd-applicationset---managed-applications-modification-policies)
 - [Configuration Tweaks](#configuration-tweaks)
 - [Disaster Recovery](#disaster-recovery)
 - [Auditing in ArgoCD](#auditing-in-argocd)
@@ -153,6 +153,8 @@ syncPolicy:
       Replace=True             #  Replace the resource with kubectl replace or kubectl create.
       Validate=True            #  If need to validate schema or silently dropping any unknown or duplicate fields
 ```
+
+See examples of Application under **`applications`** directory
 
 ### Sync ArgoCD Application from Kubernetes cluster
 
@@ -879,6 +881,182 @@ Test access:
 argocd admin settings rbac can dev-team applications sync myproj/app1
 ```
 
+## ArgoCD ApplicationSet - Manage multiple applications across different environments or clusters
+
+- Enables both automation and greater flexibility managing Argo CD Applications across a large number of clusters.
+- Use a single Kubernetes manifest to target multiple Kubernetes clusters and to deploy multiple applications from one or multiple Git repositories with ArgoCD
+
+Important sections in ApplicationSet:
+
+1. `syncPolicy` - defines sync policy for generated applications
+2. `generators` - generating multiple values for application(s) to be created
+3. `template` - creates application by utilising values generated via generators
+
+### `syncPolicy` - Managed Applications modification Policies
+
+The ApplicationSet controller supports a parameter `--policy`, which restricts what types of modifications will be made to managed Argo CD Application resources.
+
+You can enforce this parameter by providing argument within the Controller Deployment container (`application-controller`)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+# ...
+spec:
+    # ...
+    syncPolicy:
+        applicationsSync: create-only # create-update, create-delete, sync
+```
+
+Enumerated values for `applicationsSync`:
+
+| Policy | Allows | Prevents |
+|---|---|---|
+| `create-only` | **Create** Application resources | **Deletion** or **Modification** |
+| `create-update` | **Create** or **Modify** Application resources | **Deletion** |
+| `create-delete` | **Create** or **Delete** Application resources | **Modification** |
+| `sync` | **Create**, **Modification** and **Delete** | Nothing |
+
+### Generators - generating parameters for ArgoCD application
+
+- Parameters are **key-values** pairs that are substituted into the `template` section of the **ApplicationSet** resource during template rendering.
+- You can call parameter values as `{{keyname}}`
+
+All supported configuration for generators in ApplicationSet are [given here](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/applicationset.yaml)
+
+#### Types of Generator
+
+##### List Generator
+
+- generates parameters based on a fixed list
+- you can give any valid custom key value pairs
+- if a non-existent key is referenced in template, it will rendered as it is. (e.x. namespace: {{namespace}})
+- **Applicable for flexible values**
+
+- list or nested type is not supported.
+
+```yaml
+generators:
+  - list:
+      elements:
+        - authors:
+            - men
+            - women
+        - authors:
+            - robot:
+                bots: chat
+```
+
+##### Cluster Generator
+
+- Generates cluster parameters based on the **clusters** that are defined within Argo CD.
+- Auto detect below fields from **`cluster-secret`**
+
+| Variable | Description |
+|---|---|
+| `name` | cluster name |
+| `namenormalized` | cluster name (replacing underscore (_) with hyphen) |
+| `server` | sever URL |
+| `metadata.labels.key` | secret labels |
+| `metadata.annotations.key` | secret annotations |
+
+- Supports `matchLabels` and `matchExpression` selectors for conditioning.
+- You can give any valid custom key value pairs under **`spec.generators[].clusters.values`**
+- **Applicable for deploying on more than one cluster**
+
+##### Git Generator
+
+- Generates parameters based on files or folders that are contained within the Git repository
+- Files containing JSON values will be parsed and converted into template parameters.
+- **Applicable for getting values from a remote file**
+
+##### Matrix Generator
+
+- Combines the parameters generated via two other generators.
+- If two key have same name in different generators, then application is not created and give errors as "found duplicate key path with different value"
+- **Applicable for combining any two generators**
+
+##### Merge Generator
+
+- Combines parameters produced by first generator with matching parameter set produced by following generators
+- Appropriate when parameters require overwriting
+- This is same as **Left Join in SQL**. Replace the matching values from the right-sided (new) values.
+- If 2 generators define the same key, the value from first generator is kept.
+- Key defined in `mergeKeys[]` must exist in every generators
+- **Applicable for combining any number of generators**
+
+##### Pull Request Generator
+
+- Used for any Kustomize workflow requiring PR testing
+- Make sure that new branch name is contained of lowercase letters
+- Provides PR specific parameters like:
+
+  | Variable | Description |
+  |---|---|
+  | branch | Name of the branch of the PR head |
+  | target_branch | Name of the target branch of the PR |
+  | head_sha | SHA of the head of PR |
+  | author | Creator of PR |
+  | number | ID number of PR |
+
+- **Applicable for testing PR of manifest changes**
+
+##### Cluster Decision Resource Generator
+
+- To deploy Kustomize applications to clusters based on external resource definitions rather than static cluster registration
+- **Applicable for complex cluster selection logic beyond simple labels**
+
+##### Plugin Generator
+
+- Allows custom generator logic through external plugins that can fetch parameters from any source
+- **Applicable only when built-in generators are insufficient to your usecase**
+
+##### SCM Generator
+
+- Discover repositories from any SCM providers, generate applications for repositories matching specific criteria
+- Uses an API of SCM (e.x. GitHub) to discover repositories. Not use ArgoCD repo server for scan
+- **Applicable for multiple repositories resides in multiple organisarion**
+
+Template variables
+
+| Variable | Description |
+|---|---|
+| url | Repo URL |
+| repository | Repo name |
+| organization | Org name |
+| branch | Branch name |
+| branchNormalized | Branch name sanitized for Kubernetes |
+
+### Template - Utilising generated parameters
+
+- This section utilise the values generated via **Generators** to create Applications
+- This section is common for all Applications which are going to generate
+
+See examples of ApplicationSet under **`applicationset`** directory
+
+### Prevent Application's child resources from being deleted, when the parent Application is deleted
+
+By default, when an Application resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well (such as, all of the Application's Deployments, Services, etc).
+
+To prevent an Application's child resources from being deleted when the parent Application is deleted, add the preserveResourcesOnDeletion: true field to the syncPolicy of the ApplicationSet:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+    syncPolicy:
+        preserveResourcesOnDeletion: true
+```
+
+### Prevent deletion of generated Application
+
+Deletion of ApplicationSet does not delete the generated applications
+
+```yaml
+finalizers:
+  - resources-finalizer.argocd.argoproj.io
+```
+
 ## Context Switching (Troubleshooting)
 
 I accidently hit `argocd login cd.argoproj.io --core`. The context is changed to `kubernetes` service located inside `default` namespace. I want to direct it to `argocd-server` back.
@@ -1412,45 +1590,6 @@ in secret under `stringData`:
                 githubAppID: ""
                 ...
     ```
-
-## ArgoCD ApplicationSet - Managed Applications modification Policies
-
-The ApplicationSet controller supports a parameter `--policy`, which restricts what types of modifications will be made to managed Argo CD Application resources.
-
-You can enforce this parameter by providing argument within the Controller Deployment container (`application-controller`)
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-# ...
-spec:
-    # ...
-    syncPolicy:
-        applicationsSync: create-only # create-update, create-delete, sync
-```
-
-Enumerated values for `applicationsSync`:
-
-| Policy | Allows | Prevents |
-|---|---|---|
-| `create-only` | **Create** Application resources | **Deletion** or **Modification** |
-| `create-update` | **Create** or **Modify** Application resources | **Deletion** |
-| `create-delete` | **Create** or **Delete** Application resources | **Modification** |
-| `sync` | **Create**, **Modification** and **Delete** | Nothing |
-
-### Prevent an Application's child resources from being deleted, when the parent Application is deleted
-
-By default, when an Application resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well (such as, all of the Application's Deployments, Services, etc).
-
-To prevent an Application's child resources from being deleted when the parent Application is deleted, add the preserveResourcesOnDeletion: true field to the syncPolicy of the ApplicationSet:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-spec:
-    syncPolicy:
-        preserveResourcesOnDeletion: true
-```
 
 ## Configuration tweaks
 
