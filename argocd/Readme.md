@@ -24,6 +24,7 @@
 - [Auditing in ArgoCD](#auditing-in-argocd)
 - [ArgoCD API Exposure](#argocd-api-exposure)
 - [Rotate Redis Secrets](#rotate-redis-secret)
+- [Config-Management-Plugin in Argo CD - Defining custom logic to generate YAML](#configuring-cmp-configuration-management-plugin)
 
 ## Problem
 
@@ -2324,3 +2325,180 @@ kubectl rollout restart deployment argocd-redis
 kubectl rollout restart deployment argocd-server argocd-repo-server
 kubectl rollout restart statefulset argocd-application-controller
 ```
+
+## Configuring CMP (Configuration Management Plugin)
+
+Argo CD's "native" config management tools are Helm, Jsonnet, and Kustomize. If you want to use a different config management tool, or if Argo CD's native tool support does not include a feature you need, you might need to turn to a Config Management Plugin (CMP).
+
+The Repository Server is in charge of building Kubernetes manifests based on some source files from a Helm, OCI, or Git repository. When a config management plugin is correctly configured, the repo server may delegate the task of building manifests to the plugin.
+
+- [Documentation Reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/)
+
+### Writing CMP Plugin
+
+Plugins will be configured via a ConfigManagementPlugin manifest YAML
+
+Plugin can be configured with below set of values:
+
+| Topic | Description | Requirement |
+|---|---|---|
+| name              | Plugin Name | required |
+| init commands     | Run given commands in source directory before manifest generation | required |
+| generate commands | Run given commands in source directory for manifest generation | required |
+| version           | Plugin Version | optional |
+| file discovery    | Discover file in given path based on pattern | optional |
+| parameters        | Build YAML with parameters | optional |
+
+#### E.x. Build timoni bundle through CMP
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: argo-cmp-timoni
+spec:
+  init:
+    command: []
+    args: []
+  generate:
+    command: ["/bin/sh", "-c"]
+    args:
+      - |
+        /usr/local/bin/timoni build test-app -n beta-app .
+```
+
+### Install Plugin using sidecar
+
+1. Create a plugin YAML basedon your build(YAML generation) logic
+2. Put inside a runner Docker image (alpine, nginx, etc.). See [Dockerfile](https://github.com/HarshPanchal18/DevOps/tree/main/argocd/config-management-plugin/Dockerfile)
+3. Build and Push image into the registry
+4. Attach a container of above image under Repository Server deployment at path **spec.template.spec.containers**. See [sidecar.yaml](https://github.com/HarshPanchal18/DevOps/tree/main/argocd/config-management-plugin/sidecar.yaml)
+5. Configure required volume under **spec.template.spec.volumes**
+
+    ```yaml
+    - emptyDir: {}
+      name: cmp-tmp
+    - emptyDir: {}
+      name: plugins
+    - emptyDir: {}
+      name: var-files
+    ```
+
+6. Set **ARGOCD_ASK_PASS_SOCK** environment variable for `repo-server` container
+
+    ```yaml
+      env:
+      - name: ARGOCD_ASK_PASS_SOCK
+        value: "/var/run/argocd/askpass/reposerver-ask-pass.sock"
+    ```
+
+### Configure ENVs for Plugin to generate YAML
+
+1. We can pass Environement Variables in Plugin YAML to support in dynamic values for generating YAML
+2. We have to prefix the Environemnt variable with **ARGOCD_ENV** for each decided variables
+
+    E.x. - ArgoCD Application utilising Timoni Plugin with ENVs
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: argo-cmp-timoni
+    spec:
+      init:
+        command: []
+        args: []
+      generate:
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            /usr/local/bin/timoni build test-app-${ARGOCD_ENV_APP_ENV} -n beta-app .
+    ```
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: application-timoni
+      namespace: argocd
+    spec:
+      project: samples
+      source:
+        repoURL: https://github.com/HarshPanchal18/timoni-sample-app
+        path: '.'
+        targetRevision: HEAD
+        plugin:
+          name: argo-cmp-timoni-v0.1.1
+          env:
+            - name: APP_ENV
+              value: 'prod'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: ns-prod
+    ```
+
+### Configure Parameters for plugin to generate YAML
+
+1. We can utilise parameters in Plugin YAML to support in dynamic values for generating YAML
+2. We have to prefix the Parameter variable with **PARAM_** for each decided field (e.g. **APP_NAMESPACE** will need to be referred as **PARAM_APP_NAMESPACE** in Plugin YAML)
+
+    E.x. - ArgoCD Application utilising Timoni Plugin with Parameters
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: argo-cmp-timoni
+    spec:
+      init:
+        command: []
+        args: []
+      generate:
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            /usr/local/bin/timoni build test-app${PARAM_ENVIRONMENT} -n beta-app .
+      parameters:
+        static:
+          - name: environment
+            title: "Timoni App Environment"
+            required: true
+            strings: alpha
+    ```
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: application-timoni
+      namespace: argocd
+    spec:
+      project: samples
+      source:
+        repoURL: https://github.com/HarshPanchal18/timoni-sample-app
+        path: '.'
+        targetRevision: HEAD
+        plugin:
+          name: argo-cmp-timoni-v0.1.1
+          parameters:
+            - name: environment
+              string: prod
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: ns-prod
+    ```
+
+### Standard Application Variables can be utilised inside CMP plugin.yaml
+
+These variables are automatically available for your plugin commands to negate mundane tasks:
+
+- `ARGOCD_APP_NAME` - Application name
+- `ARGOCD_APP_NAMESPACE` - Application namespace
+- `ARGOCD_APP_PROJECT_NAME` - The Project name the application belongs to
+- `ARGOCD_APP_REVISION` - Full Git revision
+- `ARGOCD_APP_REVISION_SHORT` - Shortened Git revision (7 chars)
+- `ARGOCD_APP_REVISION_SHORT_8` - Shortened Git revision (8 chars)
+- `ARGOCD_APP_SOURCE_REPO_URL` - The Repository URL
+- `ARGOCD_APP_SOURCE_PATH` - The path within the repository
+- `ARGOCD_APP_SOURCE_TARGET_REVISION` - The target revision (branch/tag)
+- `ARGOCD_APP_PARAMETERS` - JSON string containing application parameters passed to plugins
