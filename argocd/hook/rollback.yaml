@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: git-rollback
+  annotations:
+    argocd.argoproj.io/hook: SyncFail
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: git-rollback
+          image: alpine/git:2.43.0
+          command:
+            - sh
+            - -c
+            - |
+              echo "Sync failed - initiating Git revert"
+
+              # Clone the repo
+              git clone "https://oauth2:${GIT_TOKEN}@github.com/myorg/gitops-repo.git" /repo
+              cd /repo
+
+              # Get the latest commit
+              LATEST_COMMIT=$(git rev-parse HEAD)
+              echo "Reverting commit: $LATEST_COMMIT"
+
+              # Configure git
+              git config user.email "argocd-bot@myorg.com"
+              git config user.name "ArgoCD Auto-Rollback"
+
+              # Revert the commit
+              git revert --no-edit HEAD
+
+              # Push the revert
+              git push origin main
+
+              echo "Git revert pushed. ArgoCD will sync to reverted state."
+
+              # Notify the team
+              curl -X POST "$SLACK_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "{
+                  \"text\": \"Auto-rollback: Reverted commit $LATEST_COMMIT due to test failure.\"
+                }"
+          env:
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: git-credentials
+                  key: token
+            - name: SLACK_WEBHOOK
+              valueFrom:
+                secretKeyRef:
+                  name: slack-webhook
+                  key: url
