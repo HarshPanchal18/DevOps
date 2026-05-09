@@ -19,8 +19,9 @@ spec:
       #   images:
       #     - gcr.io/heptio-images/ks-guestbook-demo:0.2
     syncSource:
-      targetBranch: default
-      path: kustomize/base
+      # targetBranch: kustomize-src
+      targetBranch: prod
+      path: kustomize-base
   syncPolicy:
     automated: {}
     syncOptions:
