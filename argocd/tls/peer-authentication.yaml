@@ -1,0 +1,9 @@
+# Allow metrics scraping for Prometheus when Istio is enabled
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: argocd-strict-mode
+  namespace: argocd
+spec:
+  mtls:
+    mode: STRICT

@@ -1,0 +1,27 @@
+# Allow metrics scraping for Prometheus on Ports which are exposing metrics when Istio Injection is enabled on Argo CD components
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: argocd-allow-metrics-port
+  namespace: argocd
+spec:
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "5558":             # Dex Server metrics port
+      mode: PERMISSIVE
+    "8082":             # Controller metrics port
+      mode: PERMISSIVE
+    "8083":             # Server metrics port
+      mode: PERMISSIVE
+    "8084":             # Repo Server metrics port
+      mode: PERMISSIVE
+    "9101":             # Redis HA Proxy metrics port
+      mode: PERMISSIVE
+    "9121":             # Redis / Redis HA Server metrics port
+      mode: PERMISSIVE
+    "9001":             # Notification Controller metrics port
+      mode: PERMISSIVE
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: argocd

@@ -25,6 +25,8 @@
 - [ArgoCD API Exposure](#argocd-api-exposure)
 - [Rotate Redis Secrets](#rotate-redis-secret)
 - [Config-Management-Plugin in Argo CD - Defining custom logic to generate YAML](#configuring-cmp-configuration-management-plugin)
+- [Configuring MCP Server for Argo CD in VS Code](#configuring-mcp-server-for-argo-cd-in-vs-code)
+- [Cluster cache sequence](#sequence-of-cluster-cache-processed-via-application-controller)
 
 ## Problem
 
@@ -1922,7 +1924,7 @@ ArgoCD provide API endpoints to make it accessible. All endpoints with its schem
 
 ```bash
 curl -H "Content-Type: application/json" argocd.example.com/api/v1/session -d $'{"username":"user","password":"password"}' | jq .token
-curl -H "Content-Type: application/json" http://172.20.0.3:30080/api/v1/session -d $'{"username":"user","password":"password"}' | jq .token
+curl -H --insecure "Content-Type: application/json" http://172.20.0.3:30080/api/v1/session -d $'{"username":"admin","password":"admin123"}' | jq .token
 curl -H "Content-Type: application/json" argocd-server.argocd.svc/api/v1/session -d $'{"username":"admin","password":"admin@1234"}'
 ```
 
@@ -2502,3 +2504,34 @@ These variables are automatically available for your plugin commands to negate m
 - `ARGOCD_APP_SOURCE_PATH` - The path within the repository
 - `ARGOCD_APP_SOURCE_TARGET_REVISION` - The target revision (branch/tag)
 - `ARGOCD_APP_PARAMETERS` - JSON string containing application parameters passed to plugins
+
+## Configuring MCP Server for Argo CD in VS Code
+
+```json
+{
+  "servers": {
+    "argocd-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["argocd-mcp@latest", "stdio"],
+      "env": {
+        "ARGOCD_BASE_URL": "ARGO_CD_URL",
+        "ARGOCD_API_TOKEN": "SESSION_TOKEN",
+
+        // If running for dev/local cluster
+        "ARGOCD_VERIFY_SSL": "false",
+        "ARGOCD_INSECURE": "true",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      },
+      "capabilities": {
+        "serverInfo": true,
+        "toolExecution": true
+      }
+    }
+  }
+}
+```
+
+- [Configure MCP in VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server)
+- [Official NPM Package](https://www.npmjs.com/package/argocd-mcp)
+- [Official GitHub Repo for MCP](https://github.com/argoproj-labs/mcp-for-argocd)
