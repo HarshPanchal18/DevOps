@@ -53,6 +53,10 @@
     - **Push-based** Manifest in repo triggers CI system which deploys the app on Kubernetes cluster
     - **Pull-based** Pull manifest from the repo to sync with kubernetes cluster
 
+![ArgoCD-Detailed-Architecture](/argocd/assets/argocd-architecture.svg)
+
+![ArgoCD-Notification-Controller-Architecture](/argocd/assets/argocd-notification-controller.svg)
+
 ### How it works
 
 Creates a `controller` which continuously monitors running application and compare it's state against desired target state
