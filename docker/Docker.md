@@ -36,6 +36,52 @@ cat: can't open 'file.txt': No such file or directory
 sudo usermod -aG docker $USER && newgrp docker
 ```
 
+### System has not been booted with systemd as init system (PID 1). Can't operate. Failed to connect to bus: Host is down
+
+[Reference](https://askubuntu.com/questions/1379425/system-has-not-been-booted-with-systemd-as-init-system-pid-1-cant-operate)
+
+```bash
+$ sudo systemctl start docker
+System has not been booted with systemd as init system (PID 1). Can't operate.
+Failed to connect to bus: Host is down
+```
+
+```bash
+sudo -e /etc/wsl.conf
+```
+
+Add the following
+
+```conf
+[boot]
+systemd=true
+```
+
+Exit ubuntu and again
+
+```bash
+wsl --shutdown
+```
+
+Then restart Ubuntu
+
+```bash
+sudo systemctl status
+```
+
+### Permission denied while trying to connect to the docker API
+
+```bash
+$ docker images
+permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
+```
+
+Add the current user to the docker group
+
+```bash
+sudo usermod -aG docker $USER
+```
+
 ## Advanced Commands
 
 While commands like docker run or docker build are staples in a DevOps engineer’s toolkit, Docker offers a wealth of lesser-known commands and features that can unlock advanced functionality, streamline workflows, and address niche use cases.
