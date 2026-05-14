@@ -45,6 +45,96 @@ This tells Terraform:
     terraform plan
     ```
 
+## Terraform Environment
+
+A Terraform environment is a configuration setup that allows users to consistently manage and deploy infrastructure resources across various stages, such as development, testing, and production.
+
+It represents a logical grouping of resources that serve a shared purpose or correspond to a specific phase in the development lifecycle.
+
+Each environment functions as an isolated "world," allowing you to deploy and manage infrastructure safely without impacting other environments.
+
+## Terraform Workspace
+
+Terraform workspaces enable us to manage multiple deployments of the same configuration.
+
+The information about all the resources managed by Terraform is stored in a **state file**. It is important to store this state file in a secure location. Every Terraform run is associated with a state file for validation and reference purposes. Any modifications to the Terraform configuration, planned or applied, are always validated first with references in the state files, and the execution result is updated back to it.
+
+If you are not consciously using any workspace, all of this already happens in a default workspace. Workspaces help you isolate independent deployments of the same Terraform config while using the same state file.
+
+### What is the difference between the Terraform environment and the workspace?
+
+A Terraform environment typically refers to the **overall setup of your infrastructure**, including all configurations and resources that define it.
+
+A workspace, on the other hand, is a **named state file** that enables you to **manage multiple isolated instances of the same infrastructure configuration.**
+
+By keeping state files separate, workspaces help prevent conflicts and simplify the management of distinct deployments.
+
+`default` workspace cannot be deleted.
+
+Create a new workspace:
+
+```bash
+terraform workspace new dev
+```
+
+### Manage variables with terraform workspace
+
+For each environment, you can declare a `tfvars` file:
+
+- **dev.tfvars**
+- **test.tfvars**
+- **stage.tfvars**
+- **prod.tfvars**
+
+Apply resources like this:
+
+```bash
+terraform workspace select dev
+terraform apply -var-file=dev.tfvars
+```
+
+You can also conditionally assign values to different parameters based on the workspace.
+
+```terraform
+locals {
+    instance_type = terraform.workspace == "prod" ? "t2.large" : "t2.micro"
+}
+```
+
+As a best practice, wherever possible, you should assign default values to your variables, especially when you are working with workspaces, to avoid repeating code in the tfvars files. This will make your configuration less error-prone.
+
+### Workspace interpolation
+
+Terraform provides an interpolation sequence to reference the value of the currently selected workspace, such as `${terraform.workspace}`.
+
+E.x.
+
+```terraform
+variable "name_tag" {
+    type        = string
+    description = "Name of the EC2 instance"
+    default     = "EC2"
+}
+
+resource "aws_instance" "my_vm" {
+    ami           = var.ami
+    instance_type = var.instance_type
+
+    tags = {
+        name = format("%s_%s", var.name_tag, terraform.workspace)  # concatenate multiple strings to for a valid name value
+    }
+}
+```
+
+```bash
+terraform workspace select default
+terraform apply
+terraform workspace select dev
+terraform apply
+```
+
+Here, two EC2 instances (**EC2_default**, **EC2_dev**) were created using the same configuration but in different workspaces.
+
 ## QnA
 
 ### What is the primary purpose of HCL?
@@ -70,3 +160,7 @@ This tells Terraform:
 ### What is the function of terraform `fmt`?
 
 > Reformats configuration files to canonical HCL style.
+
+### Git branches vs. Terraform workspace
+
+Git branches maintain various versioned copies of the same configuration used to develop new features or Terraform modules, whereas workspaces completely depend upon the state file maintained in the remote backend by Terraform.
