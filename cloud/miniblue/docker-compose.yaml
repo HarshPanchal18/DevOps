@@ -1,0 +1,13 @@
+services:
+  localstack:
+    container_name: "miniblue-main"
+    image: moabukar/miniblue:latest
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4567:4567"
+    environment:
+      - DEBUG=${DEBUG:-0}
+      - PERSISTENCE=${PERSISTENCE:-0}
+    volumes:
+      - "./volume:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
