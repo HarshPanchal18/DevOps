@@ -90,3 +90,55 @@ The Blue-Green Deployment strategy works in the following manner:
 9. A post-promotion analysis runs to verify that the update is stable.
 
     - If analysis is successful, **revision 2** is marked as stable, and the rollout is considered fully promoted. After waiting for `scaleDownDelaySeconds` (default 30s), revision 1 is scaled down, completing the deployment process.
+
+## Installation
+
+### Install Argo Rollouts
+
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm install argo-rollouts argo/argo-rollouts -n argo-rollouts --create-namespace
+```
+
+### Install Argo Rollouts `kubectl` plugin
+
+```bash
+curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+chmod +x kubectl-argo-rollouts-linux-amd64
+mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
+
+# Check plugin version
+kubectl argo rollouts version
+```
+
+## Integrating with Argo CD UI
+
+```yaml
+server:
+  initContainers:
+    - name: rollout-extension
+      image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.8
+      env:
+      - name: EXTENSION_URL
+        value: https://github.com/argoproj-labs/rollout-extension/releases/download/v0.3.7/extension.tar
+      volumeMounts:
+        - name: extensions
+          mountPath: /tmp/extensions/
+      securityContext:
+        runAsUser: 1000
+        allowPrivilegeEscalation: false
+  volumeMounts:
+    - name: extensions
+      mountPath: /tmp/extensions/
+  volumes:
+    - name: extensions
+      emptyDir: {}
+```
+
+## Rollout changes
+
+```bash
+kubectl argo rollouts set image demo-rollout nginx=nginx:1.27
+```
+
+Or update in GitHub Repository if following GitOps methodology
