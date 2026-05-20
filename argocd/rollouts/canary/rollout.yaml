@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: demo-rollout
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20 # Deploy 20% of new replicas
+        - pause: {}     # Resume the rollout manually
+        - setWeight: 40 # Increase replica weight every minute by 20%
+        - pause:
+            duration: 1m
+        - setWeight: 60
+        - pause:
+            duration: 1m
+        - setWeight: 80
+        - pause:
+            duration: 1m
