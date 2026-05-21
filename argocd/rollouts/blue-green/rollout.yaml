@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: blue-green-deployment
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: blue-green-deployment
+  template:
+    metadata:
+      labels:
+        app: blue-green-deployment
+    spec:
+      containers:
+        - name: blue-green
+          image: nitishkumar06/go-blue-green:v1
+          imagePullPolicy: Always
+          env:
+            - name: VERSION
+              value: "v3"
+          ports:
+            - containerPort: 5000
+  strategy:
+    blueGreen:
+      # activeService specifies the service to update with the new template hash at time of promotion. Mandatory
+      activeService: rollout-bluegreen-active
+
+      # previewService specifies the service to update with the new template hash before promotion.
+      # This allows the preview stack to be reachable without serving production traffic. Optional
+      previewService: rollout-bluegreen-preview
+
+      # autoPromotionEnabled disables automated promotion of the new stack by pausing the rollout
+      # immediately before the promotion. If omitted, the default behavior is to promote the new
+      # stack as soon as the ReplicaSet are completely ready/available.
+      autoPromotionEnabled: false
+
+      # abortScaleDownDelaySeconds: 10
+      # autoPromotionEnabled: false
+      # scaleDownDelaySeconds: 60
+      # previewReplicaCount: 2
+      # autoPromotionSeconds: 20
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-active
+spec:
+  selector:
+    app: blue-green-deployment
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 8080
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rollout-bluegreen-preview
+spec:
+  selector:
+    app: blue-green-deployment
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 8080
