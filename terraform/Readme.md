@@ -164,3 +164,42 @@ Here, two EC2 instances (**EC2_default**, **EC2_dev**) were created using the sa
 ### Git branches vs. Terraform workspace
 
 Git branches maintain various versioned copies of the same configuration used to develop new features or Terraform modules, whereas workspaces completely depend upon the state file maintained in the remote backend by Terraform.
+
+## Build the Terraform provider locally
+
+### Build provider
+
+```bash
+# Build the provider
+go build -o terraform-provider-<provider-name>
+
+# Move the binary.
+# On Linux/Mac: ~/.terraform.d/plugins/
+# On Windows: %APPDATA%\terraform.d\plugins\
+~/.terraform.d/plugins/linux_amd64/terraform-provider-yourprovider_vX.Y.Z  # Replace providername and version accordingly
+```
+
+### Utilise the local provider
+
+```terraform
+terraform {
+  required_providers {
+    yourprovider = {
+      source  = "local/yourprovider"
+      version = "0.0.1"  # or any version string relevant to your changes
+    }
+  }
+}
+```
+
+### Initialize terraform and test changes
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+### Clean Up
+
+After testing, if you no longer need the local provider, you can remove the binary from the plugin directory and revert any changes made to your Terraform configuration to point back to the official provider version.
