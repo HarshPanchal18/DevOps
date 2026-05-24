@@ -2539,3 +2539,15 @@ These variables are automatically available for your plugin commands to negate m
 - [Configure MCP in VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server)
 - [Official NPM Package](https://www.npmjs.com/package/argocd-mcp)
 - [Official GitHub Repo for MCP](https://github.com/argoproj-labs/mcp-for-argocd)
+
+## Sequence of Cluster cache processed via Application Controller
+
+1. **Establish connection**
+2. **Get K8s Server Version**
+3. **Get API Resources (unfiltered)**
+4. **Load OpenAPI Schema**
+5. **Get API Resources (filtered)**
+6. **Create clients**
+7. **List resources with pagination and semaphore control**
+8. **Store in cache with batch event processing**
+9. **Start watches with error handling and RBAC checks**
