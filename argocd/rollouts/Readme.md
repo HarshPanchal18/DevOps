@@ -6,6 +6,12 @@ Without creating a **Rollout**, you can only use the rolling update and complete
 
 When you add a **Rollout** object to your cluster, the Argo controller detects its presence and then creates, replaces, and removes Pods as required.
 
+Implementing advanced rollout strategies for deployments in Kubernetes cluster by using techniques such as **Blue-Green deployments** and **Canary deployments** to gradually move traffic to newapp release instead of having all requests immediately switch over.
+
+It enables you to limit the damage caused by broken deployments because they’ll initially serve only a subset of users.
+
+This tool is implemented as a Kubernetes controller and a collection of CRDs
+
 ## What is the difference between Argo CD and Argo Rollouts?
 
 Argo Rollouts is often used in conjunction with Argo CD, the Argo project’s continuous delivery (CD) tool. Argo CD implements **declarative GitOps-driven CD** for Kubernetes, while Rollouts offers a controller and CRDs that let you robustly **manage blue-green and canary deployments**.
@@ -142,3 +148,7 @@ kubectl argo rollouts set image demo-rollout nginx=nginx:1.27
 ```
 
 Or update in GitHub Repository if following GitOps methodology
+
+## Refernces
+
+- [Spacelift - Argo Rollouts – What Is It, How It Works](https://spacelift.io/blog/argo-rollouts)
