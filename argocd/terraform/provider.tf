@@ -2,7 +2,7 @@ terraform {
   required_providers {
     argocd = {
       source  = "argoproj-labs/argocd"
-      version = "7.12.5"
+      version = "7.15.3"
     }
   }
 }
@@ -12,4 +12,5 @@ provider "argocd" {
   username    = var.argocd_admin_username
   password    = var.argocd_password
   insecure    = true
+  # grpc_web    = true
 }

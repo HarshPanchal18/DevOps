@@ -1,11 +1,11 @@
 variable "argocd_admin_username" {
-  default = "admin"
+  default     = "admin"
   type        = string
   description = "ArgoCD Username"
 }
 
 variable "argocd_username" {
-  default = "local-user"
+  default     = "local-user"
   type        = string
   description = "ArgoCD Username"
 }
@@ -17,7 +17,7 @@ variable "argocd_password" {
 }
 
 variable "argocd_server_address" {
-  default = "172.20.0.3:30080"
+  default     = "172.18.0.2:30080"
   type        = string
   sensitive   = true
   description = "ArgoCD Server address"
