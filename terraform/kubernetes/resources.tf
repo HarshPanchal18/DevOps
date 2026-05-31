@@ -74,11 +74,25 @@ resource "kubernetes_secret_v1" "example_secret" {
   }
   type = "Opaque"
   data = {
-    "password" = base64encode("verysecret")
+    # "password" = base64encode("verysecret")
+    "password" = random_password.password.result
   }
   # string_data = {
   #     password = data.external.db_credentials.result
   # }
+}
+
+resource "random_password" "password" {
+    for_each    = var.secrets
+    length      = 14
+    min_upper   = 2
+    min_lower   = 2
+    min_numeric = 2
+    min_special = 2
+
+    keepers = {
+        name = each.key
+    }
 }
 
 module "pod" {
