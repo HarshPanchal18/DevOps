@@ -1,0 +1,18 @@
+---
+- name: Create a new user
+  hosts: all
+
+  tasks:
+  - name: Create a new user
+    user:
+      name: harsh
+      # group: QA # In a single group
+      groups: sudo # For multiple groups separated by comma(,). Group must be present on remote machine. Check by `cat /etc/group`
+      append: yes
+      state: present
+      # password: harsh
+      password: "{{ 'harsh' | password_hash('sha512') }}" # Password hash for user
+      shell: /bin/bash
+      update_password: on_create # Update password only if user is created [always, on_create]
+      # home: /home/harsh # Home dir of user
+      # remove: yes # Remove user directory as well. Works only if user is absent
