@@ -1,0 +1,12 @@
+---
+- name: Install and start service
+  hosts: all
+  vars:
+    apps: [vim, httpd, apache2, nginx, telnet]
+
+  tasks:
+  - name: Install the service
+    package:
+      name: "{{ item }}"
+      state: present
+    with_items: "{{ apps }}"

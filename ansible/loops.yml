@@ -1,0 +1,16 @@
+---
+- name: User Management
+  hosts: all
+
+  tasks:
+  - name: User Creation
+    user:
+      name: "{{ item }}"
+      shell: /bin/bash
+
+    loop:
+      - user1
+      - user2
+      - user3
+      - user4
+      - user5
