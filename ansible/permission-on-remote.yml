@@ -1,0 +1,20 @@
+---
+- name: File Module
+  hosts: all
+
+  tasks:
+  - name: Creating a file
+    file:
+      path: /tmp/newfile.txt
+      state: touch # Create a file in /tmp dir. Put value `absent` to delete existing file.
+      owner: harsh
+      group: harsh
+      mode: u=rwx,g=rq,o=r
+
+  - name: Creating a directory
+    file:
+      path: /tmp/newdir
+      state: directory # Create a directory `newdir` in /tmp dir.
+      owner: harsh
+      group: harsh
+      mode: u=rwx,g=rq,o=r
