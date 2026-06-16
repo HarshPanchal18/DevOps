@@ -1,0 +1,13 @@
+- name: Start my web app
+  hosts: docker_hosts
+  become: true
+  tasks:
+    - name: Run container
+      docker_container:
+        name: myapp
+        image: source/webapp:latest
+        state: started
+        ports:
+          - "8080:80"
+        env:
+          APP_ENV: production
