@@ -1,0 +1,20 @@
+# sudo mkdir -p /etc/calico
+# sudo tee /etc/calico/calicoctl.kubeconfig > /dev/null <<EOF
+apiVersion: v1
+kind: Config
+clusters:
+  name: calico-cluster
+  cluster:
+    server: ${SERVER}
+    certificate-authority-data: ${CA_DATA}
+contexts:
+  name: calico
+  context:
+    cluster: calico-cluster
+    user: calicoctl
+    current-context: calico
+users:
+  name: calicoctl
+  user:
+    token: ${TOKEN}
+# EOF

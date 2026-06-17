@@ -1,0 +1,24 @@
+1	Create service account
+kubectl create sa calicoctl-sa -n kube-system
+
+2	Create a ClusterRole that grants the Calico API permissions you want. Example ClusterRole granting full access to projectcalico.org resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: calicoctl-role
+rules:
+- apiGroups: [""projectcalico.org""]
+  resources: [""*""]
+  verbs: [""get"",""list"",""watch"",""create"",""update"",""patch"",""delete""]
+# add other rules you need (e.g., for nodes/namespaces) minimally"
+
+3 Bind the role to the SA
+kubectl create clusterrolebinding calicoctl-binding
+--clusterrole=calicoctl-role
+--serviceaccount=kube-system:calicoctl-sa
+
+Create a kubeconfig that uses this SA token
+SECRET_NAME=$(kubectl -n kube-system get sa calicoctl-sa -o jsonpath='{.secrets[0].name}')
+TOKEN=$(kubectl -n kube-system get secret $SECRET_NAME -o jsonpath='{.data.token}' | base64 --decode)
+CA_DATA=$(kubectl -n kube-system get secret $SECRET_NAME -o jsonpath='{.data.ca.crt}')
+SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
