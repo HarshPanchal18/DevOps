@@ -25,6 +25,7 @@
 - [CRI, CNI, CSI in Kubernetes](#cri-cni-csi-in-kubernetes)
 - [Kubernetes Networking Bottlenecks](#kubernetes-networking-bottlenecks)
 - [What is a KubeConfig file?](#what-is-a-kubeconfig-file)
+- [Managed Fields in Kubernetes resources](#managed-fields-in-kubernetes-resources)
 
 ## What is Kubernetes?
 
@@ -3323,3 +3324,87 @@ There are a few ways to keep your `KubeConfig` file tidy, but they have limitati
 KubeTidy keeps only relevant entries, simplifying management, and backs up your file automatically.
 
 It works on PowerShell (Windows/Linux/macOS) or as a krew plugin with Krew (Linux/macOS).
+
+## Managed Fields in Kubernetes resources
+
+There is often a need, especially while investigating an issue, to see the modification history of a Kubernetes resource.
+
+**`metadata.managedFields`** in a Kubernetes resource, records information about how different tools & controllers have modified the resource. This includes details like the **name** of the tool (like `kubectl`), the **fields** it changed & the **operation** performed: update, apply, etc.
+
+To make it easier to inspect the change history of an object, use below command to see list of changes from New to Old:
+
+```bash
+$ kubectl get nodes/kube-node-2 -o jsonpath='{.metadata.managedFields}' | jq -r \
+  'sort_by(.time) | reverse | .[] | [.time, .operation, .manager] | @tsv'
+2026-06-16T01:38:04Z    Update  kubelet
+2026-06-16T01:37:52Z    Update  calico-node
+2026-06-11T03:26:26Z    Update  kube-controller-manager
+2026-04-24T18:16:26Z    Update  kubeadm
+2026-04-24T18:16:22Z    Update  kubelet
+
+$ kubectl get pods/vault-test -o jsonpath='{.metadata.managedFields}' | jq -r \
+  'sort_by(.time) | reverse | .[] | [.time, .operation, .manager] | @tsv'
+2026-06-16T01:39:01Z    Update  kubelet
+2026-06-16T01:39:00Z    Update  calico
+2026-04-26T10:34:32Z    Update  kubectl-client-side-apply
+```
+
+This tells us a lot about what’s happened. We can see that someone has recently edited this object (Node) manually using `kubectl edit`.
+
+Once you have identified an event, use below utility to view what changed in the event:
+
+```bash
+$ kubectl get pods/vault-0 --show-managed-fields -o yaml | yq \
+  "(.metadata.managedFields[] | select(.manager == \"kubectl-edit\")).fieldsV1"
+{
+  "f:status": {
+    "f:conditions": {
+      "k:{\"type\":\"ContainersReady\"}": {
+        ".": {},
+        "f:lastProbeTime": {},
+        "f:lastTransitionTime": {},
+        "f:status": {},
+        "f:type": {}
+      },
+      "k:{\"type\":\"Initialized\"}": {
+        ".": {},
+        "f:lastProbeTime": {},
+        "f:lastTransitionTime": {},
+        "f:status": {},
+        "f:type": {}
+      },
+      "k:{\"type\":\"PodReadyToStartContainers\"}": {
+        ".": {},
+        "f:lastProbeTime": {},
+        "f:lastTransitionTime": {},
+        "f:status": {},
+        "f:type": {}
+      },
+      "k:{\"type\":\"Ready\"}": {
+        ".": {},
+        "f:lastProbeTime": {},
+        "f:lastTransitionTime": {},
+        "f:status": {},
+        "f:type": {}
+      }
+    },
+    "f:containerStatuses": {},
+    "f:hostIP": {},
+    "f:hostIPs": {},
+    "f:phase": {},
+    "f:podIP": {},
+    "f:podIPs": {
+      ".": {},
+      "k:{\"ip\":\"192.168.202.153\"}": {
+        ".": {},
+        "f:ip": {}
+      }
+    },
+    "f:startTime": {}
+  }
+}
+```
+
+Managed fields are not meant to be an audit mechanism. For full audit capabilities, see <https://kubernetes.io/docs/tasks/debug/debug-cluster/audit>.
+
+If you're on a managed Kubernetes platform like Amazon EKS, enable audit logging to CloudWatch from the Observability tab of your EKS console & use CloudWatch log insights to explore in detail, resource modification histories.
