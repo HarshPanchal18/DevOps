@@ -25,3 +25,25 @@ ZjLjTmM6FvvyRnrb2rfNWOZOTa6ip5If
 cat < -
 263JGJPfgU6LtdEvgfWU1XP5yac29mFx
 ```
+
+## Level 3
+
+```bash
+cat "./--spaces in this filename--"
+MNk8KNH3Usiio41PRUEoDFPqfxLPlSmx
+```
+
+## Level 4
+
+```bash
+cat inhere/...Hiding-From-You
+2WmrDFRmJIq3IPxneAaMGhap0pFhF3NJ
+```
+
+## Level 5
+
+```bash
+cd inhere
+cat ./-file07
+4oQYVPkxZOOEOO5pTW81FB8j8lxXGUQw
+```
