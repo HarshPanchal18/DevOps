@@ -47,3 +47,26 @@ cd inhere
 cat ./-file07
 4oQYVPkxZOOEOO5pTW81FB8j8lxXGUQw
 ```
+
+## Level 6
+
+```bash
+cd inhere
+ls -laRs maybehere* | grep 1033
+HWasnPhtq9AVKe0dmk45nxy20cvUa6EG
+```
+
+## Level 7
+
+```bash
+find / -group bandit6
+cat /var/lib/dpkg/info/bandit7.password
+morbNTDkSW6jIlUc0ymOdMaLnOlFVAaj
+```
+
+## Level 8
+
+```bash
+grep millionth data.txt
+dfwvzFQi4mU0wfNbFOe9RoWskMLg7eEc
+```
