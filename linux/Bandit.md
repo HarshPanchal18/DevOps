@@ -70,3 +70,24 @@ morbNTDkSW6jIlUc0ymOdMaLnOlFVAaj
 grep millionth data.txt
 dfwvzFQi4mU0wfNbFOe9RoWskMLg7eEc
 ```
+
+## Level 9
+
+```bash
+sort data.txt | uniq -u
+4CKMh1JI91bUIZZPXDqGanal4xvAg0JM
+```
+
+## Level 10
+
+```bash
+grep -a "=====" data.txt
+FGUW5ilLVJrxX9kMYMmlN4MgbpfMiqey
+```
+
+## Level 11
+
+```bash
+cat data.txt | base64 -d
+The password is dtR173fZKb0RRsDFSGsg2RWnpNVj3qRr
+```
