@@ -91,3 +91,54 @@ FGUW5ilLVJrxX9kMYMmlN4MgbpfMiqey
 cat data.txt | base64 -d
 The password is dtR173fZKb0RRsDFSGsg2RWnpNVj3qRr
 ```
+
+## Level 12
+
+```bash
+cat data.txt | cut -d ' ' -f4 | tr '0-9a-zA-Z' '0-9n-za-mN-ZA-M'
+The password is 7x16WNeHIi5YkIhWsfFIqoognUTyj9Q4
+```
+
+## Level 13
+
+```bash
+cat data.txt
+mkdir /tmp/bandit12
+cd /tmp/bandit12
+xxd -r /home/bandit12/data.txt passwd
+ls
+file passwd
+passwd: gzip compressed data, was "data2.bin", last modified: Thu Oct  5 06:19:20 2023, max compression, from Unix, original size modulo 2^32 573
+mv passwd passwd.gz
+gunzip passwd.gz
+file passwd
+mv passwd passwd.bz2
+bunzip2 passwd.bz2
+ls
+file passwd
+mv passwd  passwd.gz
+gunzip passwd.gz
+ls
+file passwd
+tar -xf passwd.tar
+ls
+file data5.bin
+mv data5.bin data5.bin.tar
+tar -xf data5.bin.tar
+ls
+file data6.bin
+mv data6.bin data6.bin.bz2
+bunzip2 data6.bin.bz2
+ls
+file data6.bin
+mv data6.bin data6.bin.tar
+tar -xf data6.bin.tar
+ls
+file data8.bin
+mv data8.bin data8.bin.gz
+gunzip data8.bin.gz
+ls
+file data8.bin
+cat data8.bin
+The password is FO5dwFsc0cbaIiH0h8J2eUks2vdTDwAn
+```
