@@ -7,9 +7,9 @@
 /harbor/LICENSE
 /kafka/impl/practise/environment
 *key*
-*cred*
+# *cred*
 *.crt*
-*backup*
+# *backup*
 *.terraform*
 *.tfstate*
 *LICENSE.txt*
