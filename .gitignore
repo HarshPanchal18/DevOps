@@ -1,26 +1,51 @@
-.obsidian
+## Confidentials
 *.env*
 *.json
 *.properties*
-*application-management*
-/harbor/templates
-/harbor/LICENSE
-/kafka/impl/practise/environment
 *key*
 # *cred*
-*.crt*
+*key*
+*token*
+*secret*
 # *backup*
+*policy*
+*.pem
+*.csr
+*.key
+*.cert
+*envvar*
+*env-var*
+*.zip*
+
+
+## Terraform
 *.terraform*
 *.tfstate*
 *LICENSE.txt*
-*tyv*
-*.zip*
-
 *secret*.tf
 
-# Python env
+
+*application-management*
+*tyv*
+
+
+## Ignoring ignorance :)
+!minio-dashboard.json
+!argocd-grafana-dashboard.json
+!/cloud/aws/secretsmanager
+!/argocd/network-policy
+
+
+## Python env
+*pycache*
 /kafka/impl/another-python/env/bin
 /kafka/impl/another-python/env/include
 /kafka/impl/another-python/env/lib
 /kafka/impl/another-python/env/lib64
-*pycache*
+/kafka/impl/practise/environment
+
+
+/harbor/templates
+/harbor/LICENSE
+/Kubernetes/helm/my-web-app
+/extra
