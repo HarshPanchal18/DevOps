@@ -1,0 +1,49 @@
+apiVersion: v1
+data:
+  redis_password: YWRtaW4=
+  redis_username: YWRtaW4=
+kind: Secret
+metadata:
+  name: votes-db-secret
+type: Opaque
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-trigger-auth-redis-secret
+spec:
+  secretTargetRef:
+    - key: redis_username
+      name: votes-db-secret
+      parameter: username
+    - key: redis_password
+      name: votes-db-secret
+      parameter: password
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: redis-scaledobject
+  namespace: default
+spec:
+  idleReplicaCount: 0
+  maxReplicaCount: 5
+  minReplicaCount: 1
+  pollingInterval: 10
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: redis           # Refer to the given deployment for scaling up/down
+  triggers:
+    - type: redis
+      metadata:
+        address: redis:6379
+        listName: mylist
+        listLength: "10"
+      authenticationRef:
+        name: keda-trigger-auth-redis-secret    # above created TriggerAuthentication
+    - type: prometheus
+      metadata:
+        serverAddress: http://172.20.0.3:30004  # Address of Prometheus server.
+        query: redis_connected_clients          # Query must return a vector/scalar single element response
+        threshold: '10'                         # Value to start scaling for. Can be a float.

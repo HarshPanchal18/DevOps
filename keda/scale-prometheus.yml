@@ -1,0 +1,21 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: minio-bucket-scale
+  namespace: default
+
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: redis-scaledobject
+  idleReplicaCount: 0
+  maxReplicaCount: 5
+  minReplicaCount: 1
+  pollingInterval: 10
+  triggers:
+    - type: prometheus # https://keda.sh/docs/2.17/scalers/prometheus/
+      metadata:
+        serverAddress: http://172.20.0.3:30004 # Address of Prometheus server.
+        query: sum(minio_cluster_bucket_total{job=~"minio-job-cluster"}) by (job) # Query must return a vector/scalar single element response
+        threshold: '2' # Value to start scaling for. Can be a float.
