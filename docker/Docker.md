@@ -34,7 +34,22 @@ cat: can't open 'file.txt': No such file or directory
 
 ```bash
 sudo usermod -aG docker $USER && newgrp docker
+sudo chmod 666 /var/run/docker.sock
 ```
+
+---
+
+Creating cluster "kind" ... ✓ Ensuring node image (kindest/node:v1.33.1) 🖼 ✓ Preparing nodes 📦 📦 📦 ✓ Writing configuration 📜 ✓ Starting control-plane 🕹️ ✓ Installing StorageClass 💾 ✗ Joining worker nodes 🚜 Deleted nodes: ["kind-worker" "kind-worker2" "kind-control-plane"] ERROR: failed to create cluster: failed to join node with kubeadm: command "docker exec --privileged kind-worker kubeadm join --config /kind/kubeadm.conf --v=6" failed with error: exit status 1 Command Output: I1117 06:01:28.522034 173 join.go:421] [preflight] found NodeName empty; using OS hostname as NodeName
+
+This error usually happens when **worker nodes fail the kubeadm preflight checks** during `kind` cluster creation. The last log line shows:
+
+```bash
+[preflight] found NodeName empty; using OS hostname as NodeName
+```
+
+...but the creation *still* failed. The two most common causes:
+
+---
 
 ### System has not been booted with systemd as init system (PID 1). Can't operate. Failed to connect to bus: Host is down
 
@@ -76,10 +91,11 @@ $ docker images
 permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
 ```
 
-Add the current user to the docker group
+Add the current user to the docker group & Change the permissions of docker socket to be able to connect to the docker daemon `/var/run/docker.sock`
 
 ```bash
 sudo usermod -aG docker $USER
+sudo chmod 666 /var/run/docker.sock
 ```
 
 ## Advanced Commands
@@ -478,3 +494,174 @@ docker model tag ai/smollm2 myorg/smollm2
 # Push it to Docker Hub
 docker model push myorg/smollm2
 ```
+
+## Docker Status Unhealthy
+
+If your container shows `Status: unhealthy`, Docker's health check is failing. The container is still running, but something inside—usually your app—isn't responding as expected.
+
+This doesn't always mean a crash. It just means Docker can't verify the app is working. The health check runs separately from the container's lifecycle, so even a running container can be marked unhealthy if it fails repeated checks.
+
+### How Docker Health Status Work
+
+Docker runs health checks separately from the container's lifecycle. Even if a container is running, Docker can still mark is as `Unhealthy` if the health check command fails.
+
+A health check runs inside the container at set intervals. It typicaslly hits an endpoint or runs a command to check if your app is alive and responding.
+
+There are three possible health states:
+
+* `starting`: The container is still in its startup period.
+* `healthy`: The last few health check passed.
+* `unhealthy`: Multiple health check failed.
+
+The container's health status depends on the exit code from the command:
+
+* 0: Healthy
+* 1: Unhealthy
+* Anything else: Inconclusive, Docker leaves the status unchanged.
+
+### Docker Health Checks DIY
+
+1. Check what failed
+    Inspect health logs:
+
+    ```bash
+    docker inspect --format "{{json .State.Health}}" container-name | jq
+    ```
+
+    Look for the recent `Output`, `ExitCode`, and error messages.
+
+2. Test the health check inside containers.
+    Match the container's environment:
+
+    ```bash
+    docker exec -it container-name sh -c 'YOUR-HEALTH-CHECK-COMMAND'
+    ```
+
+    This catches issues with missing permissions, dependencies, or ports.
+
+3. Fix the most common causes
+
+    * App crash: Logs show connection refused or stack traces
+    * Missing dependency: DB or API call fails inside the container
+    * Slow startup or load: Health check times out repeatedly
+    * Wrong health check config: Mismatched port or URL path
+
+4. Adjust the health check settings
+
+    ```dockerfile
+    HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=3 \
+      curl -f http://localhost:8080/healthz || exit 1
+    ```
+
+5. Let Docker restart it
+    To enable restarts, Exit the process on failure to trigger the restart policy
+
+    ```dockerfile
+    CMD curl -f http://localhost:8080/healthz || kill -s 15 1
+    ```
+
+### Inspect health check logs
+
+#### Check the Health Logs
+
+Start by inspecting the container's health details. This helps you see exactly what Docker's health check is doing and why it's failing.
+
+Use this command:
+
+```bash
+docker inspect --format "{{json .State.Health }}" container_name
+```
+
+Look for ExitCode: `0` (success) or ExitCode: `1` (failure). Any output from the failed checks can help narrow down the issue.
+
+It returns structured output with:
+
+* Current health status (starting, healthy, unhealthy)
+* Failing streak count
+* A log of recent health checks (with timestamps, exit codes, and output)
+
+#### Debug health check commands
+
+Test your health check command directly inside the container to isolate the issue:
+
+```bash
+docker exec -it container_name curl -f http://localhost:8080/health
+echo $?
+```
+
+This approach lets you see exactly what your health check encounters. You might discover that the health endpoint returns unexpected status codes, takes too long to respond, or that required tools like `curl` aren't available in your container.
+
+If the health check command works when you run it manually but fails in the health check, the difference is usually timing (it's running before your app is ready) or environment (missing env vars, wrong network settings).
+
+#### Use custom health check scripts
+
+If your app needs more than a single HTTP check, write a script:
+
+```dockerfile
+COPY healthcheck.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/healthcheck.sh
+HEALTHCHECK CMD /usr/local/bin/healthcheck.sh
+```
+
+Example healthcheck.sh:
+
+```bash
+#!/bin/bash
+
+# Check Postgres
+pg_isready -h localhost -p 5432 -U myuser || exit 1
+
+# Check API
+curl -f <http://localhost:8080/api/health> || exit 1
+
+# Check Redis
+redis-cli ping || exit 1
+exit 0
+```
+
+Keep the script fast and lightweight. Avoid expensive operations or long-running queries.
+
+#### Write Checks That Reflect Real Application Health
+
+A health check should confirm the app can serve requests, not just that the process exists.
+
+Good examples:
+
+* HTTP services: `curl -f http://localhost:8080/api/health`
+* Databases: `pg_isready -h localhost -p 5432 -U myuser`
+* Message brokers: `nc -z rabbitmq 5672`
+
+Avoid checks that only confirm the process is alive (e.g., checking `PID` files or running `ps`). Your container can look "healthy" even if the app is broken.
+
+The best health checks hit a real endpoint or connection that exercises the core functionality. If your app serves HTTP requests, check an HTTP endpoint. If it processes queue messages, check the queue connection. Don't check a sidecar process that has nothing to do with your actual service.
+
+### Tune health check parameters
+
+* `interval`: How Often to Run the Check
+
+  This controls how often Docker runs the health check.
+
+  * Set it too low, and your container spends half its time checking itself.
+  * Set it too high, and you won't catch failures quickly.
+
+  **Tip**: 10–30 seconds is a good starting point. Go shorter for critical services that need fast detection.
+
+* `timeout`: How Long to Wait for a Response
+
+  If your app takes a while to respond—especially under load—short timeouts can cause false alarms.
+
+  **Tip**: Match this to your app's real response time. If most endpoints return in under a second, 2–5 seconds should be plenty.
+
+* `retries`: How Many Fails Before Giving Up
+
+  Some apps stall occasionally—say, during GC or burst load. One failure doesn't always mean something's wrong.
+
+  **Tip**:
+  * Use higher retries (3–5) for apps that sometimes hiccup.
+  * Lower retries (1–2) are better if you want to fail fast and restart quickly.
+
+* `start_period`: Grace Time After Startup
+
+  Some apps need a bit to get going—connecting to databases, loading config, etc. Without a grace period, the health check might fail before the app is even ready.
+
+  **Tip**: If your app takes 30 seconds to boot, set a start_period of 30–60 seconds. It'll save you from false starts and restart loops.
