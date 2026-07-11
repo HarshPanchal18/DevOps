@@ -1,5 +1,6 @@
+# Docker
 
-# The Docker File system
+## The Docker File system
 
 Docker containers run the software stack defined within an [Docker image](https://www.baeldung.com/docker-images-vs-containers). Images are made of a set of read-only layers that work on a filesystem called the Union Filesystem. When we start a new container, Docker adds a read-write [layer on top](https://www.baeldung.com/ops/dive-container-diff#docker-container-image) of the image layers enabling the container to run as if it’s on a standard Linux [filesystem](https://www.baeldung.com/ops/docker-container-filesystem).
 
@@ -665,3 +666,76 @@ The best health checks hit a real endpoint or connection that exercises the core
   Some apps need a bit to get going—connecting to databases, loading config, etc. Without a grace period, the health check might fail before the app is even ready.
 
   **Tip**: If your app takes 30 seconds to boot, set a start_period of 30–60 seconds. It'll save you from false starts and restart loops.
+
+## Incidents
+
+### VolumeMounts throw "permission denied" in prod. You can't run as root. How do you fix this issue with UID/GID mapping?
+
+To address "permission denied" errors in production when mounting volumes without running as root, you must align the UID/GID of the application user inside the container with the owner of the files or directories on the host. [stackoverflow](https://stackoverflow.com/questions/24288616/permission-denied-on-accessing-host-directory-in-docker)
+
+#### Preferred Production Strategies
+
+* **Align UID/GID during image build:** Define a specific user and group in your `Dockerfile` with a fixed UID/GID that matches the expected host environment. This is the most robust and secure approach, as it avoids runtime permission changes. [stackoverflow](https://stackoverflow.com/questions/51188997/docker-uid-gid-mapping-changes-on-different-host)
+
+    ```dockerfile
+    # Creating a user with a specific UID/GID
+    RUN groupadd -g 1001 appgroup && \
+        useradd -u 1001 -g appgroup -s /bin/bash appuser
+    USER 1001:1001
+    ```
+
+* **Entrypoint initialization:** Use an `ENTRYPOINT` script that runs as root during container startup to check and correct the ownership of the mounted volume using `chown`, then switch to the non-root user to start the application (e.g., using `gosu` or `su-exec`). This handles dynamic environments where the host UID/GID might be unknown until runtime. [stackoverflow](https://stackoverflow.com/questions/39397548/how-to-give-non-root-user-in-docker-container-access-to-a-volume-mounted-on-the)
+
+    ```bash
+    #!/bin/bash
+    # Entrypoint script (entrypoint.sh)
+    # Correct ownership of the mounted directory
+    chown -R appuser:appgroup /data/mounted_volume
+    # Execute the application as the non-root user
+    exec gosu appuser "$@"
+    ```
+
+    Use this script by including an `ENTRYPOINT` directive in your Dockerfile:
+
+    ```Dockerfile
+    FROM base-image
+    COPY entrypoint.sh /entrypoint.sh
+    ENTRYPOINT ["/bin/sh", "entrypoint.sh"]
+    CMD ["/usr/bin/myapp"]
+    ```
+
+    This will start the container with `/bin/sh entrypoint.sh /usr/bin/myapp`
+
+    The entrypoint script will make the required permissions changes, then run /usr/bin/myapp as appuser.
+
+#### Alternative Considerations
+
+* **Named Volumes:** Use Docker-managed named volumes instead of host binds whenever possible. Docker manages the lifecycle and permissions of these volumes, effectively abstracting away host-level permission complexities. [stackoverflow](https://stackoverflow.com/questions/51188997/docker-uid-gid-mapping-changes-on-different-host)
+* **Avoid "Open" Permissions:** Do NOT use `chmod 777` on host directories. While this resolves immediate "permission denied" errors, it introduces significant security risks by allowing any user on the system to read, write, or execute files within that directory. [stackoverflow](https://stackoverflow.com/questions/51188997/docker-uid-gid-mapping-changes-on-different-host)
+* **User Namespace Remapping:** If your production environment supports it, configure the Docker daemon with user namespace remapping (`userns-remap`). This maps the container's root user to a non-privileged user on the host, providing an extra layer of security, though it requires careful planning for volume ownership. [github](https://github.com/docker/cli/issues/3086)
+
+### Container exits immediately with exit code 0, and logs are empty. What common Dockerfile mistake cause this?
+
+A Docker container exits immediately with code 0 when its PID 1 (main) process completes its execution. Because the process finishes successfully, Docker considers the container's task "done" and terminates it, even if you intended for it to be a long-running service.
+
+#### Common Causes
+
+Process running in background: You may be starting a service that daemonizes itself (e.g., Nginx, Apache) without disabling the daemon mode. When the process sends itself to the background, the container's PID 1 sees the parent task as finished and exits.
+
+Non-long-running command: The CMD or ENTRYPOINT in your Dockerfile points to a utility or script that performs a single action and finishes (e.g., mkdir, echo, or a one-off script).
+
+#### Troubleshooting and Fixes
+
+* Debug with `tail -f`. To debug or keep a container alive, temporarily override the CMD to a process that never exits.
+
+```bash
+# Temporarily run this to keep the container alive while you inspect it
+docker run -it <image-name> tail -f /dev/null
+```
+
+* Verify with Interactive Shell. Run the container interactively to manually execute your startup command and observe the output directly.
+
+```bash
+docker run -it <image-name> /bin/bash
+# Once inside, run your application command manually
+```
