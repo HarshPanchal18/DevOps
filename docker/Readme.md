@@ -739,3 +739,216 @@ docker run -it <image-name> tail -f /dev/null
 docker run -it <image-name> /bin/bash
 # Once inside, run your application command manually
 ```
+
+### Deleted a secret using RUN rm, but auditors still found it in the image layer. How? and what's the fix?
+
+Docker images are composed of immutable layers. When you use `RUN rm` to delete a file, you are not actually removing the file from the image; you are simply creating a new layer that instructs the filesystem to mark that file as "hidden" in the final, combined view. The original data remains fully intact and accessible in the preceding layer's tarball. [aquilax](https://aquilax.ai/blog/docker-image-layer-secrets)
+
+#### Why `RUN rm` Fails
+
+* **Layer Immutability:** Docker layers are read-only snapshots. Once a layer is created, it cannot be modified. [aquilax](https://aquilax.ai/blog/docker-image-layer-secrets)
+* **Historical Exposure:** Every layer is stored as a blob with its own content hash. An attacker with access to the image or the registry can extract the specific layer that originally contained the secret, bypassing the "deletion" performed in a later layer. [aquilax](https://aquilax.ai/blog/docker-image-layer-secrets)
+* **Metadata Leaks:** If you use `ARG` to pass secrets during the build, the secret value itself is often recorded verbatim in the image history metadata, which is visible via `docker history`. [cloudnativenow](https://cloudnativenow.com/contributed-content/fresh-secrets-from-the-docks-what-15-million-docker-images-taught-us-about-cloud-security/)
+
+#### The Correct Fixes
+
+* **Use Docker Secrets (Recommended):** Use Docker's built-in `secret` functionality (e.g., in Docker Swarm or Kubernetes). Secrets are mounted into the container at runtime in an **in-memory filesystem** (`/run/secrets/`), ensuring they are never written to the image layers. [wiz](https://www.wiz.io/academy/container-security/docker-secrets)
+
+  ```dockerfile
+  FROM python:3.12-slim
+  RUN --mount=type=secret,id=pip_token \
+      pip install \
+        --extra-index-url "$(cat /run/secrets/pip_token)" \
+        -r requirements.txt
+  ```
+
+  Secret is passed at build time, never stored in any layer
+
+  ```bash
+  DOCKER_BUILDKIT=1  # Enable docker BuildKit
+  docker build --secret id=pip_token,env=PIP_EXTRA_INDEX_URL -t myapp:latest .
+  ```
+
+* **Multi-Stage Builds:** In a multi-stage build, the final image is copied from an intermediate builder stage. If the secret-using operations happen only in the builder stage and only non-secret artifacts are COPY --from=builder'd into the final stage, the secret never reaches the final image at all.
+
+  If you must use a secret to perform a build step (like installing a private package), perform the action in a temporary build stage and copy only the necessary build artifacts to the final, lean image. [aquilax](https://aquilax.ai/blog/docker-image-layer-secrets)
+
+  ```dockerfile
+  # Stage 1: Build with secret
+  FROM python:3.12-slim AS builder
+  ARG PIP_EXTRA_INDEX_URL
+  RUN pip install --prefix=/install -r requirements.txt
+
+  # Stage 2: final image - contains only the installed packages, not ARGs
+  FROM python:3.12-slim
+  COPY --from=builder /install /usr/local
+  COPY . /app/
+  CMD ["python", "-m", "app"]
+  ```
+
+* **BuildKit Secret Mounts:** If using BuildKit (the default builder in modern Docker), use the `--mount=type=secret` flag in your `RUN` instruction. This allows you to access secrets during the build without them being persisted in the resulting image layer. [cloudnativenow](https://cloudnativenow.com/contributed-content/fresh-secrets-from-the-docks-what-15-million-docker-images-taught-us-about-cloud-security/)
+
+* **Scanning container images in CI before they reach the registry** The fix is preventive: scan images for secrets before pushing to the registry. Several tools can do this as a CI gate.
+
+  * Trivy (`trivy image --scanners secret myapp:latest`) — scans layer content for secret patterns using a regex-based ruleset. Runs against the local daemon or an OCI archive.
+  * Grype combined with Syft — Syft generates an SBOM with file hashes; Grype checks vulnerabilities. Neither scans for secrets natively, so combine with a dedicated secrets scanner.
+  * AquilaX container scan — scans all image layers for secrets, PII, misconfigurations, and known CVEs in a single pipeline step, reporting before push.
+
+  ```yaml
+  - name: Build image
+    run: docker build -t myapp:{{ github.sha }} .
+
+  - name: Scan image for secrets
+    run: |
+      trivy image \
+        --scanners secret \
+        --exit-code 1 \
+        --severity HIGH,CRITICAL \
+        myapp:{{ github.sha }}
+
+  # Push only happens if the scan step exits 0
+  - name: Push to registry
+    run: docker push myapp:{{ github.sha }}
+  ```
+
+#### Simulating deleted files
+
+1. See `demo` directory in the current folder. Create `credentials.json` and `.env` as you want for the demo
+
+2. Build a docker image
+
+    ```bash
+    docker build . -t myapp:latest
+    ```
+
+3. Save this image into a tarball
+
+    ```bash
+    docker save myapp:latest -o myapp.tar
+    ```
+
+4. Create a directory and extract this tar into that directory
+
+    ```bash
+    mkdir demo-layers
+    tar xf myapp.tar -C demo-layers
+    ```
+
+5. The resultant directory would look like below file-structure:
+
+    ```markdown
+    demo-layers/
+    ├── blobs/
+    │   └── sha256/
+    │       ├── 0d30b57f3fb6ed6c403a9b6ee5a16160c7d454393a981ac80d24fbcd5641bcc2
+    │       ├── 2f9c67c20239ed8dbe550626a1c3dfee237fccb7d3de5286ccc6f97f11c6c6c0
+    │       ├── 33aa2b899dd7804bcca493c672a49851847aef274035fbc22e0be3263829f394
+    │       ├── 3a9714186f754e2ca86f9c6d4e8008da151101b99395194e0d3b948140e3a795
+    │       ├── 48fa888e43a1e4f3b646cea884beadce98e46d5247bda8a39fc63d1b6d85bfbf
+    │       ├── 4acebda804f2a04626e03b9b5532a12e53049c5dd3421d63ab9e978908005efc
+    │       ├── 59d3e62b261cc62ea7b78c2400e056baaa025bdf2302256368ce83d95b7ec054
+    │       ├── 6d7c150df58d41c351cd9b03f1cda7a9a23d6fc91436e2bf0f098c6dd78c9c55
+    │       ├── 7e1b0e6d6e9ddbcefacce3c4502df32e3ee45e46937418b7c96fce2e85a0b017
+    │       ├── 82f7b847f70975214b6b73f100ebdc64c70c10dfdaf8243766c7780682fa6819
+    │       ├── 92d5072d497a898e1e46fb80d4ff79b2a8f4fff4810d1d45da10c9d4ee54a00c
+    │       ├── 92f6e74e4a5402a52383533f4a17572b5c7d2b5183fe9ad8d9436476504ba511
+    │       ├── 9539d972866db7bf682308c0b6d9ae6bb4b90512dd7b368986b6bfa647b74ab1
+    │       ├── 9eba44eaea801d1b6bf07fbf41da1becbd2c9df5380c0b3db8bfdfda1d1eb2cd
+    │       ├── ab62238abc728396c78d3907248de01442eb93a77ed70b01aedd7f87a5bc1a20
+    │       ├── b6cbbcd77f2322ee8fe84f590c4826a1c00011595055f445706e2544eb73ab01
+    │       ├── bbdbcef04a10de96e8a2b4db1e7e8016bbc59f29781f512fe292eb5c78e964ee
+    │       ├── d6d1417b6e924eb009ac52bf36d8093dbafd42e53f087cdf0945a858b5260aa4
+    │       ├── d841d8bfc327c8b5445f2c7f465a9bb872c1ba287fdddfa9cd1657dcfeadb8c3
+    │       └── e1ed8e09cf5d7063f9bc9af99b6377f680dba6e9d4bfb60f59834752032d66ab
+    ├── index.json
+    ├── manifest.json
+    ├── oci-layout
+    └── repositories
+    ```
+
+6. Go into the `demo-layers` directory, and see `manifest.json`
+
+    ```bash
+    cd demo-layers
+    cat manifest.json | jq
+    ```
+
+7. Pick a layer(digest) and extract it. Make sure that the layer file is of archive/compressed type
+
+    ```bash
+    $ file blobs/sha256/9539d972866db7bf682308c0b6d9ae6bb4b90512dd7b368986b6bfa647b74ab1
+    blobs/sha256/9539d972866db7bf682308c0b6d9ae6bb4b90512dd7b368986b6bfa647b74ab1: POSIX tar archive
+
+    # For POSIX tar archive
+    tar -xf blobs/sha256/9539d972866db7bf682308c0b6d9ae6bb4b90512dd7b368986b6bfa647b74ab1
+
+    # For gzip compressed data
+    tar -xzf blobs/sha256/9539d972866db7bf682308c0b6d9ae6bb4b90512dd7b368986b6bfa647b74ab1
+    ```
+
+8. The extracted layer will create a directory and files according to what defined in that layer. (creating /root/credentials.json file)
+
+9. (Optional) For reconstructing full filesystem, run below script
+
+    ```bash
+    mkdir rootfs
+    for layer in $(jq -r '.[0].Layers[]' manifest.json); do
+      tar -xf "$layer" -C rootfs
+    done
+    ```
+
+    This ignores whiteouts properly (for full correctness you'd need overlayfs logic), but works for most inspection cases.
+
+##### Find which layer introduced a specific file. The first layer where the file appears
+
+```bash
+for layer in $(jq -r '.[0].Layers[]' manifest.json); do
+  echo "Checking $layer"
+  tar -tf "$layer" | grep -E "^usr/bin/curl$" && echo "FOUND in $layer"
+done
+```
+
+---
+
+>**Handle deletions (whiteouts)**
+
+Docker uses whiteout files:
+
+* .wh.<filename> → deletes a file
+* .wh..wh..opq → wipes a directory
+
+Example:
+
+```bash
+tar -tf <layer> | grep '\.wh\.'
+```
+
+If you see: `usr/bin/.wh.curl`, That layer removes `curl`
+
+##### Diff two layers (like Docker)
+
+Let’s say:
+
+* L1 = blobs/sha256/aaa
+* L2 = blobs/sha256/bbb
+
+1. Extract both:
+
+    ```bash
+    mkdir L1 L2
+    tar -xf blobs/sha256/aaa -C L1
+    tar -xf blobs/sha256/bbb -C L2
+    ```
+
+2. Run `diff`
+
+    ```bash
+    diff -qr L1 L2
+    ```
+
+    This shows:
+    * added files
+    * removed files
+    * changed files
+
+**NOTE**: This is NOT how docker truly diffs. This is just for educational purpose
