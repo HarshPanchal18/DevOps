@@ -1,0 +1,50 @@
+# Stage 1: Dependencies (prod only, cached)
+FROM node:20-alpine AS deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev && \
+    npm cache clean --force
+
+
+    # Stage 2: Build (full deps for compilation)
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+COPY . .
+
+RUN npm run build  # TypeScript/build step; adjust for plain JS
+
+
+# Stage 3: Runtime
+FROM node:20-alpine AS runtime
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist  # Or /app for plain JS
+COPY --from=builder /app/package.json ./
+
+RUN chown -R nodejs:nodejs /app
+
+USER nodejs
+ENV NODE_ENV=production
+EXPOSE 3000
+
+RUN apk add --no-cache dumb-init
+
+ENTRYPOINT ["dumb-init", "--"]
+
+CMD ["node", "dist/index.js"]  # Adjust entrypoint
