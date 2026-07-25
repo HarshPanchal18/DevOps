@@ -312,3 +312,90 @@ Your kube-mgmt arguments are well-configured to:
 - Communicate with OPA over HTTPS without strict TLS verification.
 
 Make sure your RBAC, token, and ConfigMaps are set up correctly to leverage this configuration fully.
+
+## What are violations in Rego?
+
+In Rego, the concept of **"violations"** is not a built-in type but rather a convention used in policy definitions to represent instances where input data does not comply with the policy. The naming and structure of violation rules depend on the policy framework or engine you are using (e.g., plain OPA, Gatekeeper).
+
+Here is an overview of how violations are typically expressed and used in Rego policies:
+
+### 1. **Violation as a Rule Name**
+
+- In many Kubernetes-related OPA policies, especially with **Gatekeeper**, the rule that identifies policy violations is named `violation`.
+- This rule returns a set or array of violation objects, each describing a specific policy failure.
+- The `violation` rule triggers when all conditions inside its body evaluate to true.
+
+Example from Gatekeeper-style policy:
+
+```rego
+violation[{"msg": msg}] {
+    container := input.review.object.spec.containers[_]
+    not startswith(container.image, "repo.example.com/")
+    msg := sprintf("Image %v is not from allowed repo", [container.image])
+}
+```
+
+- Here, each element in the `violation` array corresponds to a detected violation with a message.
+
+### 2. **Deny as a Rule Name**
+
+- In plain OPA policies (without Gatekeeper), the convention is often to use a rule named `deny` that returns a set of denial reasons.
+- The presence of any element in `deny` means the input is rejected.
+
+Example:
+
+```rego
+deny[msg] {
+    input.kind == "Pod"
+    not input.metadata.labels["approved"]
+    msg := "Pods must have the 'approved' label"
+}
+```
+
+- This `deny` rule collects denial messages for inputs that violate the policy.
+
+### 3. **Differences Between `violation` and `deny`**
+
+- Both are conventions for expressing policy failures.
+- Gatekeeper uses `violation` rules because it integrates with its Constraint framework, which expects violations to be reported this way.
+- Plain OPA examples often use `deny` as a simpler convention.
+- The semantics are similar: if the rule produces any results, the input is considered non-compliant.
+
+### 4. **What Constitutes a Violation in Rego?**
+
+- A violation is typically any instance where the policy logic detects that input data does not meet a required condition.
+- Violations are expressed as rules that produce structured data (e.g., messages) describing the failure.
+- You can have multiple violations per evaluation, allowing comprehensive reporting.
+
+### 5. **Other Related Concepts**
+
+- **Allow** rules: Some policies define `allow` rules that explicitly permit actions, with the absence of `allow` implying denial.
+- **Complete vs Partial Rules**: Rules can be defined to produce single or multiple values; conflicts or undefined results can cause errors.
+- **Logical Operators**: Rego uses logical AND (`;` or new lines) and OR (multiple rule bodies) to combine conditions that define violations.
+
+- **Summary**
+
+| Violation Type | Description                                                  | Usage Context                   |
+|----------------|--------------------------------------------------------------|--------------------------------|
+| `violation`    | Rule that returns violation details; used by Gatekeeper      | Gatekeeper policies             |
+| `deny`         | Rule that returns denial reasons; common in plain OPA        | Plain OPA policies              |
+| Custom rules   | Any rule returning structured data indicating policy failure | Flexible; depends on policy design |
+
+### References from Search Results
+
+- Gatekeeper policies use `violation` rules to report all detected violations without stopping at the first one.
+- Plain OPA commonly uses `deny` rules as a convention to indicate policy denial reasons.
+- Rego rules define logical conditions that, when true, produce violation messages or deny reasons.
+- The exact naming and structure depend on the policy framework and your conventions.
+
+If you want, I can help you draft example Rego violation or deny rules tailored to your use case.
+
+- [1] <https://openpolicyagent.org/docs>
+- [2] <https://openpolicyagent.org/docs/policy-language>
+- [3] <https://stackoverflow.com/questions/67391066/why-is-the-exact-difference-between-violation-and-deny-in-opa-rego>
+- [4] <https://openpolicyagent.org/docs/policy-reference>
+- [5] <https://engineering.sada.com/examining-gatekeeper-understanding-rego-for-opa-gatekeeper-policy-development-c0ef2f0b46f1>
+- [6] <https://www.redhat.com/en/blog/better-kubernetes-security-with-open-policy-agent-opa-part-2>
+- [7] <https://scalr.com/blog/everything-you-need-to-know-about-open-policy-agent-opa-and-terraform>
+- [8] <https://open-policy-agent.github.io/gatekeeper/website/docs/constrainttemplates>
+- [9] <https://snyk.io/blog/rego-103-values-and-rules/>
