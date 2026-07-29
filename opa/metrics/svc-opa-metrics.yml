@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa-metrics
+  namespace: opa
+spec:
+  selector:
+    app: opa  # Match your OPA pod labels
+  ports:
+    - name: http-metrics
+      port: 8181
+      targetPort: 8181

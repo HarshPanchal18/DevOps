@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatekeeper-metrics
+  namespace: gatekeeper-system
+spec:
+  selector:
+    control-plane: controller-manager  # Use actual pod labels
+  ports:
+    - name: http-metrics
+      port: 8888
+      targetPort: 8888
