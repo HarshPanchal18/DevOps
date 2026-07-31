@@ -1,0 +1,54 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sBlockNodePort
+
+metadata:
+  name: block-nodeport
+
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+
+# Optionals
+  parameters:
+    message: "NodePort services are not allowed in this cluster."
+    severity: "error"
+    excludeNamespaces:
+      - kube-system
+      - gatekeeper-system
+
+  enforcementAction: "deny"
+  validation:
+    deny:
+      conditions:
+        all:
+          - key: "request.object.spec.type"
+            operator: "In"
+            values: ["NodePort"]
+          - key: "request.object.metadata.namespace"
+            operator: "NotIn"
+            values: ["kube-system", "gatekeeper-system"]
+
+  auditAction: "warn"
+  audit:
+    conditions:
+      all:
+        - key: "request.object.spec.type"
+          operator: "In"
+          values: ["NodePort"]
+        - key: "request.object.metadata.namespace"
+          operator: "NotIn"
+          values: ["kube-system", "gatekeeper-system"]
+
+  labels:
+    gatekeeper.sh/constraint: "block-nodeport"
+    gatekeeper.sh/enforcement: "deny"
+    gatekeeper.sh/audit: "warn"
+
+  annotations:
+    gatekeeper.sh/description: "This constraint blocks NodePort services in the cluster, except in specified namespaces."
+    gatekeeper.sh/createdBy: "OPA Gatekeeper"
+    gatekeeper.sh/version: "v1.0.0"
+    gatekeeper.sh/createdAt: "{{ now | date('RFC3339') }}"
+    gatekeeper.sh/updatedAt: "{{ now | date('RFC3339') }}"

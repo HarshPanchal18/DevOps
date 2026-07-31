@@ -1,0 +1,15 @@
+# This service should be blocked by the OPA Gatekeeper constraint because it is of type NodePort and not in the allowed namespaces.
+apiVersion: v1
+kind: Service
+metadata:
+  name: block-nodeport-svc
+  namespace: opa
+
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30000
+  selector:
+    app: example-app
