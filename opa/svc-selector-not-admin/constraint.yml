@@ -1,0 +1,10 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sServiceSelectorNotAdmin
+metadata:
+  name: k8sserviceselectornotadmin
+
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
