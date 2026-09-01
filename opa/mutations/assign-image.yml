@@ -1,0 +1,20 @@
+# Setting a Pod's container image to use a specific digest using AssignImage
+
+apiVersion: mutations.gatekeeper.sh/v1alpha1
+kind: AssignImage
+metadata:
+  name: add-nginx-digest
+spec:
+  applyTo:
+    - groups: [ "" ]
+      kinds: [ "Pod" ]
+      versions: [ "v1" ]
+  location: "spec.containers[name:nginx].image"
+  parameters:
+    assignTag: "@sha256:abcde67890123456789abc345678901a"
+  match:
+    source: "All"
+    scope: Namespaced
+    kinds:
+      - apiGroups: [ "*" ]
+        kinds: [ "Pod" ]

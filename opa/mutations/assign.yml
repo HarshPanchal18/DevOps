@@ -1,0 +1,117 @@
+# Adding dnsPolicy and dnsConfig to a Pod using Assign
+apiVersion: mutations.gatekeeper.sh/v1
+kind: Assign
+metadata:
+  name: demo-dns-policy
+spec:
+  applyTo:
+    - groups: [""]
+      kinds: ["Pod"]
+      versions: ["v1"]
+  match:
+    scope: Namespaced
+    kinds:
+      - apiGroups: ["*"]
+        kinds: ["Pod"]
+  location: "spec.dnsPolicy"
+  parameters:
+    assign:
+      value: None
+---
+apiVersion: mutations.gatekeeper.sh/v1
+kind: Assign
+metadata:
+  name: demo-dns-config
+spec:
+  applyTo:
+    - groups: [""]
+      kinds: ["Pod"]
+      versions: ["v1"]
+  match:
+    scope: Namespaced
+    kinds:
+      - apiGroups: ["*"]
+        kinds: ["Pod"]
+  location: "spec.dnsConfig"
+  parameters:
+    assign:
+      value:
+        nameservers:
+        - 1.2.3.4
+
+---
+
+# Adding a network sidecar to a Pod using Assign
+apiVersion: mutations.gatekeeper.sh/v1
+kind: Assign
+metadata:
+  name: demo-sidecar
+spec:
+  applyTo:
+    - groups: [""]
+      kinds: ["Pod"]
+      versions: ["v1"]
+  match:
+    scope: Namespaced
+    kinds:
+      - apiGroups: ["*"]
+        kinds: ["Pod"]
+  location: "spec.containers[name:networking]"
+  parameters:
+    assign:
+      value:
+        name: "networking"
+        imagePullPolicy: Always
+        image: quay.io/foo/bar:latest
+        command: ["/bin/bash", "-c", "sleep INF"]
+
+---
+
+# Setting security context of a specific container to non-privileged using Assign
+
+apiVersion: mutations.gatekeeper.sh/v1
+kind: Assign
+metadata:
+  name: demo-privileged
+spec:
+  applyTo:
+    - groups: [""]
+      kinds: ["Pod"]
+      versions: ["v1"]
+  match:
+    scope: Namespaced # Scope of the mutated resource.
+    kinds:
+      - apiGroups: ["*"]
+        kinds: ["Pod"]
+    namespaces: ["bar"] # Match only Pods in the "bar" namespace
+  location: "spec.containers[name:foo].securityContext.privileged" # Path to modify.
+  parameters:
+    assign:
+      value: false # New value to assign.
+    pathTests: # Conditions for applying the mutation.
+      - subPath: "spec.containers[name:foo]" # Path to check.
+        condition: MustExist # Condition that must be true for the mutation to apply.
+
+---
+
+# Setting imagePullPolicy to Always for all containers except in the system namespace using Assign
+
+apiVersion: mutations.gatekeeper.sh/v1
+kind: Assign
+metadata:
+  name: demo-image-pull-policy
+spec:
+  applyTo:
+    - groups: [""]
+      kinds: ["Pod"]
+      versions: ["v1"]
+  match:
+    scope: Namespaced
+    kinds:
+      - apiGroups: ["*"]
+        kinds: ["Pod"]
+    excludedNamespaces: ["system"]
+  location: "spec.containers[name:*].imagePullPolicy"
+  parameters:
+    assign:
+      value: Always

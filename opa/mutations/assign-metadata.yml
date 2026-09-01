@@ -1,0 +1,11 @@
+apiVersion: mutations.gatekeeper.sh/v1
+kind: AssignMetadata
+metadata:
+  name: demo-annotation-owner
+spec:
+  match:
+    scope: Namespaced # Scope of the mutated resource.
+  location: "metadata.annotations.owner" # Location to modify.
+  parameters:
+    assign:
+      value: "admin" # Default value to assign on location.
