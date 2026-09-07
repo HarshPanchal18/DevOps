@@ -212,3 +212,45 @@ helm repo update
 # List available repositories
 helm repo list
 ```
+
+## Chart Development
+
+Create a new helm chart.
+
+```bash
+helm create my-web-app
+```
+
+This generates the following structure:
+
+```markdown
+my-web-app/
+├── Chart.yaml          # Chart metadata
+├── values.yaml         # Default configuration values
+├── charts/             # Chart dependencies
+├── templates/          # Kubernetes resource templates
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── ingress.yaml
+│   ├── serviceaccount.yaml
+│   ├── _helpers.tpl    # Template helpers
+│   └── tests/
+│       └── test-connection.yaml
+└── .helmignore         # Files to ignore when packaging
+```
+
+## Troubleshootings
+
+```bash
+$ helm list -A
+missing profile snap.helm.helm.
+Please make sure that the snapd.apparmor service is enabled and started
+```
+
+Solution:
+
+```bash
+sudo apparmor_parser -r /var/lib/snapd/apparmor/profiles/snap.helm.helm
+sudo systemctl enable snapd.apparmor
+sudo systemctl start snapd.apparmor
+```
