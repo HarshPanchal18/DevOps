@@ -254,3 +254,25 @@ sudo apparmor_parser -r /var/lib/snapd/apparmor/profiles/snap.helm.helm
 sudo systemctl enable snapd.apparmor
 sudo systemctl start snapd.apparmor
 ```
+
+## Hooks in Helm
+
+allow chart developers to intervene at certain points in a release's life cycle. For example, you can use hooks to:
+
+- Load a ConfigMap or Secret during install before any other charts are loaded.
+- Execute a Job to back up a database before installing a new chart, and then execute a second job after the upgrade in order to restore data.
+- Run a Job before deleting a release to gracefully take a service out of rotation before removing it.
+
+The type of Hooks:
+
+| Annotation Value | Description |
+| --- | --- |
+| `pre-install` | Executes after templates are rendered, but before any resources are created in Kubernetes |
+| `post-install` | Executes after all resources are loaded into Kubernetes |
+| `pre-delete` | Executes on a deletion request before any resources are deleted from Kubernetes |
+| `post-delete` | Executes on a deletion request after all of the release's resources have been deleted |
+| `pre-upgrade` | Executes on an upgrade request after templates are rendered, but before any resources are updated |
+| `post-upgrade` | Executes on an upgrade request after all resources have been upgraded |
+| `pre-rollback` | Executes on a rollback request after templates are rendered, but before any resources are rolled back |
+| `post-rollback` | Executes on a rollback request after all resources have been modified |
+| `test` | Executes when the Helm test subcommand is invoked [view docs](https://helm.sh/docs/topics/chart_tests/) |
