@@ -276,3 +276,39 @@ The type of Hooks:
 | `pre-rollback` | Executes on a rollback request after templates are rendered, but before any resources are rolled back |
 | `post-rollback` | Executes on a rollback request after all resources have been modified |
 | `test` | Executes when the Helm test subcommand is invoked [view docs](https://helm.sh/docs/topics/chart_tests/) |
+
+## Using Github as a Helm repository
+
+1. Package your chart:
+
+    ```bash
+    helm package mychart/
+    ```
+
+    - This results in generating `.tgz` file of your helm chart.
+
+2. Create repo index:
+
+    ```bash
+    helm repo index .
+    ```
+
+    - This results in generating `index.yaml` file holding metadata of your helm chart.
+
+3. Host on GitHub Pages:
+
+    - Push `.tgz` + `index.yaml` in a GitHub repository
+    - Enable GitHub Pages for the same branch or push directly into branch **gh-pages** to enable automatic~ally
+
+4. Add repo in cluster:
+
+    ```bash
+    helm repo add charts-harsh https://HarshPanchal18.github.io/helm-charts
+    helm repo update
+    ```
+
+5. Install chart:
+
+    ```bash
+    helm install todo-app charts-harsh/todo
+    ```
