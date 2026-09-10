@@ -107,6 +107,24 @@ echo $CONSOLE_SECRET_KEY | base64 --decode # password
 
 - To view all **the buckets of tenant**, access tenant's `object store` at `https://<worker-node-ip>:<tenant-console-lb-port>` using the access key and secret key.
 
+### Teardown
+
+```bash
+kubectl delete -f sa.yml -n minio-operator
+kubectl delete -f cr-crb.yml -n minio-operator
+kubectl delete -f svc.yml -n minio-operator
+kubectl delete -f sc-pv.yml -n minio-operator
+kubectl delete -f deploy-operator.yml -n minio-operator
+kubectl delete -f console-ui.yml -n minio-operator
+
+kubectl delete -f crd/ -n minio-operator
+
+kubectl delete namespace minio-operator
+
+kubectl delete crd miniojobs.job.min.io
+kubectl delete crd tenants.minio.min.io
+```
+
 ## Operations
 
 ### Expand tenant by adding a new pool
